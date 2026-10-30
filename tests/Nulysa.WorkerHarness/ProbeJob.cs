@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -63,7 +64,7 @@ public sealed class ProbeJob(AppDbContext db) : IJob
             await Probe.Complete(db, key, CancellationToken.None);
             return;
         }
-        if (mode == "crash-always" || (first && mode == "crash-before")) Environment.FailFast("Synthetic worker crash.");
+        if (mode == "crash-always" || (first && mode == "crash-before")) Crash();
         if (mode == "fail") throw new InvalidOperationException("private-test-provider-payload");
         if (mode == "timeout")
         {
@@ -73,8 +74,16 @@ public sealed class ProbeJob(AppDbContext db) : IJob
         }
         if (first && mode is "block-before" or "overlap") await WaitForRelease(db, key, cancellationToken);
         await Probe.Complete(db, key, cancellationToken);
-        if (first && mode == "crash-after") Environment.FailFast("Synthetic worker crash after commit.");
+        if (first && mode == "crash-after") Crash();
         if (first && mode == "block-after") await WaitForRelease(db, key, cancellationToken);
+    }
+
+    // SIGKILL simulates process death without SIGABRT, which desktop crash reporters flag.
+    private static void Crash()
+    {
+        using var process = Process.GetCurrentProcess();
+        process.Kill();
+        Environment.FailFast("Synthetic worker crash fallback.");
     }
 
     private static async Task WaitForRelease(AppDbContext db, string key, CancellationToken ct)
