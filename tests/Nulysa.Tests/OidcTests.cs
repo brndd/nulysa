@@ -252,6 +252,29 @@ public sealed class OidcTests : OidcTest
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("connect/register")).StatusCode);
     }
 
+    [Fact]
+    public async Task Prompt_login_and_max_age_require_a_fresh_login_before_issuing_a_code()
+    {
+        await CreateUser(); await CreateClient();
+        await using var app = await StartProvider();
+        using var client = Client();
+        Assert.Equal(HttpStatusCode.Redirect, (await Login(client)).StatusCode);
+        foreach (var parameter in new[] { "prompt=login", "max_age=0" })
+        {
+            var response = await client.GetAsync(AuthorizeUrl() + "&" + parameter);
+            Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+            Assert.Equal("/Account/Login", response.Headers.Location!.AbsolutePath);
+            var query = QueryHelpers.ParseQuery(response.Headers.Location.Query);
+            var returnUrl = query["ReturnUrl"].ToString();
+            Assert.DoesNotContain("prompt=", returnUrl);
+            Assert.DoesNotContain("max_age=", returnUrl);
+            Assert.Equal(HttpStatusCode.Redirect, (await Login(client)).StatusCode);
+            var retried = await client.GetAsync(returnUrl);
+            Assert.Equal(HttpStatusCode.Redirect, retried.StatusCode);
+            Assert.Contains("code=", retried.Headers.Location!.Query);
+        }
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

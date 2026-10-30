@@ -4,6 +4,7 @@ using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Nulysa.Data;
@@ -82,6 +83,17 @@ public sealed class OidcController(AppDbContext db, UserManager<User> users) : C
         }
         var user = await users.GetUserAsync(cookie.Principal!);
         if (user is null || !user.MayLogIn) return Deny(Errors.AccessDenied);
+        if (request.HasPromptValue(PromptValues.Login) || request.MaxAge is not null)
+        {
+            await HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
+            var query = QueryHelpers.ParseQuery(Request.QueryString.Value);
+            query.Remove("prompt");
+            query.Remove("max_age");
+            return Challenge(new AuthenticationProperties
+            {
+                RedirectUri = Request.PathBase + Request.Path + QueryString.Create(query)
+            }, IdentityConstants.ApplicationScheme);
+        }
         return SignIn(Principal(user, request.GetScopes()), Scheme);
     }
 
