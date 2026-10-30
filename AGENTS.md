@@ -1,21 +1,15 @@
-# Working in this project
+# Testing instructions
 
-- Read `AGENTS/SPEC.md` and `AGENTS/ARCHITECTURE.md`; follow their current slice.
-  Preserve confirmed domain decisions and distinguish proposals from policy.
-- S0 has an ASP.NET Core implementation and its own synthetic PostgreSQL/process/
-  OIDC/browser acceptance suite; see `docs/foundations.md` for evidence and limits.
-  S1 has not been implemented. Do not claim Django tests validate the new stack.
-- Target C#/ASP.NET Core on a supported .NET LTS release, Blazor Web App (static SSR
-  by default, selective Interactive Server; no initial WebAssembly/Auto mode),
-  EF Core/Npgsql/PostgreSQL, Identity/OpenIddict and Quartz.NET persistent jobs.
-  Pin SDK/packages during scaffolding; no SQLite support initially.
-- The S0 portal uses Blazor static SSR; login/logout remain HTTP-based Razor Pages.
-  Preserve those authentication endpoints and S0 tests when extending the UI.
-- Use named commands and direct calls, one explicit transaction for domain writes
-  and associated Quartz scheduling, and scoped DbContexts. No generic repository,
-  mediator/event pipeline or custom queue framework.
-- Use real isolated PostgreSQL for database/financial/concurrency/worker tests;
-  never production data. Keep secrets local and out of docs/source control.
-- `~/code/nulysa-py/` is the Django design/test reference; `~/code/mulysa/` is the legacy
-  integration/migration reference. Do not modify either as part of this replacement
-  unless explicitly asked. `README.md` indexes the planning documents.
+- Before `dotnet test` (fast suite), start local PostgreSQL: `docker compose up -d postgres`.
+- Full suite: `dotnet test --settings tests.full.runsettings`. Full suite also requires
+  Keycloak: `docker compose -f compose.yaml -f compose.keycloak.yaml up -d`, plus Playwright
+  Chromium. Wait for containers to be ready; see [README checks](README.md#checks) for setup.
+- When writing tests, consider their runtime. Very slow tests should not be enabled by default.
+  The test suite with slow tests excluded should be able to finish in less than 60 seconds.
+- Keep slow tests to the "full" test suite.
+- Add or update tests for the code you change.
+
+# Editing this file
+
+- This file should be kept minimal. It is read by every agent working in the repo.
+  Only add truly useful, terse information applicable to the entire project here.
