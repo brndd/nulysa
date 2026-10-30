@@ -35,6 +35,7 @@ public sealed class ConfigurationTests : DatabaseTest
     }
 
     [Fact]
+    [Trait("Category", "Slow")]
     public async Task Status_command_is_machine_readable_with_nonzero_exit_on_failure_and_never_prints_secrets()
     {
         var configuration = new DirectoryInfo(AppContext.BaseDirectory).Parent!.Name;

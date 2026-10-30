@@ -63,6 +63,11 @@ security fixes rather than suppressing vulnerability warnings.
 
 `scripts/test_dev.py` separately checks the development launcher's environment,
 process cleanup and failure paths.
+`dotnet test` uses the fast default filter in `tests.runsettings`; slow recovery,
+retry/status and browser checks run with `dotnet test --settings tests.full.runsettings`.
+The full target remains the acceptance gate and is run by CI, not the default target.
+Both targets were verified after the split: 27/27 standard cases passed in 18.7s
+(25.4s including restore/build); 41/41 full cases passed in 115.3s (117.2s total).
 Commands and prerequisites are in
 [`README.md`](../README.md); GitHub Actions runs them and the release-container smoke.
 CI configuration existing in this checkout is not a claim that a remote Actions run

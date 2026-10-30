@@ -47,6 +47,7 @@ public sealed class UiTests : OidcTest
 }
 
 [Trait("Group", "Browser")]
+[Trait("Category", "Slow")]
 public sealed class InteractiveUiTests : OidcTest
 {
     [Fact]

@@ -56,16 +56,49 @@ Never use the published synthetic development credentials in a deployment.
 
 ## Checks
 
-The full suite needs the disposable PostgreSQL above, local Keycloak and Chromium.
-Tests create/drop only uniquely named `nulysa_s0_*` databases and a synthetic realm.
-They refuse a non-loopback database/broker; no production data or legacy importer
-is involved. The test database role needs `CREATEDB`.
+The standard test target is fast by default:
+
+```sh
+docker compose up -d postgres
+dotnet test
+```
+
+`tests.runsettings` excludes tests marked `Category=Slow` and the `Group=Browser`
+tests. It keeps fast PostgreSQL schema, transaction/concurrency, schedule, OIDC and
+static UI checks. Chromium and Keycloak are not needed for this target. An additional
+`--filter` narrows this selection; use the full settings when targeting excluded tests.
+
+The **full target**, including all slow and browser tests, is:
+
+```sh
+dotnet test --settings tests.full.runsettings
+```
+
+For example, run only the slow cases with
+`dotnet test --settings tests.full.runsettings --filter 'Category=Slow'`.
+
+It needs PostgreSQL, local Keycloak and Chromium. Tests create/drop only uniquely
+named `nulysa_s0_*` databases and a synthetic realm. They refuse a non-loopback
+database/broker; no production data or legacy importer is involved. The test
+database role needs `CREATEDB`.
+
+Measured locally with dependencies already running (restore/build included):
+
+| Target | Cases | Test execution | Total command |
+| --- | ---: | ---: | ---: |
+| Standard | 27 | 18.7s | 25.4s |
+| Full | 41 | 115.3s | 117.2s |
+
+Mark new slow tests with `[Trait("Category", "Slow")]`; browser tests use
+`[Trait("Group", "Browser")]`. Fast database tests should stay in the standard suite.
+
+Full acceptance checks (also run by CI):
 
 ```sh
 docker compose -f compose.yaml -f compose.keycloak.yaml up -d
 dotnet build -c Release
 tests/Nulysa.Tests/bin/Release/net10.0/.playwright/node/linux-x64/node tests/Nulysa.Tests/bin/Release/net10.0/.playwright/package/cli.js install chromium
-dotnet test --no-build -c Release
+dotnet test --no-build -c Release --settings tests.full.runsettings
 dotnet format --verify-no-changes --no-restore
 python3 scripts/test_dev.py
 bash scripts/container-smoke.sh
@@ -73,9 +106,14 @@ bash scripts/container-smoke.sh
 
 Wait for PostgreSQL and `http://127.0.0.1:58080/realms/master/.well-known/openid-configuration`
 before testing. Missing prerequisites fail tests; none of these gates silently skip.
-Use `dotnet test --filter 'Group!=Browser&Group!=Worker'` for a shorter local run.
 Override `NULYSA_TEST_POSTGRES` or `NULYSA_TEST_KEYCLOAK` only for disposable loopback
 instances. Worker/process tests use bounded readiness polling, not simulated workers.
+
+The last full-run timings identified circuit revalidation (~31s), worker recovery/
+retry scenarios (~55s combined), and subprocess status checks (~6s) as the main slow
+paths. They remain intact in the full target; no assertions or recovery waits were
+weakened to make the standard target faster. Browser tests are full-only because
+they also require external browser/broker setup.
 
 `scripts/container-smoke.sh` builds the release image and checks separate web/worker
 processes, encrypted persistent keys, migrations, timer wiring, diagnostics and

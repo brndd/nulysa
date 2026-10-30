@@ -43,6 +43,7 @@ public sealed class WorkerTests : DatabaseTest
     }
 
     [Fact]
+    [Trait("Category", "Slow")]
     public async Task Queued_work_survives_worker_restarts_and_competing_instances()
     {
         await using var db = Context();
@@ -58,6 +59,7 @@ public sealed class WorkerTests : DatabaseTest
     }
 
     [Theory]
+    [Trait("Category", "Slow")]
     [InlineData("crash-before", false)]
     [InlineData("crash-after", false)]
     [InlineData("crash-before", true)]
@@ -87,6 +89,7 @@ public sealed class WorkerTests : DatabaseTest
     }
 
     [Fact]
+    [Trait("Category", "Slow")]
     public async Task Graceful_shutdown_cancels_and_hands_back_recoverable_firing()
     {
         await using var db = Context();
@@ -101,6 +104,7 @@ public sealed class WorkerTests : DatabaseTest
     }
 
     [Theory]
+    [Trait("Category", "Slow")]
     [InlineData("fail")]
     [InlineData("timeout")]
     public async Task Ordinary_failures_and_cooperative_timeouts_have_bounded_retries_and_redacted_shared_history(string mode)
@@ -136,6 +140,7 @@ public sealed class WorkerTests : DatabaseTest
     }
 
     [Fact]
+    [Trait("Category", "Slow")]
     public async Task False_failure_detection_and_late_completion_cannot_duplicate_or_lose_work()
     {
         await using var db = Context();
@@ -158,6 +163,7 @@ public sealed class WorkerTests : DatabaseTest
     }
 
     [Fact]
+    [Trait("Category", "Slow")]
     public async Task Cancellation_is_cooperative_and_cannot_kill_a_handler_that_ignores_it()
     {
         await using var db = Context();
@@ -178,6 +184,7 @@ public sealed class WorkerTests : DatabaseTest
     }
 
     [Fact]
+    [Trait("Category", "Slow")]
     public async Task Repeated_process_death_is_visible_from_original_work_age_without_failure_history()
     {
         await using var db = Context();
