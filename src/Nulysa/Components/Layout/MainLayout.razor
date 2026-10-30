@@ -2,5 +2,8 @@
 @inject IConfiguration Configuration
 
 <header><a href="/">@Configuration["Association:Name"]</a></header>
+<AuthorizeView Policy="Superuser">
+    <Authorized><nav aria-label="System administration"><a href="/system-console">System Console</a></nav></Authorized>
+</AuthorizeView>
 <main>@Body</main>
 <footer><small>Powered by Nulysa</small></footer>

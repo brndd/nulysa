@@ -4,6 +4,15 @@ S0 is implemented in C#/ASP.NET Core. Evidence below comes from this checkout's
 synthetic PostgreSQL/process/protocol/browser tests, **not** the Django suite.
 No membership, billing, mail delivery or legacy migration workflow is implemented.
 
+A first post-S0 System Console increment now provides a superuser-only static SSR
+shell and read-only scheduler diagnostics. Operator CLI commands grant/revoke the
+Identity `Superuser` role; live checks deny board-only users and revoked accounts.
+`SystemConsoleTests` covers route/query permissions, existing-cookie revocation,
+health/failure/unavailable views and CLI provisioning (the subprocess case is
+full-suite-only). Further cross-module diagnostics remain feature follow-up.
+Verified 31 October 2026: 28/28 fast cases (about 20 seconds) and 43/43 full Release
+cases passed; formatting and migration-model consistency checks passed.
+
 The portal uses a Blazor Web App with static SSR by default and opt-in Interactive
 Server support. Login/logout remain HTTP-based Razor Pages. `UiTests` covers static
 rendering, branding, framework assets and antiforgery-protected HTTP logout;

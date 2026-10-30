@@ -296,8 +296,10 @@ clear rather than require editing raw database records.
   merely navigation visibility. Ordinary members, trainers and board administrators
   without superuser capability must not access these details. Board administration
   must not be able to grant superuser capability through ordinary settings or member
-  editing; the operator-authorized provisioning/revocation mechanism remains to be
-  specified.
+  editing. Operator-only `grant-superuser <user-id>` / `revoke-superuser <user-id>`
+  commands assign/remove the Identity `Superuser` role for an existing account;
+  ordinary login/account gates still apply. Check the live assignment when accessing
+  the console so an old cookie cannot retain revoked authority.
 - The initial area is read-only. Add useful diagnostics alongside features as they
   are implemented throughout the delivery slices; there is no fixed inventory of
   screens to complete upfront, nor does this requirement retroactively expand S0.

@@ -61,6 +61,14 @@ try
             Console.WriteLine(JsonSerializer.Serialize(report, JsonSerializerOptions.Web));
             Environment.ExitCode = report.Healthy ? 0 : 1;
             break;
+        case "grant-superuser":
+        case "revoke-superuser":
+            if (args.Length != 2 || !long.TryParse(args[1], out var userId) || userId <= 0)
+                throw new InvalidOperationException("Supply one existing numeric user ID.");
+            await Superusers.Set(db, scope.ServiceProvider.GetRequiredService<UserManager<User>>(),
+                scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<long>>>(), userId, mode == "grant-superuser");
+            Console.WriteLine("Superuser assignment updated.");
+            break;
         case "register-client":
             var clients = scope.ServiceProvider.GetRequiredService<IOpenIddictApplicationManager>();
             var id = app.Configuration["Oidc:ClientId"] ?? throw new InvalidOperationException("Oidc:ClientId required.");
@@ -79,19 +87,38 @@ try
             });
             break;
         case "create-development-user" when app.Environment.IsDevelopment():
-            var users = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
-            var email = app.Configuration["DevelopmentUser:Email"] ?? throw new InvalidOperationException("DevelopmentUser:Email required.");
-            var result = await users.CreateAsync(new User { Email = email, UserName = email, EmailConfirmed = true, Admitted = true, Name = "Synthetic Member" },
-                app.Configuration["DevelopmentUser:Password"] ?? throw new InvalidOperationException("DevelopmentUser:Password required."));
-            if (!result.Succeeded) throw new InvalidOperationException("Development user creation failed.");
-            break;
-        default: throw new InvalidOperationException("Use web, worker, migrate, install-schedules, status, register-client or create-development-user (Development only).");
+            {
+                var users = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
+                var email = app.Configuration["DevelopmentUser:Email"] ?? throw new InvalidOperationException("DevelopmentUser:Email required.");
+                var password = app.Configuration["DevelopmentUser:Password"];
+                if (string.IsNullOrWhiteSpace(password)) throw new InvalidOperationException("A non-empty development password is required.");
+                // Only this Development-only command's scoped manager accepts weak passwords.
+                users.PasswordValidators.Clear();
+                await using var creation = await db.Database.BeginTransactionAsync();
+                var user = new User { Email = email, UserName = email, EmailConfirmed = true, Admitted = true, Name = "Synthetic Member" };
+                var result = await users.CreateAsync(user, password);
+                if (!result.Succeeded) throw new InvalidOperationException("Development user creation failed.");
+                await Superusers.Set(db, users, scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<long>>>(), user.Id, true);
+                await creation.CommitAsync();
+                break;
+            }
+        default: throw new InvalidOperationException("Use web, worker, migrate, install-schedules, status, grant-superuser <user-id>, revoke-superuser <user-id>, register-client or create-development-user (Development only).");
     }
     await scheduler.Shutdown();
 }
 catch (Exception) when (mode == "status")
 {
     Console.WriteLine("{\"healthy\":false,\"issues\":[\"database_unavailable\"]}");
+    Environment.ExitCode = 1;
+}
+catch (Exception) when (mode is "grant-superuser" or "revoke-superuser")
+{
+    Console.Error.WriteLine("Superuser assignment failed. Verify the numeric user ID and database access.");
+    Environment.ExitCode = 1;
+}
+catch (Exception) when (mode == "create-development-user")
+{
+    Console.Error.WriteLine("Development user creation failed. Check the email, non-empty password and whether the account already exists.");
     Environment.ExitCode = 1;
 }
 await app.DisposeAsync();

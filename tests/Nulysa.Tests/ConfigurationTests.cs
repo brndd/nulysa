@@ -2,6 +2,9 @@ using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.DependencyInjection;
+using Nulysa.Accounts;
 using Nulysa.Operations;
 
 namespace Nulysa.Tests;
@@ -9,6 +12,45 @@ namespace Nulysa.Tests;
 [Trait("Group", "Protocol")]
 public sealed class ConfigurationTests : DatabaseTest
 {
+    [Fact]
+    [Trait("Category", "Slow")]
+    public async Task Development_user_command_creates_superuser_with_weak_password_without_relaxing_normal_validation()
+    {
+        async Task<int> Create(string email, string password)
+        {
+            var configuration = new DirectoryInfo(AppContext.BaseDirectory).Parent!.Name;
+            var info = new ProcessStartInfo("dotnet") { RedirectStandardOutput = true, RedirectStandardError = true };
+            info.ArgumentList.Add(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../src/Nulysa/bin", configuration, "net10.0/Nulysa.dll")));
+            info.ArgumentList.Add("create-development-user");
+            info.Environment["DOTNET_ENVIRONMENT"] = "Development";
+            foreach (var (name, value) in Settings) info.Environment[name.Replace(":", "__")] = value;
+            info.Environment["DevelopmentUser__Email"] = email;
+            info.Environment["DevelopmentUser__Password"] = password;
+            using var process = Process.Start(info)!;
+            var stdout = process.StandardOutput.ReadToEndAsync();
+            var stderr = process.StandardError.ReadToEndAsync();
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+            await process.WaitForExitAsync(deadline.Token);
+            await Task.WhenAll(stdout, stderr);
+            return process.ExitCode;
+        }
+        Assert.Equal(0, await Create("weak@example.test", "x"));
+        Assert.Equal(1, await Create("weak@example.test", "x")); // Email uniqueness remains enforced.
+        Assert.Equal(1, await Create("empty@example.test", ""));
+        Assert.Equal(1, await Create("blank@example.test", "   "));
+        await using var scope = Maintenance.Services.CreateAsyncScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
+        var user = (await users.FindByEmailAsync("weak@example.test"))!;
+        Assert.True(await users.CheckPasswordAsync(user, "x"));
+        Assert.NotEqual("x", user.PasswordHash);
+        Assert.True(await users.IsInRoleAsync(user, "Superuser"));
+        var normal = await users.CreateAsync(new User { Email = "normal@example.test", UserName = "normal@example.test" }, "x");
+        Assert.False(normal.Succeeded);
+        Assert.Contains(normal.Errors, error => error.Code == "PasswordTooShort");
+        Assert.Null(await users.FindByEmailAsync("empty@example.test"));
+        Assert.Null(await users.FindByEmailAsync("blank@example.test"));
+    }
+
     [Fact]
     public async Task Disabled_provider_has_no_protocol_endpoints_and_production_configuration_fails_closed()
     {

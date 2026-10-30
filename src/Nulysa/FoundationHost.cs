@@ -1,5 +1,6 @@
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -105,7 +106,10 @@ public static class FoundationHost
         }
         if (mode != "worker")
         {
-            builder.Services.AddAuthorizationBuilder().AddPolicy("Administrator", policy => policy.RequireRole("Administrator"));
+            builder.Services.AddAuthorizationBuilder().AddPolicy("Administrator", policy => policy.RequireRole("Administrator"))
+                .AddPolicy("Superuser", policy => policy.RequireAuthenticatedUser().AddRequirements(new SuperuserRequirement()));
+            builder.Services.AddScoped<IAuthorizationHandler, SuperuserAuthorizationHandler>();
+            builder.Services.AddScoped<SchedulerDiagnostics>();
             builder.Services.AddRazorPages();
             builder.Services.AddRazorComponents().AddInteractiveServerComponents();
             builder.Services.AddCascadingAuthenticationState();

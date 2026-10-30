@@ -190,8 +190,9 @@ applicant or pending-deletion account may not.
 - Have one full board-administrator role and separately granted sysop/superuser
   capability for System Console access; board authority must not satisfy the superuser policy
   or permit self-escalation. An account may hold both. See the confirmed
-  [System Console contract](SPEC.md#system-console); technical role representation
-  and operator-authorized provisioning/revocation remain implementation follow-up.
+  [System Console contract](SPEC.md#system-console). Identity's `Superuser` role is
+  assigned/revoked through operator-only CLI commands. Its policy checks the live
+  database assignment and account gates in a fresh scope, not cached role claims.
   Trainers get qualification-scoped authority records, not staff access.
   Check permissions and object ownership in
   commands as well as views. An ID in a URL or hidden navigation item grants no
@@ -516,7 +517,9 @@ Assume trusted sysops with server access; omit unnecessarily sensitive data with
 building a console-specific redaction framework, as specified in
 [SPEC.md](SPEC.md#system-console). Existing log/history redaction remains unchanged.
 The CLI status command remains usable independently for external monitoring; the
-System Console is not yet implemented by S0 and is not an added S0 exit gate.
+System Console's first increment is implemented after S0: a static SSR shell and
+read-only scheduler diagnostics, not an added S0 exit gate or completed inventory
+of future diagnostic views.
 Any later retry/cancel/repair action must go through the relevant authorized,
 duplicate-safe application operation with confirmation, reason and audit. Do not expose
 arbitrary Run now, type selection or schedule editing as an administrative shortcut.

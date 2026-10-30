@@ -85,8 +85,20 @@ Local command access is operator access; protect container/DB/shell permissions.
 The specification also requires a separate superuser-only, initially read-only
 [System Console](../AGENTS/SPEC.md#system-console). It is cross-cutting, not limited
 to the `operations` module; diagnostic views will be added alongside features
-throughout implementation. It is not implemented in S0 or an added S0 exit gate.
-Board-administrator access alone will not grant access. Superusers are trusted
+throughout implementation. The first post-S0 increment is at `/system-console`,
+showing scheduler health, schedule state/next execution/last success and the latest
+50 final failure observations. It is a read-only snapshot; reload to refresh.
+Unavailable diagnostics are reported as unavailable, not healthy. There are no
+retry/cancel/schedule-edit actions. This is not an added S0 exit gate.
+
+Use operator-shell commands `dotnet Nulysa.dll grant-superuser <user-id>` and
+`dotnet Nulysa.dll revoke-superuser <user-id>` for existing numeric account IDs.
+They serialize role changes in a transaction and are idempotent. Neither command
+creates/adopts a member or bypasses account gates. There is no web role editor.
+The console route and diagnostic query both check live superuser assignment in a
+fresh scope; revocation does not wait for existing cookie role claims to expire.
+
+Board-administrator access alone does not grant access. Superusers are trusted
 sysops with assumed server access; avoid unnecessarily displaying sensitive data,
 without elaborate console-specific redaction. Existing log/history redaction is
 unchanged. The CLI status command remains the independent monitoring interface.

@@ -1,0 +1,59 @@
+@page "/system-console"
+@attribute [Authorize(Policy = "Superuser")]
+@layout SystemConsoleLayout
+@using Nulysa.Operations
+@inject SchedulerDiagnostics Diagnostics
+@inject AuthenticationStateProvider Authentication
+@inject IConfiguration Configuration
+@inject ILogger<SystemConsole> Logger
+
+<PageTitle>System Console — @Configuration["Association:Name"]</PageTitle>
+<h2>Scheduler diagnostics</h2>
+<p>Read-only snapshot. Reload to refresh. All timestamps are UTC.</p>
+@if (unavailable)
+{
+    <p role="alert">Scheduler diagnostics unavailable. Check the worker, database and operator logs.</p>
+}
+else if (report is not null)
+{
+    <p role="status">@(report.Work.Healthy ? "Healthy" : "Attention required")</p>
+    <dl>
+        <dt>Pending one-shot jobs</dt><dd>@report.Work.PendingWork</dd>
+        <dt>Final failures</dt><dd>@report.Work.FinalFailures</dd>
+        <dt>Oldest pending work age (seconds)</dt><dd>@(report.Work.OldestWorkAgeSeconds?.ToString("F0") ?? "None")</dd>
+    </dl>
+    <ul>@foreach (var issue in report.Work.Issues) { <li>@issue</li> }</ul>
+    <table>
+        <caption>Maintenance schedules</caption>
+        <thead><tr><th scope="col">Schedule</th><th scope="col">State</th><th scope="col">Next execution</th><th scope="col">Last success</th></tr></thead>
+        <tbody>
+            @foreach (var schedule in report.Schedules)
+            {
+                <tr><th scope="row">@schedule.Name</th><td>@schedule.State</td><td>@Timestamp(schedule.NextFire)</td><td>@Timestamp(schedule.LastSuccess)</td></tr>
+            }
+        </tbody>
+    </table>
+    <h3>Latest final failure observations (up to 50)</h3>
+    <p>Diagnostic observations, not business history. A later successful occurrence can clear them.</p>
+    <ul>@foreach (var failure in report.Failures) { <li>@failure.Job — @Timestamp(failure.LastFailedAt)</li> }</ul>
+}
+
+@code {
+    [CascadingParameter] private HttpContext HttpContext { get; set; } = null!;
+    private SchedulerReport? report;
+    private bool unavailable;
+
+    protected override async Task OnInitializedAsync()
+    {
+        HttpContext.Response.Headers.CacheControl = "no-cache, no-store";
+        HttpContext.Response.Headers.Pragma = "no-cache";
+        try { report = await Diagnostics.Read((await Authentication.GetAuthenticationStateAsync()).User, HttpContext.RequestAborted); }
+        catch (Exception error) when (error is Npgsql.NpgsqlException or Quartz.SchedulerException)
+        {
+            unavailable = true;
+            Logger.LogWarning("Scheduler diagnostics unavailable ({ErrorType}).", error.GetType().Name);
+        }
+    }
+
+    private static string Timestamp(DateTimeOffset? value) => value?.UtcDateTime.ToString("u") ?? "None";
+}

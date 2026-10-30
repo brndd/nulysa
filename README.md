@@ -51,8 +51,33 @@ DevelopmentUser__Password='Synthetic-local-password-123!' \
 bash scripts/dev.sh create-development-user
 ```
 
-This command is unavailable in Production. OIDC is disabled unless configured.
+This command is unavailable in Production. It grants the new account the `Superuser`
+role for System Console access; account creation and the grant commit together.
+It accepts any non-empty password,
+without Identity's password-complexity rules; normal password validation is unchanged.
+OIDC is disabled unless configured.
 Never use the published synthetic development credentials in a deployment.
+
+## System Console
+
+The read-only console at `/system-console` currently shows scheduler health,
+maintenance schedules/last successes and recent final failure observations. Other
+diagnostics will be added with their features. Only the separate `Superuser` role
+grants access; board `Administrator` membership is not sufficient.
+
+From an operator shell, grant/revoke access for an **existing numeric user ID**
+(replace `123`; account IDs can be inspected in PostgreSQL):
+
+```sh
+bash scripts/dev.sh grant-superuser 123
+bash scripts/dev.sh revoke-superuser 123
+```
+
+Production uses `dotnet Nulysa.dll grant-superuser 123` / `revoke-superuser 123`
+with the usual private environment. These idempotent commands do not create or
+approve accounts, and there is no web role editor. Normal login/account gates still
+apply. Authorization checks the current database assignment, so revocation takes
+effect on the next console request/query without waiting for cookie renewal.
 
 ## Checks
 
@@ -82,12 +107,16 @@ named `nulysa_s0_*` databases and a synthetic realm. They refuse a non-loopback
 database/broker; no production data or legacy importer is involved. The test
 database role needs `CREATEDB`.
 
-Measured locally with dependencies already running (restore/build included):
+Baseline measured when the fast/full split was introduced, with dependencies
+already running (restore/build included):
 
 | Target | Cases | Test execution | Total command |
 | --- | ---: | ---: | ---: |
 | Standard | 27 | 18.7s | 25.4s |
 | Full | 41 | 115.3s | 117.2s |
+
+The current totals are 29 standard / 45 full cases;
+the standard suite still runs in about 20 seconds, below the 60-second budget.
 
 Mark new slow tests with `[Trait("Category", "Slow")]`; browser tests use
 `[Trait("Group", "Browser")]`. Fast database tests should stay in the standard suite.
