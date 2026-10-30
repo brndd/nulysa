@@ -247,7 +247,7 @@ These are conceptual distinctions, not database tables or a settled data model.
 - Sysop/superuser capability is separately granted technical authority. Board
   administration does not grant it; the same account may hold both capabilities.
   Unless explicitly stated otherwise, "administrator" elsewhere in this specification
-  means a board administrator, not a sysop. The superuser-only Operations web area
+  means a board administrator, not a sysop. The superuser-only System Console
   is distinct from the day-to-day administrative workspaces below.
 - Defer the separate communications permission to a later release. Initial-product
   communications access is restricted to full administrators.
@@ -258,7 +258,7 @@ These are conceptual distinctions, not database tables or a settled data model.
 - Ordinary members access their own records and self-service functions only.
   There is no member directory or ability to browse other members' profiles.
 - The future newsletter permission does not grant general registry, financial or
-  Operations/superuser access. Its exact recipient-data visibility remains to be
+  System Console/superuser access. Its exact recipient-data visibility remains to be
   specified with that later feature.
 - Non-administrator trainers have qualification-scoped grant/revoke authority as
   defined in phase 4. This narrow operational permission does not introduce layered
@@ -282,41 +282,43 @@ Existing requirements for recorded reasons, expiry dates and audit trails apply
 to the relevant actions. Destructive operations should make their consequences
 clear rather than require editing raw database records.
 
-### Sysop Operations area
+### System Console
 
 **Confirmed**
 
-- Provide a superuser-only **Operations** web area for technical inspection,
+- Provide a superuser-only **System Console** web area for technical inspection,
   troubleshooting and exceptional circumstances. It supplements, rather than
   replaces, the board's membership/payment/subscription/storage workspaces and
-  operator maintenance commands.
+  operator maintenance commands. It is a cross-cutting "under the hood" view of
+  the whole application, not a UI limited to the `operations` module. Each module
+  retains ownership of its data, rules and commands.
 - Enforce superuser authorization on routes and underlying queries/actions, not
   merely navigation visibility. Ordinary members, trainers and board administrators
   without superuser capability must not access these details. Board administration
   must not be able to grant superuser capability through ordinary settings or member
   editing; the operator-authorized provisioning/revocation mechanism remains to be
   specified.
-- The initial area is read-only. Show the relevant technical details rather than
-  only a green/red summary, with links between related records where useful:
-
-  | Area | Inspection scope |
-  | --- | --- |
-  | Application/database | Running release/version, environment, applied/pending migrations and schema status. |
-  | Background work | Installed schedules, next executions, heartbeats, outstanding work age, retries and redacted execution/failure history. |
-  | Integrations | Last successful synchronizations, failures and correlation/reconciliation identifiers. |
-  | Authentication | Account gates, lockout/security-stamp status and OIDC client/token lifecycle metadata, not credential or token values. |
-  | Domain troubleshooting | Internal record IDs, operation/idempotency keys, relationships and relevant audit/correction history. |
-  | Configuration | Effective non-secret settings and configuration sources, not secret values. |
-
-- Technical access does not waive privacy/retention rules. Use purpose-specific
-  projections and redaction; do not expose passwords/hashes, client secrets, private
-  keys, raw tokens or unfiltered provider payloads/logs. Do not preserve erased
-  profiles or duplicate personal data merely to populate this area.
+- The initial area is read-only. Add useful diagnostics alongside features as they
+  are implemented throughout the delivery slices; there is no fixed inventory of
+  screens to complete upfront, nor does this requirement retroactively expand S0.
+  Potential views include release/schema status, schedules and failures, integration
+  activity, authentication state, effective configuration, and internal records,
+  relationships or operation keys from any domain module. These are examples, not
+  an exhaustive or mandatory initial checklist. Show useful technical detail rather
+  than only green/red summaries, linking related records where helpful.
+- Superusers are trusted sysops assumed to have SSH access to the application
+  server and its data already; the console is not intended to conceal server data
+  from them. Elaborate console-specific redaction machinery is not required.
+  Nonetheless, do not display sensitive user data or credentials where they are
+  unnecessary for the diagnostic task. Privacy/retention rules still apply: do not
+  preserve erased profiles or duplicate personal data merely to populate the console.
+  This does not relax existing protections for logs, job payloads, exports or
+  lower-privilege interfaces.
 - Any later repair action needs an explicitly designed, authorized application
   command with preview/confirmation, a recorded reason and an audit trail. Superuser
   status does not bypass domain validation, financial invariants or transactional
   boundaries. No unrestricted database-row editor, SQL console, arbitrary job
-  execution or schedule editing is implied by Operations access. An uncertain
+  execution or schedule editing is implied by System Console access. An uncertain
   external send still requires reconciliation, not blind retry.
 
 ### Application intake and verification

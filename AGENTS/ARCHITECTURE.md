@@ -39,7 +39,7 @@ application-wide event sourcing. Provider adapters use small C# contracts where 
 real external boundary needs one, not interfaces for every class or dynamically
 installed plugins. No generic repositories over EF Core, mediator/handler pipeline
 or automatic domain-event bus. Board administration uses purpose-built pages;
-sysops have a separate superuser-only Operations web area and narrow maintenance
+sysops have a separate superuser-only System Console and narrow maintenance
 commands. There is no assumed generic replacement for Django admin.
 
 ### Confirmed UI rendering contract
@@ -111,8 +111,14 @@ in the planning docs are not final C# casing conventions.
 | `access` | Resources, qualifications/trainers, current fob registrations, ownership history, devices and access events. | Reimplementing billing on readers. |
 | `storage` | Runtime-defined groups/positions, queues/offers, rentals, term options and handover. | Recurring subscriptions or its own credit ledger. |
 | `integrations` | Bank/provider/OIDC adapters, external source identities, sync runs and reconciliation inputs. | Policy embedded in provider-specific payload parsing. |
-| `operations` | Narrow durable work dispatch, scheduler bookkeeping, health and the superuser-only Operations diagnostic web area. | A configurable business-process platform, unrestricted database editor or a second domain audit journal. |
+| `operations` | Narrow durable work dispatch, scheduler bookkeeping, health and operator diagnostics. | Other modules' diagnostic views, a configurable business-process platform, unrestricted database editor or a second domain audit journal. |
 | `flows` | Explicit cross-module commands and composed read queries. No domain tables. | A service locator, generic repository layer or universal event bus. |
+
+The System Console is a cross-cutting web area, not another domain module or a
+synonym for `operations`. Add diagnostic views from any module alongside its feature
+implementation, keeping data/rules with their owning module and composing queries
+where necessary. No plugin framework or upfront catalogue of diagnostic screens is
+required; see the [System Console contract](SPEC.md#system-console).
 
 Within a feature, start with entities/mappings, commands, queries, pages/input
 models and tests. Split files when they become large, not into an elaborate layer
@@ -182,9 +188,9 @@ applicant or pending-deletion account may not.
   deferred. Daily expired-token/authorization cleanup must preserve usable refresh
   chains; cookie-only authentication has no assumed Django-style session table.
 - Have one full board-administrator role and separately granted sysop/superuser
-  capability for Operations; board authority must not satisfy the superuser policy
+  capability for System Console access; board authority must not satisfy the superuser policy
   or permit self-escalation. An account may hold both. See the confirmed
-  [Operations contract](SPEC.md#sysop-operations-area); technical role representation
+  [System Console contract](SPEC.md#system-console); technical role representation
   and operator-authorized provisioning/revocation remain implementation follow-up.
   Trainers get qualification-scoped authority records, not staff access.
   Check permissions and object ownership in
@@ -501,13 +507,16 @@ commits and may fail or be trimmed; history is diagnostics, not durable delivery
 truth or an audit journal. Monitor oldest unfinished business work, heartbeats,
 misfires, crash loops and final failures rather than success/failure counts alone.
 Expose technical status/history in the initially read-only, superuser-only
-Operations web area, separate from the board's attention dashboard. Project existing
-diagnostic/domain records rather than build a second source of truth; include the
-release/schema, integration, authentication and non-secret configuration details
-specified in [SPEC.md](SPEC.md#sysop-operations-area). Protect each route/query and
-test denial for ordinary members and board-only administrators, as well as
-superuser access and redaction. The CLI status command remains usable independently
-for external monitoring; this web area is not yet implemented by S0.
+System Console, separate from the board's attention dashboard. Project existing
+diagnostic/domain records rather than build a second source of truth. Scheduler
+diagnostics are one contribution, not the limit of the console's scope; add other
+views as their features are implemented. Protect each route/query and test denial
+for ordinary members and board-only administrators, as well as superuser access.
+Assume trusted sysops with server access; omit unnecessarily sensitive data without
+building a console-specific redaction framework, as specified in
+[SPEC.md](SPEC.md#system-console). Existing log/history redaction remains unchanged.
+The CLI status command remains usable independently for external monitoring; the
+System Console is not yet implemented by S0 and is not an added S0 exit gate.
 Any later retry/cancel/repair action must go through the relevant authorized,
 duplicate-safe application operation with confirmation, reason and audit. Do not expose
 arbitrary Run now, type selection or schedule editing as an administrative shortcut.

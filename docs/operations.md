@@ -83,9 +83,13 @@ no public scheduler dashboard, arbitrary Run now or editable job-type endpoint.
 Local command access is operator access; protect container/DB/shell permissions.
 
 The specification also requires a separate superuser-only, initially read-only
-[Operations web area](../AGENTS/SPEC.md#sysop-operations-area). It is not implemented
-in S0. Board-administrator access alone will not grant access to its technical
-diagnostics; the CLI status command remains the independent monitoring interface.
+[System Console](../AGENTS/SPEC.md#system-console). It is cross-cutting, not limited
+to the `operations` module; diagnostic views will be added alongside features
+throughout implementation. It is not implemented in S0 or an added S0 exit gate.
+Board-administrator access alone will not grant access. Superusers are trusted
+sysops with assumed server access; avoid unnecessarily displaying sensitive data,
+without elaborate console-specific redaction. Existing log/history redaction is
+unchanged. The CLI status command remains the independent monitoring interface.
 
 Checks include:
 
