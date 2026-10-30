@@ -1,0 +1,8 @@
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4.7
+    network_mode: host
+    command: ["start-dev", "--http-port=58080", "--http-host=127.0.0.1"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: s0-admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: synthetic-admin-password

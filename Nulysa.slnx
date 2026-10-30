@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Nulysa/Nulysa.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Nulysa.Tests/Nulysa.Tests.csproj" />
+    <Project Path="tests/Nulysa.WorkerHarness/Nulysa.WorkerHarness.csproj" />
+  </Folder>
+</Solution>

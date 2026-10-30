@@ -1,0 +1,12 @@
+**/bin/
+**/obj/
+**/TestResults/
+.local/
+.env
+*.user
+playwright-report/
+
+# Editor junk
+.idea/
+.editorconfig
+

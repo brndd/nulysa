@@ -1,0 +1,11 @@
+@page
+@model Nulysa.Pages.Account.LoginModel
+@{ ViewData["Title"] = "Log in"; }
+<h1>Log in</h1>
+<form method="post">
+    <div asp-validation-summary="All" role="alert"></div>
+    <input type="hidden" asp-for="ReturnUrl" />
+    <p><label asp-for="Email"></label> <input asp-for="Email" autocomplete="username" required /></p>
+    <p><label asp-for="Password"></label> <input asp-for="Password" autocomplete="current-password" required /></p>
+    <button type="submit">Log in</button>
+</form>

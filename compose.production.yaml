@@ -1,0 +1,51 @@
+x-application: &application
+  image: nulysa:local
+  build: .
+  environment: &settings
+    DOTNET_ENVIRONMENT: Production
+    ConnectionStrings__Database: ${NULYSA_DATABASE:?Supply the private PostgreSQL connection string}
+    AllowedHosts: ${NULYSA_HOST:?Supply the public hostname}
+    Association__Name: ${NULYSA_ASSOCIATION:-Nulysa}
+    ReverseProxy__KnownProxy: ${NULYSA_PROXY:?Supply the single trusted proxy IP}
+    Oidc__Enabled: ${NULYSA_OIDC_ENABLED:-false}
+    Oidc__Issuer: ${NULYSA_ISSUER:-}
+    Oidc__SigningKeyPath: /run/nulysa/signing.pem
+    Oidc__EncryptionKeyPath: /run/nulysa/encryption.pem
+    DataProtection__CertificatePath: /run/nulysa/data-protection.pfx
+    DataProtection__CertificatePassword: ${NULYSA_KEY_PASSWORD:?Supply the key-protection certificate password}
+  volumes:
+    - keys:/keys
+    - ${NULYSA_SECRETS_DIRECTORY:?Supply the private key directory}:/run/nulysa:ro
+  depends_on:
+    postgres:
+      condition: service_healthy
+  restart: unless-stopped
+services:
+  postgres:
+    image: docker.io/library/postgres:18.4
+    environment:
+      POSTGRES_DB: nulysa
+      POSTGRES_USER: nulysa
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Supply the database password}
+    volumes: ["postgres:/var/lib/postgresql"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nulysa -d nulysa"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+  web:
+    <<: *application
+    command: ["web"]
+    ports: ["127.0.0.1:58000:8080"]
+  worker:
+    <<: *application
+    command: ["worker"]
+  maintenance:
+    <<: *application
+    profiles: ["release"]
+    command: ["migrate"]
+    restart: "no"
+volumes:
+  postgres:
+  keys:

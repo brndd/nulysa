@@ -1,0 +1,39 @@
+name: Foundation gates
+on: [push, pull_request]
+jobs:
+  s0:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      DOTNET_ENVIRONMENT: Development
+      ConnectionStrings__Database: Host=127.0.0.1;Port=55432;Database=nulysa;Username=nulysa;Password=synthetic-local-password
+      DataProtection__Path: /tmp/opencode/nulysa-ci-keys
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash -n scripts/dev.sh && python3 scripts/test_dev.py
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: docker compose -f compose.yaml -f compose.keycloak.yaml up -d
+      - name: Wait for disposable dependencies
+        run: |
+          for attempt in $(seq 1 90); do
+            if docker compose exec -T postgres pg_isready -U nulysa -d nulysa && curl --fail --silent http://127.0.0.1:58080/realms/master/.well-known/openid-configuration > /dev/null; then exit 0; fi
+            sleep 2
+          done
+          exit 1
+      - run: dotnet tool restore
+      - run: dotnet restore --locked-mode
+      - run: dotnet format --verify-no-changes --no-restore
+      - run: dotnet build --no-restore -c Release
+      - run: dotnet ef migrations has-pending-model-changes --project src/Nulysa --no-build --configuration Release
+      - run: tests/Nulysa.Tests/bin/Release/net10.0/.playwright/node/linux-x64/node tests/Nulysa.Tests/bin/Release/net10.0/.playwright/package/cli.js install --with-deps chromium
+      - run: dotnet test --no-build -c Release --logger trx
+      - run: bash scripts/container-smoke.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: foundation-test-results
+          path: '**/TestResults/*.trx'
+      - if: always()
+        run: docker compose -f compose.yaml -f compose.keycloak.yaml down

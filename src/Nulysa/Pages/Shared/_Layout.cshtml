@@ -1,0 +1,14 @@
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@ViewData["Title"] — @Configuration["Association:Name"]</title>
+</head>
+<body>
+    <header><a asp-page="/Index">@Configuration["Association:Name"]</a></header>
+    <main>@RenderBody()</main>
+    <footer><small>Powered by Nulysa</small></footer>
+</body>
+</html>
