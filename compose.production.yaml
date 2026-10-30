@@ -20,6 +20,7 @@ x-application: &application
     postgres:
       condition: service_healthy
   restart: unless-stopped
+  stop_grace_period: 25s
 services:
   postgres:
     image: docker.io/library/postgres:18.4
