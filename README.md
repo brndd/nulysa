@@ -75,8 +75,13 @@ instances. Worker/process tests use bounded readiness polling, not simulated wor
 
 `scripts/container-smoke.sh` builds the release image and checks separate web/worker
 processes, encrypted persistent keys, migrations, timer wiring, diagnostics and
-schedule reinstall in a fresh database. It supports `CONTAINER_ENGINE=podman` and
-`NULYSA_TEST_POSTGRES_CONTAINER=<container-id>`. CI runs all gates.
+schedule reinstall in a fresh database. CI runs all gates. With Podman Compose,
+pass the PostgreSQL container explicitly because `compose ps -q` is unsupported:
+
+```sh
+CONTAINER_ENGINE=podman NULYSA_TEST_POSTGRES_CONTAINER=<container-id> \
+    bash scripts/container-smoke.sh
+```
 
 ## Containers
 

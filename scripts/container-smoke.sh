@@ -3,6 +3,7 @@ set -euo pipefail
 
 # All names and the database are created by this run; never point this at production.
 engine=${CONTAINER_ENGINE:-docker}
+# Podman Compose does not support `compose ps -q`; pass NULYSA_TEST_POSTGRES_CONTAINER.
 pg=${NULYSA_TEST_POSTGRES_CONTAINER:-$($engine compose ps -q postgres)}
 test -n "$pg"
 name="nulysa-smoke-$$"
