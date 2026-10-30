@@ -85,7 +85,8 @@ public sealed class OidcController(AppDbContext db, UserManager<User> users) : C
         if (user is null || !user.MayLogIn) return Deny(Errors.AccessDenied);
         if (request.HasPromptValue(PromptValues.Login) || request.MaxAge is not null)
         {
-            await HttpContext.SignOutAsync(IdentityConstants.ApplicationScheme);
+            // No authentication time is stored, so max_age always re-authenticates; prompt=none cannot satisfy that.
+            if (request.MaxAge is not null && request.HasPromptValue(PromptValues.None)) return Deny(Errors.LoginRequired);
             var query = QueryHelpers.ParseQuery(Request.QueryString.Value);
             query.Remove("prompt");
             query.Remove("max_age");

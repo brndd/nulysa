@@ -275,6 +275,32 @@ public sealed class OidcTests : OidcTest
         }
     }
 
+    [Fact]
+    public async Task Prompt_none_with_max_age_returns_login_required_without_showing_the_login_page()
+    {
+        await CreateUser(); await CreateClient();
+        await using var app = await StartProvider();
+        using var client = Client();
+        Assert.Equal(HttpStatusCode.Redirect, (await Login(client)).StatusCode);
+        var response = await client.GetAsync(AuthorizeUrl() + "&prompt=none&max_age=0");
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        var query = QueryHelpers.ParseQuery(response.Headers.Location!.Query);
+        Assert.Equal("login_required", query["error"].ToString());
+        Assert.Equal("synthetic-state", query["state"].ToString());
+    }
+
+    [Fact]
+    public async Task Abandoning_a_fresh_login_keeps_the_existing_session()
+    {
+        await CreateUser(); await CreateClient();
+        await using var app = await StartProvider();
+        using var client = Client();
+        Assert.Equal(HttpStatusCode.Redirect, (await Login(client)).StatusCode);
+        var challenged = await client.GetAsync(AuthorizeUrl() + "&prompt=login");
+        Assert.Equal("/Account/Login", challenged.Headers.Location!.AbsolutePath);
+        Assert.NotEmpty(await Code(client));
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
