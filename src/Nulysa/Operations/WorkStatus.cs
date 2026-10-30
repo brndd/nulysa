@@ -33,11 +33,11 @@ public static class WorkStatus
 
         // Original enqueue time lives on the immutable job detail, not the replaced recovery trigger.
         var keys = await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("work"), ct);
+        var jobs = await scheduler.GetJobDetails(keys, ct);
         DateTimeOffset? oldest = null;
-        foreach (var key in keys)
+        foreach (var job in jobs)
         {
-            var job = await scheduler.GetJobDetail(key, ct);
-            if (!DateTimeOffset.TryParse(job?.JobDataMap.GetString("enqueued_at"), CultureInfo.InvariantCulture,
+            if (!DateTimeOffset.TryParse(job.JobDataMap.GetString("enqueued_at"), CultureInfo.InvariantCulture,
                 DateTimeStyles.AssumeUniversal, out var created)) issues.Add("unreadable_work");
             else if (oldest is null || created < oldest) oldest = created;
         }

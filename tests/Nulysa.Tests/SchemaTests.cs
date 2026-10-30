@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -77,10 +78,15 @@ public sealed class SchemaTests : DatabaseTest
         await db.SaveChangesAsync();
         await Scheduler.ScheduleJob(JobBuilder.Create<ProbeJob>().WithIdentity("unreadable", "work").Build(),
             TriggerBuilder.Create<ProbeJob>().StartAt(DateTimeOffset.UtcNow.AddDays(1)).Build());
+        await Scheduler.ScheduleJob(JobBuilder.Create<ProbeJob>().WithIdentity("aged", "work")
+                .UsingJobData("enqueued_at", DateTimeOffset.UtcNow.AddMinutes(-10).ToString("O", CultureInfo.InvariantCulture)).Build(),
+            TriggerBuilder.Create<ProbeJob>().StartAt(DateTimeOffset.UtcNow.AddDays(1)).Build());
         await db.Database.ExecuteSqlRawAsync("DELETE FROM qrtz_execution_history; DELETE FROM qrtz_job_status;");
         var report = await WorkStatus.Read(db, Scheduler, TimeProvider.System);
         Assert.Contains("failed_work", report.Issues);
         Assert.Contains("unreadable_work", report.Issues);
+        Assert.Contains("aged_work", report.Issues);
+        Assert.True(report.OldestWorkAgeSeconds >= 600);
         Assert.Contains("overdue_schedule", report.Issues);
         Assert.Equal(1, report.FinalFailures);
     }
