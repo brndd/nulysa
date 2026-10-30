@@ -44,6 +44,7 @@ for attempt in $(seq 1 60); do
 done
 test "$ready" = true
 curl --fail --silent -H 'X-Forwarded-Proto: https' "http://127.0.0.1:$port/Account/Login" > /dev/null
+curl --fail --silent -H 'X-Forwarded-Proto: https' "http://127.0.0.1:$port/_framework/blazor.web.js" | grep 'Blazor' > /dev/null
 $engine exec "$name-web" sh -c 'grep -q encryptedSecret /keys/*.xml'
 # The web image must initialize the store without acquiring/executing scheduled jobs.
 test "$($engine exec "$pg" psql -U nulysa "$database" -Atc 'SELECT count(*) FROM "Observations"')" = 0

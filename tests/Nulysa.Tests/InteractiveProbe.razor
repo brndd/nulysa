@@ -1,0 +1,13 @@
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Web
+
+<AuthorizeView>
+    <Authorized><p>Signed in</p></Authorized>
+    <NotAuthorized><p>Signed out</p></NotAuthorized>
+</AuthorizeView>
+<button @onclick="() => count++" disabled="@(!RendererInfo.IsInteractive)">Increment</button>
+<p role="status">@count</p>
+
+@code {
+    private int count;
+}

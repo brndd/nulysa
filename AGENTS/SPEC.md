@@ -65,6 +65,12 @@ replacement should behave.
   relationships, database constraints and explicit transaction boundaries; let EF Core
   migrations manage application schema. Quartz's versioned schema has its own
   controlled installation/upgrade path.
+- Use a Blazor Web App as the primary UI, with static server-side rendering (SSR)
+  and ordinary HTTP forms by default. Enable Interactive Server selectively for
+  richer pages/components, such as a graphical storage-position selector; do not
+  make the whole application interactive. WebAssembly, Auto render mode and a
+  separate client project are not initial scope. This replaces the Razor Pages/HTMX
+  direction; it does not change domain policies or require a separate frontend API.
 - Use PostgreSQL for development, production and database tests, with containerized
   production deployment. The .NET application and worker may run directly on the
   host against a local PostgreSQL container; a fully containerized development

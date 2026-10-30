@@ -45,6 +45,12 @@ required values privately; `.env` and `.local/` are ignored by Git.
   5 seconds plus a 15-second failure-detection allowance; test fixtures use shorter
   values. Raise these for expected production pauses, not to promise exactly once.
 
+The portal is static SSR by default. When adding Interactive Server components,
+the TLS proxy must support long-lived SignalR/WebSocket connections. Multiple web
+instances need session affinity for circuits; sharing Data Protection keys alone
+does not share their in-memory UI state. A restart can lose that state, so keep
+operation outcomes in PostgreSQL and recheck them after reconnect/reload.
+
 Never put secrets, profiles, provider payloads or personal identifiers into job keys
 or history. Registered jobs receive minimal string identifiers. The failure wrapper
 keeps the exception type, not its private message/inner exception. Database history

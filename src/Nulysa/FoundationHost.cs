@@ -1,11 +1,13 @@
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Nulysa.Accounts;
+using Nulysa.Components;
 using Nulysa.Data;
 using Nulysa.Operations;
 using Quartz;
@@ -16,8 +18,9 @@ public static class FoundationHost
 {
     public static WebApplication Build(string[] args, Action<WebApplicationBuilder>? customize = null)
     {
-        var builder = WebApplication.CreateBuilder(new WebApplicationOptions { Args = args, ApplicationName = typeof(FoundationHost).Assembly.FullName });
+        var builder = WebApplication.CreateBuilder(new WebApplicationOptions { Args = args, ApplicationName = typeof(FoundationHost).Assembly.GetName().Name });
         customize?.Invoke(builder);
+        if (builder.Environment.IsDevelopment()) builder.WebHost.UseStaticWebAssets();
         var mode = args.FirstOrDefault() ?? "web";
         if (mode == "status") builder.Logging.ClearProviders();
         ConfigureServices(builder, mode);
@@ -36,7 +39,10 @@ public static class FoundationHost
         }
         app.UseAuthentication();
         app.UseAuthorization();
+        app.UseAntiforgery();
+        app.MapStaticAssets();
         app.MapRazorPages();
+        app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
         if (builder.Configuration.GetValue<bool>("Oidc:Enabled")) app.MapControllers();
         app.MapGet("/health/live", () => Results.Ok(new { status = "alive" }));
         return app;
@@ -101,6 +107,9 @@ public static class FoundationHost
         {
             builder.Services.AddAuthorizationBuilder().AddPolicy("Administrator", policy => policy.RequireRole("Administrator"));
             builder.Services.AddRazorPages();
+            builder.Services.AddRazorComponents().AddInteractiveServerComponents();
+            builder.Services.AddCascadingAuthenticationState();
+            builder.Services.AddScoped<AuthenticationStateProvider, AccountAuthenticationStateProvider>();
             builder.Services.AddControllers();
         }
         var oidc = builder.Services.AddOpenIddict().AddCore(options => options.UseEntityFrameworkCore().UseDbContext<AppDbContext>());

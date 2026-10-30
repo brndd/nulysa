@@ -5,9 +5,12 @@
 - S0 has an ASP.NET Core implementation and its own synthetic PostgreSQL/process/
   OIDC/browser acceptance suite; see `docs/foundations.md` for evidence and limits.
   S1 has not been implemented. Do not claim Django tests validate the new stack.
-- Target C#/ASP.NET Core on a supported .NET LTS release, Razor Pages/HTMX,
+- Target C#/ASP.NET Core on a supported .NET LTS release, Blazor Web App (static SSR
+  by default, selective Interactive Server; no initial WebAssembly/Auto mode),
   EF Core/Npgsql/PostgreSQL, Identity/OpenIddict and Quartz.NET persistent jobs.
   Pin SDK/packages during scaffolding; no SQLite support initially.
+- The S0 portal uses Blazor static SSR; login/logout remain HTTP-based Razor Pages.
+  Preserve those authentication endpoints and S0 tests when extending the UI.
 - Use named commands and direct calls, one explicit transaction for domain writes
   and associated Quartz scheduling, and scoped DbContexts. No generic repository,
   mediator/event pipeline or custom queue framework.

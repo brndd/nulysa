@@ -27,7 +27,7 @@ distributed infrastructure.
 | --- | --- |
 | Runtime | C# on a supported .NET LTS release; .NET 10 LTS is the initial target, with SDK/patch pinned at scaffolding. Enable nullable-reference analysis. Do not inherit the Python dependency set. |
 | Database | PostgreSQL in development, production and database CI, through EF Core and Npgsql. One application DbContext coordinates domain/Identity/OpenIddict tables; Quartz owns separate tables in the same database and explicitly shares application transactions for scheduling. No SQLite support initially. |
-| Web UI | Razor Pages and ordinary server-rendered HTML/forms, progressively enhanced with HTMX where useful. Customizable association branding, including page titles, with unobtrusive Nulysa attribution. No Blazor, separate SPA, frontend authentication system or mandatory public CRUD API. Narrow protocol/device endpoints need not be Razor Pages. |
+| Web UI | Blazor Web App with static SSR and ordinary HTTP forms by default; selective Interactive Server pages/components for richer interactions. Use Blazor's enhanced navigation/form handling where useful, not a parallel HTMX layer. Customizable association branding, including page titles, with unobtrusive Nulysa attribution. No initial WebAssembly/Auto mode, separate client project, frontend authentication system or mandatory public CRUD API. Protocol/device endpoints remain ordinary ASP.NET Core endpoints. |
 | Background work | Quartz.NET 4 with PostgreSQL AdoJobStore, a separate worker process and a small configurable execution pool. Enable persistence, clustering, recovery, retry policies and database execution history explicitly. No Redis/RabbitMQ or custom queue framework. Prove transaction/recovery behaviour in S0 (section 7). |
 | Email and PDFs | Scaleway TEM adapter initially, using bounded HttpClient calls; editable, localised email templates with restricted placeholders. Keep Typst for invoice PDFs, invoking a pinned CLI as a controlled child process and reusing the association's parameterized template. Use trusted source, structured input, controlled private assets/packages/fonts and no arbitrary runtime remote fetching. Rich-text editor and sanitisation-library choices remain deferred. |
 | Identity integration | ASP.NET Core Identity for email/password accounts and cookies; OpenIddict for the registry's upstream OAuth/OIDC server. Keep Keycloak as the SSO intermediary. Prove local continuity (section 3); production access/testing is not an early-development prerequisite. |
@@ -40,6 +40,27 @@ real external boundary needs one, not interfaces for every class or dynamically
 installed plugins. No generic repositories over EF Core, mediator/handler pipeline
 or automatic domain-event bus. Administration uses purpose-built pages and narrow
 maintenance commands; there is no assumed replacement for Django admin.
+
+### Confirmed UI rendering contract
+
+- Static SSR is the default, not global interactivity. Ordinary pages/forms do not
+  require a persistent circuit. Interactive Server is opt-in for a page or component;
+  a shelf-selection grid is an example, not a requirement to build storage early.
+- Keep UI state in components, but domain writes behind the same named commands
+  used by endpoints/jobs. Recheck authorization, account gates and current domain
+  facts on commands; a displayed selection or an authenticated circuit is not proof
+  that a later reservation/write is allowed.
+- Interactive operations use short-lived scoped DbContexts, not one held for the
+  circuit's lifetime. Keep writes out of component initialization/prerendering;
+  initialization may run again when interactivity starts.
+- Keep Identity cookies and OpenIddict on their HTTP authentication/protocol paths.
+  Login/logout need HTTP responses; interactive authentication requires revalidation.
+  Existing account pages may remain Razor Pages during the UI transition; there is
+  no requirement to rewrite working authentication endpoints merely to use Blazor.
+- Test static form validation/antiforgery and interactive reconnect/retry behaviour,
+  with accessible keyboard operation and server-side concurrency checks. A lost
+  connection must not imply that a submitted domain operation failed or is safe to
+  repeat without checking its outcome.
 
 Start a fresh ASP.NET Core project in this directory, separate from both Django
 checkouts and their migration graphs. `~/code/mulysa/` remains the legacy integration/
@@ -96,8 +117,10 @@ Within a feature, start with entities/mappings, commands, queries, pages/input
 models and tests. Split files when they become large, not into an elaborate layer
 hierarchy. Use DbContext directly, explicit relationships and projected read queries;
 keep lazy loading disabled. Program.cs visibly registers dependencies, middleware
-and endpoints. One scoped DbContext per request/command/job; it is not thread-safe
-and must never be shared by parallel jobs or a singleton scheduler service.
+and endpoints. One scoped DbContext per request/command/job, including a fresh
+operation scope for interactive component commands rather than a circuit-long
+DbContext; it is not thread-safe and must never be shared by parallel operations
+or a singleton scheduler service.
 
 ### Dependency rules
 
@@ -626,13 +649,20 @@ one full-replacement cutover after all five agreed delivery phases.
 
 | Slice | Deliverable and exit check |
 | --- | --- |
-| S0: foundations | Fresh ASP.NET Core/Identity/EF project, Razor Pages, PostgreSQL migrations, Linux containers and host-run development. Pin compatible SDK/packages and establish compiler/nullable/analyzer/format/test CI. Prove shared EF/Quartz transactional scheduling, restart, crash/shutdown/overlap recovery, concurrency/idempotency and bounded retries on PostgreSQL. Test schema upgrades, named schedule installation/reinstall, heartbeat, daily authentication cleanup, missed-run/calendar/DST/fortnightly behaviour and machine-readable stale/failed-work diagnostics. Implement OpenIddict provider gates and 365-day idle refresh expiry, persistent keys/cookie continuity and synthetic replacement/Keycloak/downstream browser acceptance; no legacy migration rehearsal. |
+| S0: foundations | Fresh ASP.NET Core/Identity/EF project, Blazor Web App with static SSR by default and selective Interactive Server support, PostgreSQL migrations, Linux containers and host-run development. Pin compatible SDK/packages and establish compiler/nullable/analyzer/format/test CI. Prove shared EF/Quartz transactional scheduling, restart, crash/shutdown/overlap recovery, concurrency/idempotency and bounded retries on PostgreSQL. Test schema upgrades, named schedule installation/reinstall, heartbeat, daily authentication cleanup, missed-run/calendar/DST/fortnightly behaviour and machine-readable stale/failed-work diagnostics. Implement OpenIddict provider gates and 365-day idle refresh expiry, persistent keys/cookie continuity and synthetic replacement/Keycloak/downstream browser acceptance; no legacy migration rehearsal. |
 | S1: membership + essential mail | Apply → verify → approve → set password/login → edit own details → resign/admin restore → final erasure, with purpose-built review UI and real queued verification/welcome/rejection/warning messages. Provision billing account/anchor and the initial-request boundary; complete its real invoice integration in S2, not a silently successful placeholder. |
 | S2: billing + subscriptions | Implement the reviewed models and pure calendar/pricing functions, then initial/recurring and one-off invoices/PDFs, bank import/review, line fulfilment, credit/transfers, adjustments and service lifecycle. Approval now produces its real initial membership invoice; standing uses actual coverage/grace. Pass `CAL`/`BILL`/`DATE`/`ADJ`/`SVC` and financial `RACE` tests. Complete payment-provider scope/milestones explicitly. |
 | S3: communications | Extend the existing queue/templates to drafts, rich localised newsletters/official notices, preference/fallback previews, test sends, progress and failures. Do not postpone authentication mail until this phase. |
 | S4: access | Qualifications/trainers, resources, claim/revoke/history UI, live device API, cache export and retry-safe offline events. Pass a real reader contract/sandbox test, including reused UIDs and outages. |
 | S5: storage | Runtime groups/positions, FIFO offers, atomic purchase-balance checkout/manual renewal, paid-term protection and handover. Pass multi-member contention and queue/date scenarios. |
 | S6: readiness + single cutover | Migration rehearsal including legacy → replacement Keycloak/broker/downstream identity continuity, accountant reconciliation, privacy/retention and backup/erasure runbooks, provider/identity/device validation and operator/member instructions. Enable production only after cross-phase acceptance. |
+
+S0's placeholder portal now uses Blazor static SSR; login/logout remain HTTP-based
+Razor Pages. `UiTests` verifies portal rendering and antiforgery-protected logout;
+`InteractiveUiTests` uses a test-only component to verify opt-in interactivity,
+transport reconnection/state retention and account-gate revalidation. Preserve the
+authentication/infrastructure gates as S1 adds real pages and domain operations;
+the synthetic widget does not prove future interactive business workflows.
 
 S1 is deliberately not a production-ready billing registry by itself. Its missing
 S2 invoice integration is a tracked dependency and acceptance gate, not a new policy
@@ -646,8 +676,8 @@ PostgreSQL and Quartz direction. No further broad membership-policy approval rou
 is required before S0. **This document does not itself scaffold the application.**
 Once implementation is requested, its concrete checkpoints are:
 
-1. Scaffold the modular ASP.NET Core project with Identity, EF Core/Npgsql, Razor
-   Pages and PostgreSQL host/container profiles, keeping mappings and package/version
+1. Scaffold the modular ASP.NET Core project with Identity, EF Core/Npgsql, a Blazor
+   Web App and PostgreSQL host/container profiles, keeping mappings and package/version
    pins explicit. No SQLite provider, generic repositories or mediator framework.
 2. Prove Quartz scheduling in the actual EF transaction, restart/crash/shutdown
    recovery, bounded retries, cancellation limits and duplicate-safe handling before

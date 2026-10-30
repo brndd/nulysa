@@ -5,6 +5,10 @@ implemented: infrastructure and synthetic acceptance tests, not a usable registr
 or a production-ready release.** Membership workflows and essential mail are S1;
 billing is S2. The Django reference at `~/code/nulysa-py/` is unchanged.
 
+The portal uses Blazor static SSR, with Interactive Server available per component
+when needed. Login/logout remain ordinary HTTP-based Razor Pages; there is no
+WebAssembly client or global interactive circuit.
+
 ## Design
 
 - [Specification](AGENTS/SPEC.md): authoritative requirements and policy status.

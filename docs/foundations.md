@@ -4,9 +4,18 @@ S0 is implemented in C#/ASP.NET Core. Evidence below comes from this checkout's
 synthetic PostgreSQL/process/protocol/browser tests, **not** the Django suite.
 No membership, billing, mail delivery or legacy migration workflow is implemented.
 
-**Locally verified 30 October 2026:** all 36 Release tests passed on PostgreSQL 18.4,
-including real worker processes and the Chromium/Keycloak flow. The production-mode
-container smoke passed, formatting/model-drift checks passed, and NuGet reported no
+The portal uses a Blazor Web App with static SSR by default and opt-in Interactive
+Server support. Login/logout remain HTTP-based Razor Pages. `UiTests` covers static
+rendering, branding, framework assets and antiforgery-protected HTTP logout;
+`InteractiveUiTests` exercises events, transport reconnection/state retention and
+account-gate revalidation with a test-only component, not a shipped demo page.
+Interactive authentication rechecks account gates/security stamps every 30 seconds
+in a fresh scope; future domain commands must still enforce authorization themselves.
+
+**Locally verified 30 October 2026:** all 41 Release tests passed on PostgreSQL 18.4,
+including the Blazor UI checks, real worker processes and the Chromium/Keycloak
+flow. The production-mode container smoke passed, formatting/model-drift checks
+passed, and NuGet reported no
 known vulnerable packages in the resolved graph.
 
 ## Pinned foundation
@@ -16,6 +25,7 @@ known vulnerable packages in the resolved graph.
 | Host SDK / observed Fedora runtime | 10.0.113 / 10.0.13 |
 | Container build SDK / runtime | 10.0.403 / 10.0.14 |
 | Identity / EF Core | 10.0.14 |
+| Blazor framework assets | 10.0.14 |
 | Npgsql EF provider | 10.0.3 |
 | OpenIddict | 7.7.2 |
 | Quartz persistent store / serializer / history | 4.6.2 |
@@ -47,10 +57,12 @@ security fixes rather than suppressing vulnerability warnings.
 | 365 idle days, exact boundary, renewal beyond an absolute year, cleanup preserving usable refresh | `OidcTests.Refresh*`, `Cleanup*` |
 | Cookie/key persistence across restarts and concurrent instances; antiforgery | `OidcTests.Cookie*` |
 | Real replacement → Keycloak → downstream browser login and email-change continuity | `KeycloakTests` |
+| Static SSR portal, branding, framework assets and antiforgery-protected HTTP logout | `UiTests` |
+| Opt-in server events, transport reconnect/state retention and account-gate revalidation | `InteractiveUiTests` |
 | Production configuration validation, encrypted keys and separate release processes | `ConfigurationTests`, `scripts/container-smoke.sh` |
 
-The .NET acceptance suite contains **36 tests**; `scripts/test_dev.py` separately
-checks the development launcher's environment, process cleanup and failure paths.
+`scripts/test_dev.py` separately checks the development launcher's environment,
+process cleanup and failure paths.
 Commands and prerequisites are in
 [`README.md`](../README.md); GitHub Actions runs them and the release-container smoke.
 CI configuration existing in this checkout is not a claim that a remote Actions run

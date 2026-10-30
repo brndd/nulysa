@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+<head><base href="/" /></head>
+<body>
+    <InteractiveProbe @rendermode="Microsoft.AspNetCore.Components.Web.RenderMode.InteractiveServer" />
+    <script src="_framework/blazor.web.js" autostart="false"></script>
+    <script>
+        Blazor.start({ circuit: { reconnectionHandler: {
+            onConnectionDown: () => window.connectionDown = true,
+            onConnectionUp: () => window.connectionDown = false
+        } } });
+    </script>
+</body>
+</html>
