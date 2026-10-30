@@ -38,8 +38,9 @@ No plugin loader, multi-tenancy, general ledger, arbitrary workflow engine or
 application-wide event sourcing. Provider adapters use small C# contracts where a
 real external boundary needs one, not interfaces for every class or dynamically
 installed plugins. No generic repositories over EF Core, mediator/handler pipeline
-or automatic domain-event bus. Administration uses purpose-built pages and narrow
-maintenance commands; there is no assumed replacement for Django admin.
+or automatic domain-event bus. Board administration uses purpose-built pages;
+sysops have a separate superuser-only Operations web area and narrow maintenance
+commands. There is no assumed generic replacement for Django admin.
 
 ### Confirmed UI rendering contract
 
@@ -110,7 +111,7 @@ in the planning docs are not final C# casing conventions.
 | `access` | Resources, qualifications/trainers, current fob registrations, ownership history, devices and access events. | Reimplementing billing on readers. |
 | `storage` | Runtime-defined groups/positions, queues/offers, rentals, term options and handover. | Recurring subscriptions or its own credit ledger. |
 | `integrations` | Bank/provider/OIDC adapters, external source identities, sync runs and reconciliation inputs. | Policy embedded in provider-specific payload parsing. |
-| `operations` | Narrow durable work dispatch, scheduler bookkeeping, health and operator diagnostics. | A configurable business-process platform or a second domain audit journal. |
+| `operations` | Narrow durable work dispatch, scheduler bookkeeping, health and the superuser-only Operations diagnostic web area. | A configurable business-process platform, unrestricted database editor or a second domain audit journal. |
 | `flows` | Explicit cross-module commands and composed read queries. No domain tables. | A service locator, generic repository layer or universal event bus. |
 
 Within a feature, start with entities/mappings, commands, queries, pages/input
@@ -180,8 +181,13 @@ applicant or pending-deletion account may not.
   through framework defaults. Antiforgery, account gates and secure cookies are not
   deferred. Daily expired-token/authorization cleanup must preserve usable refresh
   chains; cookie-only authentication has no assumed Django-style session table.
-- Have one explicit full-administrator role. Trainers get qualification-scoped
-  authority records, not staff access. Check permissions and object ownership in
+- Have one full board-administrator role and separately granted sysop/superuser
+  capability for Operations; board authority must not satisfy the superuser policy
+  or permit self-escalation. An account may hold both. See the confirmed
+  [Operations contract](SPEC.md#sysop-operations-area); technical role representation
+  and operator-authorized provisioning/revocation remain implementation follow-up.
+  Trainers get qualification-scoped authority records, not staff access.
+  Check permissions and object ownership in
   commands as well as views. An ID in a URL or hidden navigation item grants no
   access; ordinary members cannot search the member registry.
 - Define safe member, trainer and administrator query projections. Trainer lookup
@@ -494,8 +500,16 @@ instances see failures across restarts. History writes are separate from domain
 commits and may fail or be trimmed; history is diagnostics, not durable delivery
 truth or an audit journal. Monitor oldest unfinished business work, heartbeats,
 misfires, crash loops and final failures rather than success/failure counts alone.
-Use restricted read-only status pages/dashboard initially; any retry/cancel action
-must go through the relevant duplicate-safe application operation. Do not expose
+Expose technical status/history in the initially read-only, superuser-only
+Operations web area, separate from the board's attention dashboard. Project existing
+diagnostic/domain records rather than build a second source of truth; include the
+release/schema, integration, authentication and non-secret configuration details
+specified in [SPEC.md](SPEC.md#sysop-operations-area). Protect each route/query and
+test denial for ordinary members and board-only administrators, as well as
+superuser access and redaction. The CLI status command remains usable independently
+for external monitoring; this web area is not yet implemented by S0.
+Any later retry/cancel/repair action must go through the relevant authorized,
+duplicate-safe application operation with confirmation, reason and audit. Do not expose
 arbitrary Run now, type selection or schedule editing as an administrative shortcut.
 
 **Rejection-email ordering needs an early failure-path test.** Rejection prevents

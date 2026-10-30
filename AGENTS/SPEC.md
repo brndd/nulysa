@@ -241,9 +241,14 @@ These are conceptual distinctions, not database tables or a settled data model.
 
 **Confirmed**
 
-- Keep board-level administration simple: administrators have access to all
-  membership, finance, configuration and communications functions. Do not split
-  these into layered membership/finance/system administrator roles.
+- Keep board-level administration simple: board administrators have access to all
+  membership, finance, association-configuration and communications functions. Do
+  not split these into separate membership/finance board-administrator roles.
+- Sysop/superuser capability is separately granted technical authority. Board
+  administration does not grant it; the same account may hold both capabilities.
+  Unless explicitly stated otherwise, "administrator" elsewhere in this specification
+  means a board administrator, not a sysop. The superuser-only Operations web area
+  is distinct from the day-to-day administrative workspaces below.
 - Defer the separate communications permission to a later release. Initial-product
   communications access is restricted to full administrators.
 - When implemented, delegated communications access is newsletter-only, so a
@@ -253,7 +258,7 @@ These are conceptual distinctions, not database tables or a settled data model.
 - Ordinary members access their own records and self-service functions only.
   There is no member directory or ability to browse other members' profiles.
 - The future newsletter permission does not grant general registry, financial or
-  system-administration access. Its exact recipient-data visibility remains to be
+  Operations/superuser access. Its exact recipient-data visibility remains to be
   specified with that later feature.
 - Non-administrator trainers have qualification-scoped grant/revoke authority as
   defined in phase 4. This narrow operational permission does not introduce layered
@@ -270,12 +275,49 @@ to additional bulk operations.
 | Registry and member details | Search/filter records; understand membership and service standing; edit details; inspect relevant history; perform authorised adjustments, termination and restoration. |
 | Application review | Read the submitted details/message, highlight under-18 applicants, approve or reject with an optional explanation. |
 | Payments and accounting | Review imported payments, allocations, credits and mismatches; correct mistakes; handle refunds and retained credit; export and reconcile records. |
-| Configuration | Manage supported settings and permissions; the GUI versus configuration-file boundary remains open. |
+| Configuration | Manage supported association settings and business permissions, not superuser grants; the GUI versus configuration-file boundary remains open. |
 | Communications | Prepare and send newsletters/bulk messages and manage templates within the user's permitted scope. |
 
 Existing requirements for recorded reasons, expiry dates and audit trails apply
 to the relevant actions. Destructive operations should make their consequences
 clear rather than require editing raw database records.
+
+### Sysop Operations area
+
+**Confirmed**
+
+- Provide a superuser-only **Operations** web area for technical inspection,
+  troubleshooting and exceptional circumstances. It supplements, rather than
+  replaces, the board's membership/payment/subscription/storage workspaces and
+  operator maintenance commands.
+- Enforce superuser authorization on routes and underlying queries/actions, not
+  merely navigation visibility. Ordinary members, trainers and board administrators
+  without superuser capability must not access these details. Board administration
+  must not be able to grant superuser capability through ordinary settings or member
+  editing; the operator-authorized provisioning/revocation mechanism remains to be
+  specified.
+- The initial area is read-only. Show the relevant technical details rather than
+  only a green/red summary, with links between related records where useful:
+
+  | Area | Inspection scope |
+  | --- | --- |
+  | Application/database | Running release/version, environment, applied/pending migrations and schema status. |
+  | Background work | Installed schedules, next executions, heartbeats, outstanding work age, retries and redacted execution/failure history. |
+  | Integrations | Last successful synchronizations, failures and correlation/reconciliation identifiers. |
+  | Authentication | Account gates, lockout/security-stamp status and OIDC client/token lifecycle metadata, not credential or token values. |
+  | Domain troubleshooting | Internal record IDs, operation/idempotency keys, relationships and relevant audit/correction history. |
+  | Configuration | Effective non-secret settings and configuration sources, not secret values. |
+
+- Technical access does not waive privacy/retention rules. Use purpose-specific
+  projections and redaction; do not expose passwords/hashes, client secrets, private
+  keys, raw tokens or unfiltered provider payloads/logs. Do not preserve erased
+  profiles or duplicate personal data merely to populate this area.
+- Any later repair action needs an explicitly designed, authorized application
+  command with preview/confirmation, a recorded reason and an audit trail. Superuser
+  status does not bypass domain validation, financial invariants or transactional
+  boundaries. No unrestricted database-row editor, SQL console, arbitrary job
+  execution or schedule editing is implied by Operations access. An uncertain
+  external send still requires reconciliation, not blind retry.
 
 ### Application intake and verification
 

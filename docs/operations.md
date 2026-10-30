@@ -82,6 +82,11 @@ transactions/unique keys, not a custom lease/queue framework.
 no public scheduler dashboard, arbitrary Run now or editable job-type endpoint.
 Local command access is operator access; protect container/DB/shell permissions.
 
+The specification also requires a separate superuser-only, initially read-only
+[Operations web area](../AGENTS/SPEC.md#sysop-operations-area). It is not implemented
+in S0. Board-administrator access alone will not grant access to its technical
+diagnostics; the CLI status command remains the independent monitoring interface.
+
 Checks include:
 
 - missing heartbeat or heartbeat older than three minutes;
