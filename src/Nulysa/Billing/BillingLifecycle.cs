@@ -180,7 +180,7 @@ public sealed partial class BillingCommands
             await Expire(facts, operation, scheduler, ct);
             if (facts.Membership(clock.Today).Active || facts.Lines.Any(x => x.Benefit == Benefit.Membership && x.State == LineState.Open))
                 throw new ValidationException("Membership is active or already has a return request.");
-            var item = facts.Items.Single(x => x.MembershipId == facts.User!.Id);
+            var item = facts.Items.Where(x => x.MembershipId == facts.User!.Id).OrderByDescending(x => x.Id).First();
             item.EndedAt = null;
             await Issue(facts, operation, item, clock.Today, PurchasePurpose.Resumption, clock.Today.AddDays(Settings.InitialMembershipGraceDays), ct);
             await AllocateCredit(facts, operation, clock.Today, ct);
@@ -195,6 +195,32 @@ public sealed partial class BillingCommands
         foreach (var item in facts.Items) item.EndedAt ??= clock.Now;
         foreach (var line in facts.Lines) CloseLine(facts, operation, line, LineState.Cancelled);
         await Finish(facts, scheduler, false, ct);
+    }
+
+    // Restoration owns the account/user locks and outer transaction.
+    public async Task RestoreMembershipBilling(long accountId, Guid key, long actor, string reason, CancellationToken ct)
+    {
+        if (db.Database.CurrentTransaction is null) throw new InvalidOperationException("Restoration requires an outer transaction.");
+        var facts = await BillingFacts.Load(db, accountId, ct);
+        Live(facts);
+        var start = clock.Today;
+        foreach (var period in facts.Periods(Benefit.Membership, null).OrderBy(x => x.Start))
+            if (period.Start <= start && start < period.End) start = period.End;
+        if (start == clock.Today) return;
+        var previous = facts.Items.Where(x => x.MembershipId == facts.User!.Id).OrderByDescending(x => x.Id).FirstOrDefault();
+        if (previous is null || previous.EndedAt is null) return;
+        var operation = await Operation(facts, key, "restore-membership-billing", new { accountId }, actor, reason, ct);
+        if (operation is null) return;
+        var item = new RecurringItem
+        {
+            BillingGroupId = previous.BillingGroupId,
+            FeeDefinitionId = previous.FeeDefinitionId,
+            MembershipId = previous.MembershipId,
+            StartsOn = clock.Today,
+            NextOn = start
+        };
+        db.RecurringItems.Add(item);
+        await db.SaveChangesAsync(ct); operation.ResultId = item.Id;
     }
 
     public async Task ErasePersonalRecords(long accountId, CancellationToken ct)

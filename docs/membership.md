@@ -110,7 +110,9 @@ not retain rejected personal data indefinitely while attempting delivery.
   Keycloak/application sessions. A send already in flight cannot be recalled.
 - Administrator restoration is allowed until actual erasure, even after eligibility.
   It queues a confirmation to the member and does not restore expired coverage/credentials
-  or repair pending-deletion payments.
+  or repair pending-deletion payments. Surviving current membership coverage resumes
+  ordinary renewal billing on the existing calendar, without reopening cancelled
+  purchases, granting new grace or reinstating removed services.
 - Final erasure rechecks under billing-account/member locks, deletes Identity/profile,
   member and authentication records and unnecessary deliveries, and detaches the
   financial owner. ID-only approval/lifecycle facts and the cancelled financial request

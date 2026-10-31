@@ -205,6 +205,8 @@ public sealed class MembershipCommands(AppDbContext db, UserManager<User> users,
         user.PendingDeletionAt = null;
         member.DeletionEligibleAt = null; member.DeletionOperation = null;
         Check(await users.UpdateSecurityStampAsync(user));
+        var accountId = await db.BillingAccounts.Where(x => x.UserId == id).Select(x => x.Id).SingleAsync(ct);
+        await billing.RestoreMembershipBilling(accountId, operation, Authority.Id(actor), reason, ct);
         Record(operation, actor, id, "restore", reason);
         await mail.CancelForUser(scheduler, id, ct);
         await mail.Add(scheduler, operation, MailKind.Restoration, id, version: operation, ct: ct);

@@ -255,6 +255,36 @@ public sealed class BillingTests : MembershipTest
         Assert.DoesNotContain("New Member", retainedPage);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    [Trait("Acceptance", "ERASE")]
+    public async Task Restoring_paid_membership_resumes_renewal_without_reopening_cancelled_purchases_or_services(bool renewalAlreadyIssued)
+    {
+        On(6, 1); var board = await Board(); await using var app = CommandsApp(); var id = await Admit(app, board);
+        var initial = await View(app, board, id); var account = initial.AccountId; await Pay(app, initial.Invoices[0].Reference, 10);
+        var service = await Service(app, board, free: 30);
+        await Run(app, sp => sp.GetRequiredService<BillingCommands>().Subscribe(board, account, service, 1, false, Guid.NewGuid()));
+        if (renewalAlreadyIssued) { On(6, 20); await Scan(app, account); }
+        else On(6, 5);
+        await Run(app, sp => sp.GetRequiredService<MembershipCommands>().BeginDeletion(board, id, Guid.NewGuid(), "Termination"));
+        var cancelled = (await View(app, board, id)).Invoices.SelectMany(x => x.Lines).Where(x => x.Line.State == LineState.Cancelled).Select(x => x.Line.Id).ToList();
+        On(6, 22); var restore = Guid.NewGuid();
+        await Run(app, sp => sp.GetRequiredService<MembershipCommands>().Restore(board, id, restore, "Verified restoration"));
+        await Run(app, sp => sp.GetRequiredService<MembershipCommands>().Restore(board, id, restore, "Verified restoration"));
+        var restored = await View(app, board, id); Assert.True(restored.Membership.Active); Assert.Empty(restored.Subscriptions);
+        Assert.Single(restored.Items); Assert.NotEqual(initial.Items.Single().Id, restored.Items[0].Id);
+        Assert.DoesNotContain(restored.Invoices.SelectMany(x => x.Lines), x => cancelled.Contains(x.Line.Id) && x.Line.State != LineState.Cancelled);
+        await Scan(app, account);
+        var renewal = Assert.Single((await View(app, board, id)).Invoices.SelectMany(x => x.Lines), x => x.Line.Benefit == Benefit.Membership && x.Line.State == LineState.Open).Line;
+        Assert.Equal(new DateOnly(2026, 7, 1), renewal.StartsOn); Assert.Equal(new DateOnly(2026, 8, 1), renewal.EndsOn);
+        On(7, 1); Assert.True((await View(app, board, id)).Membership.Active);
+        On(7, 8); await Scan(app, account); Assert.False((await View(app, board, id)).Membership.Active);
+        await Run(app, sp => sp.GetRequiredService<BillingCommands>().ResumeMembership(Actor(id), account, Guid.NewGuid()));
+        Assert.Single((await View(app, board, id)).Items);
+        Assert.Equal(0m, (await Run(app, sp => sp.GetRequiredService<BillingQueries>().Reconcile(board))).Difference);
+    }
+
     [Fact]
     public async Task One_off_reference_uses_the_same_funding_path_without_recurring_coverage_or_wallet_sweep()
     {
