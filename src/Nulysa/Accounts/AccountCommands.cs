@@ -65,10 +65,11 @@ public sealed class AccountCommands(AppDbContext db, UserManager<User> users, Me
     {
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         var user = await membership.LockUser(id, ct);
+        var requestHasExpired = user.PendingEmailRequestedAt?.AddDays(1) <= clock.Now;
         var isValidRequest = user.MayLogIn
             && user.PendingEmail is not null
             && user.PendingEmailVersion == version
-            && user.PendingEmailRequestedAt?.AddDays(1) > clock.Now;
+            && !requestHasExpired;
         if (!isValidRequest)
             throw new ValidationException("Invalid or expired email change.");
 

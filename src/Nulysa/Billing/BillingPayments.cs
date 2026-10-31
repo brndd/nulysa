@@ -320,7 +320,8 @@ public sealed partial class BillingCommands
                 ? -1
                 : facts.Services.SingleOrDefault(service => service.Id == line.ServiceDefinitionId)?.Priority ?? int.MaxValue)
             .ThenBy(line => line.ChargeDueOn)
-            .ThenBy(line => line.Id));
+            .ThenBy(line => line.Id))
+            .ToList();
     }
 
     private async Task<decimal> Fund(BillingFacts facts, BillingOperation operation, InvoiceLine line, decimal available, DateOnly on, long? receiptId, CancellationToken ct)
