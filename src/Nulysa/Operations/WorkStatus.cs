@@ -1,5 +1,6 @@
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
+using Nulysa.Communications;
 using Nulysa.Data;
 using Quartz;
 
@@ -16,9 +17,9 @@ public static class WorkStatus
         foreach (var name in Schedules.Names)
         {
             var observation = await db.Observations.AsNoTracking().SingleOrDefaultAsync(x => x.Name == name, ct);
-            var maxAge = name == "heartbeat" ? TimeSpan.FromMinutes(3) : TimeSpan.FromHours(26);
-            if (observation is null) issues.Add($"missing_{name}");
-            else if (now - observation.LastSeen > maxAge) issues.Add($"stale_{name}");
+            var maxAge = name switch { "heartbeat" or "membership-due-work" => TimeSpan.FromMinutes(3), "final-deletion" => TimeSpan.FromDays(15), _ => TimeSpan.FromHours(26) };
+            if (observation is null && name != "final-deletion") issues.Add($"missing_{name}");
+            else if (observation is not null && now - observation.LastSeen > maxAge) issues.Add($"stale_{name}");
             var key = new TriggerKey(name, Schedules.Group);
             var trigger = await scheduler.GetTrigger(key, ct);
             if (trigger is null) issues.Add("missing_schedule");
@@ -45,6 +46,8 @@ public static class WorkStatus
         if (age > 300) issues.Add("aged_work");
         var failures = await db.FailureObservations.CountAsync(ct);
         if (failures > 0) issues.Add("failed_work");
+        if (await db.Deliveries.AnyAsync(x => x.State == DeliveryState.Review || x.State == DeliveryState.Failed, ct)) issues.Add("mail_requires_review");
+        if (await db.Deliveries.AnyAsync(x => x.State == DeliveryState.Pending && x.CreatedAt < now.AddMinutes(-5), ct)) issues.Add("aged_mail");
         return new(issues.Count == 0, [.. issues.Order()], keys.Count, failures, age);
     }
 }

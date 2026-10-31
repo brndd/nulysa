@@ -4,7 +4,10 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text.Json;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Nulysa.Accounts;
+using Nulysa.Communications;
+using Nulysa.Membership;
 using Nulysa.Operations;
 
 namespace Nulysa.Tests;
@@ -13,10 +16,36 @@ namespace Nulysa.Tests;
 public sealed class ConfigurationTests : DatabaseTest
 {
     [Fact]
-    [Trait("Category", "Slow")]
-    public async Task Development_user_command_creates_superuser_with_weak_password_without_relaxing_normal_validation()
+    public async Task Membership_and_mail_options_reject_invalid_retention_fallback_URL_and_missing_sender()
     {
-        async Task<int> Create(string email, string password)
+        Settings["Membership:DefaultLanguage"] = "sv";
+        await using (var app = Build("commands"))
+            Assert.Throws<OptionsValidationException>(() => app.Services.GetRequiredService<IOptions<MembershipOptions>>().Value);
+        Settings.Remove("Membership:DefaultLanguage");
+        Settings["Membership:DeletionWaitingDays"] = "-1";
+        await using (var app = Build("commands"))
+            Assert.Throws<OptionsValidationException>(() => app.Services.GetRequiredService<IOptions<MembershipOptions>>().Value);
+        Settings.Remove("Membership:DeletionWaitingDays");
+        Settings["Mail:PublicUrl"] = "https://user:password@example.test/";
+        await using (var app = Build("commands"))
+            Assert.Throws<OptionsValidationException>(() => app.Services.GetRequiredService<IOptions<MailOptions>>().Value);
+        Settings["Mail:PublicUrl"] = "https://registry.example.test/";
+        Settings["Mail:Transport"] = "Smtp"; Settings["Mail:Host"] = "smtp.example.test";
+        await using (var app = Build("commands"))
+            Assert.Throws<OptionsValidationException>(() => app.Services.GetRequiredService<IOptions<MailOptions>>().Value);
+        Settings["Mail:FromEmail"] = "from@example.test";
+        Settings["Mail:Username"] = "smtp-user";
+        await using (var app = Build("commands"))
+            Assert.Throws<OptionsValidationException>(() => app.Services.GetRequiredService<IOptions<MailOptions>>().Value);
+        Settings.Remove("Mail:Username");
+        await using (var app = Build("commands"))
+            Assert.Equal("Smtp", app.Services.GetRequiredService<IOptions<MailOptions>>().Value.Transport);
+    }
+    [Fact]
+    [Trait("Category", "Slow")]
+    public async Task Development_user_command_grants_both_admin_roles_and_prints_ID_without_relaxing_normal_validation()
+    {
+        async Task<(int Exit, string Output)> Create(string email, string password)
         {
             var configuration = new DirectoryInfo(AppContext.BaseDirectory).Parent!.Name;
             var info = new ProcessStartInfo("dotnet") { RedirectStandardOutput = true, RedirectStandardError = true };
@@ -32,18 +61,23 @@ public sealed class ConfigurationTests : DatabaseTest
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(20));
             await process.WaitForExitAsync(deadline.Token);
             await Task.WhenAll(stdout, stderr);
-            return process.ExitCode;
+            return (process.ExitCode, await stdout);
         }
-        Assert.Equal(0, await Create("weak@example.test", "x"));
-        Assert.Equal(1, await Create("weak@example.test", "x")); // Email uniqueness remains enforced.
-        Assert.Equal(1, await Create("empty@example.test", ""));
-        Assert.Equal(1, await Create("blank@example.test", "   "));
+        var created = await Create("weak@example.test", "x");
+        Assert.Equal(0, created.Exit);
+        var duplicate = await Create("weak@example.test", "x");
+        Assert.Equal(1, duplicate.Exit); // Email uniqueness remains enforced.
+        Assert.DoesNotContain("Created development user with ID", duplicate.Output);
+        Assert.Equal(1, (await Create("empty@example.test", "")).Exit);
+        Assert.Equal(1, (await Create("blank@example.test", "   ")).Exit);
         await using var scope = Maintenance.Services.CreateAsyncScope();
         var users = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
         var user = (await users.FindByEmailAsync("weak@example.test"))!;
         Assert.True(await users.CheckPasswordAsync(user, "x"));
         Assert.NotEqual("x", user.PasswordHash);
         Assert.True(await users.IsInRoleAsync(user, "Superuser"));
+        Assert.True(await users.IsInRoleAsync(user, "Administrator"));
+        Assert.Contains($"Created development user with ID {user.Id}.", created.Output);
         var normal = await users.CreateAsync(new User { Email = "normal@example.test", UserName = "normal@example.test" }, "x");
         Assert.False(normal.Succeeded);
         Assert.Contains(normal.Errors, error => error.Code == "PasswordTooShort");

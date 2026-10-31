@@ -31,6 +31,9 @@ options=(--network host
     -e "ConnectionStrings__Database=Host=127.0.0.1;Port=55432;Database=$database;Username=nulysa;Password=synthetic-local-password;GSS Encryption Mode=Disable"
     -e "ASPNETCORE_URLS=http://127.0.0.1:$port"
     -e AllowedHosts=127.0.0.1 -e ReverseProxy__KnownProxy=127.0.0.1
+    -e Mail__Transport=Smtp -e Mail__PublicUrl=https://registry.example.test/
+    -e Mail__Host=smtp.example.test -e Mail__Port=587
+    -e Mail__FromEmail=synthetic@example.test
     -e DataProtection__CertificatePath=/run/nulysa.pfx
     -e DataProtection__CertificatePassword=synthetic-certificate-password
     -v "$directory/protection.pfx:/run/nulysa.pfx:ro,z" -v "$name-keys:/keys")
@@ -52,7 +55,7 @@ $engine exec "$pg" psql -U nulysa "$database" -v ON_ERROR_STOP=1 -c "UPDATE qrtz
 $engine run --detach --name "$name-worker" "${options[@]}" nulysa:s0 worker > /dev/null
 ready=false
 for attempt in $(seq 1 60); do
-    if test "$($engine exec "$pg" psql -U nulysa "$database" -Atc 'SELECT count(*) FROM "Observations"')" = 2; then ready=true; break; fi
+    if test "$($engine exec "$pg" psql -U nulysa "$database" -Atc 'SELECT count(*) FROM "Observations"')" = 3; then ready=true; break; fi
     sleep 1
 done
 test "$ready" = true

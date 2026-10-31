@@ -37,7 +37,10 @@ public sealed class SchemaTests : DatabaseTest
         await db.Database.MigrateAsync();
         await QuartzSchema.Upgrade(db);
         await QuartzSchema.Upgrade(db);
-        Assert.Equal("frozen-subject", (await db.Users.SingleAsync()).OidcSubject);
+        var upgraded = await db.Users.SingleAsync();
+        Assert.Equal("frozen-subject", upgraded.OidcSubject);
+        Assert.Equal("en", upgraded.Language);
+        Assert.Matches("^[0-9a-f]{32}$", upgraded.UserName!);
         Assert.Equal(trigger!.NextFireTimeUtc, (await Scheduler.GetTrigger(trigger.Key))!.NextFireTimeUtc);
         StartWorker();
         await Until(async () => await Effects("upgrade") == 1);
@@ -47,22 +50,22 @@ public sealed class SchemaTests : DatabaseTest
     public async Task Database_enforces_email_and_subject_uniqueness_and_does_not_reuse_deleted_numeric_IDs()
     {
         await using var db = Context();
-        db.Users.Add(new() { Email = "one@example.test", NormalizedEmail = "ONE@EXAMPLE.TEST", OidcSubject = "subject-one", Name = "One" });
+        db.Users.Add(new() { UserName = "one", NormalizedUserName = "ONE", Email = "one@example.test", NormalizedEmail = "ONE@EXAMPLE.TEST", OidcSubject = "subject-one", Name = "One" });
         await db.SaveChangesAsync();
         var oldId = (await db.Users.SingleAsync()).Id;
         await using (var other = Context())
         {
-            other.Users.Add(new() { NormalizedEmail = "ONE@EXAMPLE.TEST", OidcSubject = "subject-two" });
+            other.Users.Add(new() { UserName = "two", NormalizedUserName = "TWO", NormalizedEmail = "ONE@EXAMPLE.TEST", OidcSubject = "subject-two" });
             await Assert.ThrowsAsync<DbUpdateException>(() => other.SaveChangesAsync());
         }
         await using (var other = Context())
         {
-            other.Users.Add(new() { NormalizedEmail = "TWO@EXAMPLE.TEST", OidcSubject = "subject-one" });
+            other.Users.Add(new() { UserName = "three", NormalizedUserName = "THREE", NormalizedEmail = "TWO@EXAMPLE.TEST", OidcSubject = "subject-one" });
             await Assert.ThrowsAsync<DbUpdateException>(() => other.SaveChangesAsync());
         }
         await db.Users.ExecuteDeleteAsync();
         db.ChangeTracker.Clear();
-        db.Users.Add(new() { OidcSubject = "subject-new" });
+        db.Users.Add(new() { UserName = "four", NormalizedUserName = "FOUR", OidcSubject = "subject-new" });
         await db.SaveChangesAsync();
         Assert.True((await db.Users.SingleAsync()).Id > oldId);
     }

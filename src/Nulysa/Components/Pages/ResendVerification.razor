@@ -1,0 +1,25 @@
+@page "/apply/resend"
+@attribute [AllowAnonymous]
+@attribute [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("verification")]
+@using Nulysa.Membership
+@using System.ComponentModel.DataAnnotations
+@inject MembershipCommands Commands
+@inject IConfiguration Configuration
+
+<PageTitle>Resend verification email — @Configuration["Association:Name"]</PageTitle>
+<h1>Resend verification email</h1>
+<p>Links expire with the unverified application (24 hours by default). Resending does not extend retention. After expiry, submit a fresh application.</p>
+@if (sent) { <p role="status">If an eligible application exists, a new email has been queued. Requests are limited to once every minute.</p> }
+<EditForm Model="Input" method="post" FormName="resend" OnValidSubmit="Submit">
+    <DataAnnotationsValidator /><ValidationSummary />
+    <p><label for="resend-email">Email</label> <InputText id="resend-email" @bind-Value="Input!.Email" type="email" required /></p>
+    <button type="submit">Resend verification</button>
+</EditForm>
+
+@code {
+    public sealed class ResendInput { [Required, EmailAddress, StringLength(256)] public string Email { get; set; } = ""; }
+    [SupplyParameterFromForm] public ResendInput? Input { get; set; }
+    private bool sent;
+    protected override void OnInitialized() => Input ??= new();
+    private async Task Submit() { await Commands.ResendVerification(Input!.Email); sent = true; }
+}

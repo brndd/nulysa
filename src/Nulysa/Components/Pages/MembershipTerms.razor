@@ -1,0 +1,14 @@
+@page "/membership-terms"
+@attribute [AllowAnonymous]
+@inject IConfiguration Configuration
+
+<PageTitle>Membership terms — @Configuration["Association:Name"]</PageTitle>
+<h1>Membership terms</h1>
+@if (Configuration["Association:TermsUrl"] is { Length: > 0 } url)
+{
+    <p>Read the association's <a href="@url">membership terms and privacy information</a> before applying.</p>
+}
+else
+{
+    <p>This is a development registry. Association-specific terms and privacy information must be supplied before public deployment. Do not submit real personal data.</p>
+}

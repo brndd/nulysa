@@ -1,0 +1,27 @@
+@page "/admin/applications"
+@attribute [Authorize(Policy = "Administrator")]
+@using Nulysa.Membership
+@inject MembershipQueries Queries
+@inject AuthenticationStateProvider Authentication
+@inject AssociationClock Clock
+@inject IConfiguration Configuration
+
+<PageTitle>Application review — @Configuration["Association:Name"]</PageTitle>
+<h1>Application review</h1>
+<p>Only email-verified applications awaiting a decision appear here (up to 100).</p>
+<ul>
+    @foreach (var application in applications)
+    {
+        <li><a href="@($"/admin/applications/{application.Id}")">@application.Name — @application.Email</a>
+            @if (application.DateOfBirth > Clock.Today.AddYears(-18)) { <strong>Under 18 — check consent outside the portal</strong> }
+        </li>
+    }
+</ul>
+
+@code {
+    private List<ApplicationReview> applications = [];
+    protected override async Task OnInitializedAsync()
+    {
+        applications = await Queries.Applications((await Authentication.GetAuthenticationStateAsync()).User);
+    }
+}

@@ -1,9 +1,9 @@
 # Nulysa
 
-ASP.NET Core membership management for Finnish hackerspace associations. **S0 is
-implemented: infrastructure and synthetic acceptance tests, not a usable registry
-or a production-ready release.** Membership workflows and essential mail are S1;
-billing is S2. The Django reference at `~/code/nulysa-py/` is unchanged.
+ASP.NET Core membership management for Finnish hackerspace associations. **S0 and
+S1 are implemented: foundations, membership workflows and queued essential mail.**
+This is not production-ready: real initial invoices/payment standing remain the S2
+dependency. The Django reference at `~/code/nulysa-py/` is unchanged.
 
 The portal uses Blazor static SSR, with Interactive Server available per component
 when needed. Login/logout remain ordinary HTTP-based Razor Pages; there is no
@@ -16,6 +16,7 @@ WebAssembly client or global interactive circuit.
 - [Billing](AGENTS/BILLING_DESIGN.md), [services](AGENTS/SERVICE_DESIGN.md),
   [policy examples](AGENTS/POLICY_REVIEW.md), [remaining work](AGENTS/OPEN_QUESTIONS.md).
 - [Foundation evidence and limits](docs/foundations.md),
+  [S1 membership/mail, local walkthrough and billing boundary](docs/membership.md),
   [operations runbook](docs/operations.md), [OIDC configuration](docs/oidc-reference.md).
 
 ## Host development
@@ -51,12 +52,21 @@ DevelopmentUser__Password='Synthetic-local-password-123!' \
 bash scripts/dev.sh create-development-user
 ```
 
-This command is unavailable in Production. It grants the new account the `Superuser`
-role for System Console access; account creation and the grant commit together.
+This command is unavailable in Production. It grants the new account both
+`Administrator` (board administration) and `Superuser` (System Console) roles and
+prints the user ID after account creation and both grants commit together.
 It accepts any non-empty password,
 without Identity's password-complexity rules; normal password validation is unchanged.
 OIDC is disabled unless configured.
 Never use the published synthetic development credentials in a deployment.
+
+The new development account can review applications immediately. Visit `/apply`,
+confirm the verification link printed by the worker (also spooled at
+`.local/data-protection/mail/`), then use `/admin/applications`. Development mail is
+always printed to the console; set `Mail__Transport=Smtp` plus `Mail__Host`,
+`Mail__Port` and `Mail__FromEmail` to send it as well.
+Approval queues password setup; `/profile` and `/resign` provide self-service.
+Use synthetic data only. See the [S1 walkthrough](docs/membership.md).
 
 ## System Console
 
@@ -115,8 +125,9 @@ already running (restore/build included):
 | Standard | 27 | 18.7s | 25.4s |
 | Full | 41 | 115.3s | 117.2s |
 
-The current totals are 29 standard / 45 full cases;
-the standard suite still runs in about 20 seconds, below the 60-second budget.
+Current S1 totals are **56 standard / 74 full cases**. Release execution takes about
+30 seconds / 140 seconds respectively; the standard suite remains below the
+60-second budget. See [S1 evidence](docs/membership.md#evidence).
 
 Mark new slow tests with `[Trait("Category", "Slow")]`; browser tests use
 `[Trait("Group", "Browser")]`. Fast database tests should stay in the standard suite.
@@ -161,7 +172,7 @@ explicitly pinned. Microsoft does not publish a `sdk:10.0.113` image; the host S
 pin remains compatible with Fedora's supported 1xx SDK. Both profiles are tested.
 
 `compose.production.yaml` describes the release topology, **not permission to
-deploy S0 publicly**. Supply its required private settings and certificate/key
+deploy this unfinished registry publicly**. Supply its required private settings and certificate/key
 mounts, start PostgreSQL, run `maintenance migrate` and `maintenance install-schedules`,
 then start web/worker. A trusted TLS proxy is external to this file. See the
 [runbook](docs/operations.md) before configuring it.

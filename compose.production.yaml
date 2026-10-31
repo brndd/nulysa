@@ -6,6 +6,15 @@ x-application: &application
     ConnectionStrings__Database: ${NULYSA_DATABASE:?Supply the private PostgreSQL connection string}
     AllowedHosts: ${NULYSA_HOST:?Supply the public hostname}
     Association__Name: ${NULYSA_ASSOCIATION:-Nulysa}
+    Association__TermsUrl: ${NULYSA_TERMS_URL:?Supply the association terms and privacy URL}
+    Mail__Transport: Smtp
+    Mail__PublicUrl: ${NULYSA_PUBLIC_URL:?Supply the HTTPS public base URL ending with /}
+    Mail__Host: ${NULYSA_SMTP_HOST:?Supply the SMTP host}
+    Mail__Port: ${NULYSA_SMTP_PORT:-587}
+    Mail__Username: ${NULYSA_SMTP_USERNAME:-}
+    Mail__Password: ${NULYSA_SMTP_PASSWORD:-}
+    Mail__EnableSsl: ${NULYSA_SMTP_SSL:-true}
+    Mail__FromEmail: ${NULYSA_MAIL_FROM:?Supply the verified sender email}
     ReverseProxy__KnownProxy: ${NULYSA_PROXY:?Supply the single trusted proxy IP}
     Oidc__Enabled: ${NULYSA_OIDC_ENABLED:-false}
     Oidc__Issuer: ${NULYSA_ISSUER:-}

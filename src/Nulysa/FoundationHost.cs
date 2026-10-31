@@ -1,15 +1,20 @@
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 using Nulysa.Accounts;
+using Nulysa.Communications;
 using Nulysa.Components;
 using Nulysa.Data;
+using Nulysa.Membership;
 using Nulysa.Operations;
 using Quartz;
 
@@ -39,7 +44,19 @@ public static class FoundationHost
             app.UseHttpsRedirection();
         }
         app.UseAuthentication();
+        app.Use(async (context, next) =>
+        {
+            context.Response.Headers["Referrer-Policy"] = "no-referrer";
+            if (context.User.Identity?.IsAuthenticated == true || context.Request.Path.StartsWithSegments("/Account") || context.Request.Path.StartsWithSegments("/apply"))
+            {
+                // Antiforgery warns unless both directives are present; keep this the canonical pair.
+                context.Response.Headers.CacheControl = "no-cache, no-store";
+                context.Response.Headers.Pragma = "no-cache";
+            }
+            await next(context);
+        });
         app.UseAuthorization();
+        app.UseRateLimiter();
         app.UseAntiforgery();
         app.MapStaticAssets();
         app.MapRazorPages();
@@ -63,6 +80,8 @@ public static class FoundationHost
         _ = TimeZoneInfo.FindSystemTimeZoneById(config["Association:TimeZone"] ?? "Europe/Helsinki");
         var concurrency = config.GetValue("Worker:Concurrency", 4);
         if (concurrency is < 1 or > 32) throw new InvalidOperationException("Worker:Concurrency must be between 1 and 32.");
+        var idleWaitSeconds = config.GetValue("Worker:IdleWaitSeconds", development ? 1 : 5);
+        if (idleWaitSeconds is < 1 or > 60) throw new InvalidOperationException("Worker:IdleWaitSeconds must be between 1 and 60.");
         builder.Services.Configure<ForwardedHeadersOptions>(options =>
         {
             options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
@@ -73,6 +92,38 @@ public static class FoundationHost
             else options.ForwardedHeaders = ForwardedHeaders.None;
         });
         builder.Services.TryAddSingleton(TimeProvider.System);
+        builder.Services.AddScoped<AssociationClock>();
+        builder.Services.AddScoped<MembershipCommands>();
+        builder.Services.AddScoped<MembershipQueries>();
+        builder.Services.AddScoped<AccountCommands>();
+        builder.Services.AddScoped<MembershipMaintenance>();
+        builder.Services.AddScoped<MailQueue>();
+        builder.Services.AddScoped<MailRenderer>();
+        builder.Services.AddScoped<MailDispatcher>();
+        builder.Services.TryAddTransient<IMailTransport>(sp =>
+        {
+            var mail = sp.GetRequiredService<IOptions<MailOptions>>();
+            var smtp = new SmtpMailTransport(mail, sp.GetRequiredService<IConfiguration>());
+            return development
+                ? new DevelopmentMailTransport(smtp, mail, sp.GetRequiredService<IConfiguration>(), sp.GetRequiredService<IHostEnvironment>())
+                : smtp;
+        });
+        builder.Services.AddOptions<MembershipOptions>().Bind(config.GetSection("Membership"))
+            .Validate(x => x.UnverifiedRetentionHours is >= 1 and <= 168 && x.DeletionWaitingDays is >= 1 and <= 365 &&
+                x.RejectionRetentionDays is >= 1 and <= 30 && x.DefaultLanguage is "en" or "fi", "Invalid membership retention/language settings.").ValidateOnStart();
+        builder.Services.AddOptions<MailOptions>().Bind(config.GetSection("Mail"))
+            .Validate(x => Uri.TryCreate(x.PublicUrl, UriKind.Absolute, out var uri) && string.IsNullOrEmpty(uri.UserInfo) &&
+                string.IsNullOrEmpty(uri.Query) && string.IsNullOrEmpty(uri.Fragment) && x.PublicUrl.EndsWith('/') &&
+                (uri.Scheme == "https" || (development && uri.Scheme == "http" && uri.IsLoopback)) &&
+                x.MaxPerMinute is >= 1 and <= 1000 && (x.SpoolPath is null || Path.IsPathFullyQualified(x.SpoolPath)) &&
+                x.Transport switch
+                {
+                    "Development" => development,
+                    "Smtp" => !string.IsNullOrWhiteSpace(x.Host) && x.Port is >= 1 and <= 65535 &&
+                        !string.IsNullOrWhiteSpace(x.FromEmail) && new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(x.FromEmail) &&
+                        (string.IsNullOrEmpty(x.Username) == string.IsNullOrEmpty(x.Password)),
+                    _ => false
+                }, "Invalid mail URL/transport settings.").ValidateOnStart();
         builder.Services.AddHttpsRedirection(options => options.HttpsPort = 443);
         builder.Services.AddAntiforgery(options =>
         {
@@ -106,8 +157,9 @@ public static class FoundationHost
         }
         if (mode != "worker")
         {
-            builder.Services.AddAuthorizationBuilder().AddPolicy("Administrator", policy => policy.RequireRole("Administrator"))
+            builder.Services.AddAuthorizationBuilder().AddPolicy("Administrator", policy => policy.RequireAuthenticatedUser().AddRequirements(new AdministratorRequirement()))
                 .AddPolicy("Superuser", policy => policy.RequireAuthenticatedUser().AddRequirements(new SuperuserRequirement()));
+            builder.Services.AddScoped<IAuthorizationHandler, AdministratorAuthorizationHandler>();
             builder.Services.AddScoped<IAuthorizationHandler, SuperuserAuthorizationHandler>();
             builder.Services.AddScoped<SchedulerDiagnostics>();
             builder.Services.AddRazorPages();
@@ -115,6 +167,13 @@ public static class FoundationHost
             builder.Services.AddCascadingAuthenticationState();
             builder.Services.AddScoped<AuthenticationStateProvider, AccountAuthenticationStateProvider>();
             builder.Services.AddControllers();
+            builder.Services.AddRateLimiter(options =>
+            {
+                options.RejectionStatusCode = 429;
+                options.AddPolicy("verification", context => RateLimitPartition.GetFixedWindowLimiter(
+                    context.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ => new FixedWindowRateLimiterOptions
+                    { PermitLimit = 20, Window = TimeSpan.FromMinutes(10), QueueLimit = 0 }));
+            });
         }
         var oidc = builder.Services.AddOpenIddict().AddCore(options => options.UseEntityFrameworkCore().UseDbContext<AppDbContext>());
         if (mode != "worker" && config.GetValue<bool>("Oidc:Enabled")) oidc.AddServer(options => Oidc.Configure(options, config, development));
@@ -126,6 +185,7 @@ public static class FoundationHost
             {
                 options.InstanceName = "Nulysa";
                 options.GenerateInstanceId = true;
+                options.IdleWaitTime = TimeSpan.FromSeconds(idleWaitSeconds);
                 options.ShutdownJobInterruption = ShutdownJobInterruption.WhenWaitingForJobs;
             });
             q.UseDefaultThreadPool(options => options.MaxConcurrency = concurrency);

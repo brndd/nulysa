@@ -1,0 +1,120 @@
+@page "/profile"
+@page "/admin/members/{Id:long}"
+@attribute [Authorize]
+@using Nulysa.Accounts
+@using Nulysa.Membership
+@using System.ComponentModel.DataAnnotations
+@using System.Security.Claims
+@inject MembershipQueries Queries
+@inject MembershipCommands Membership
+@inject AccountCommands Accounts
+@inject AuthenticationStateProvider Authentication
+@inject NavigationManager Navigation
+@inject IConfiguration Configuration
+
+<PageTitle>Member details — @Configuration["Association:Name"]</PageTitle>
+<h1>Member details</h1>
+@if (details is not null)
+{
+    <p>Member #@details.Id · Joined @details.JoinedOn · Login email: @details.Email</p>
+    <p>Payment standing and invoices are not available until the S2 billing integration.</p>
+    @if (error is not null) { <p role="alert">@error</p> }
+    @if (details.PendingDeletionAt is null)
+    {
+        <EditForm Model="Input" method="post" FormName="profile" OnSubmit="Save">
+            <DataAnnotationsValidator /><ValidationSummary />
+            <Nulysa.Components.ProfileFields Input="Input!" Prefix="Input" />
+            <button type="submit">Save details</button>
+        </EditForm>
+        <h2>Change login email</h2>
+        <p>The current address remains in use until the new address is verified. Your identity and SSO subject will not change.</p>
+        @if (details.PendingEmail is not null) { <p>Awaiting verification: @details.PendingEmail</p> }
+        <EditForm Model="EmailInput" method="post" FormName="email" OnValidSubmit="ChangeEmail">
+            <DataAnnotationsValidator /><ValidationSummary />
+            <input type="hidden" name="EmailInput.Operation" value="@EmailInput!.Operation" />
+            <p><label for="new-email">New email</label> <InputText id="new-email" @bind-Value="EmailInput.Email" type="email" required maxlength="256" /></p>
+            <button type="submit">Send verification to new address</button>
+        </EditForm>
+        @if (Id is null) { <p><a href="/resign">Resign and request account deletion</a></p> }
+    }
+    else
+    {
+        <p><strong>Pending deletion. Login and services are blocked. Eligible for a fortnightly deletion batch from @details.DeletionEligibleAt?.ToString("u") (UTC).</strong></p>
+    }
+    <AuthorizeView Policy="Administrator">
+        <Authorized Context="board">
+            <h2>Membership lifecycle</h2>
+            <p>Termination immediately blocks login and starts erasure. Restoration cancels erasure only: it does not renew expired coverage, reverse separate removals, or repair payments. Do not put personal details in the audit reason.</p>
+            <EditForm Model="Lifecycle" method="post" FormName="lifecycle" OnValidSubmit="ChangeLifecycle">
+                <DataAnnotationsValidator /><ValidationSummary />
+                <input type="hidden" name="Lifecycle.Operation" value="@Lifecycle!.Operation" />
+                <input type="hidden" name="Lifecycle.Action" value="@Lifecycle.Action" />
+                <p><label for="lifecycle-reason">Reason / verified restoration request</label> <InputTextArea id="lifecycle-reason" @bind-Value="Lifecycle.Reason" required maxlength="1000" /></p>
+                <p><InputCheckbox id="lifecycle-confirm" @bind-Value="Lifecycle.Confirmed" /> <label for="lifecycle-confirm">I confirm this membership action and its consequences.</label></p>
+                <button type="submit">@(Lifecycle.Action == "restore" ? "Cancel pending deletion" : "Terminate and begin deletion")</button>
+            </EditForm>
+            <h3>Lifecycle history</h3>
+            @if (details.Approval is { } approval) { <p>Approved @approval.ApprovedAt.ToString("u") by administrator #@approval.AdministratorId.</p> }
+            <ul>@foreach (var entry in details.History) { <li>@entry.OccurredAt.ToString("u") — @entry.Action — actor #@entry.ActorId — @entry.Reason</li> }</ul>
+        </Authorized>
+    </AuthorizeView>
+}
+else
+{
+    <p>No membership record is available for this account.</p>
+}
+
+@code {
+    public sealed class EmailChangeInput
+    {
+        [Required, EmailAddress, StringLength(256)] public string Email { get; set; } = "";
+        public Guid Operation { get; set; } = Guid.NewGuid();
+    }
+    public sealed class LifecycleInput
+    {
+        public string Action { get; set; } = "";
+        [Required, StringLength(1000)] public string Reason { get; set; } = "";
+        [Range(typeof(bool), "true", "true", ErrorMessage = "Confirm the membership action.")] public bool Confirmed { get; set; }
+        public Guid Operation { get; set; } = Guid.NewGuid();
+    }
+    [Parameter] public long? Id { get; set; }
+    [SupplyParameterFromForm(FormName = "profile")] public ProfileInput? Input { get; set; }
+    [SupplyParameterFromForm(FormName = "email")] public EmailChangeInput? EmailInput { get; set; }
+    [SupplyParameterFromForm(FormName = "lifecycle")] public LifecycleInput? Lifecycle { get; set; }
+    [CascadingParameter] private HttpContext HttpContext { get; set; } = null!;
+    private MemberDetails? details;
+    private ClaimsPrincipal actor = null!;
+    private string? error;
+    protected override async Task OnInitializedAsync()
+    {
+        actor = (await Authentication.GetAuthenticationStateAsync()).User;
+        if (Id is not null && !await Queries.IsAdministrator(actor)) { HttpContext.Response.StatusCode = 403; return; }
+        details = await Queries.Details(actor, Id ?? Authority.Id(actor));
+        if (details is null) return;
+        Input ??= details.Profile; EmailInput ??= new(); Lifecycle ??= new() { Action = details.PendingDeletionAt is null ? "terminate" : "restore" };
+    }
+    private async Task Save()
+    {
+        if (details is null) return;
+        try { await Accounts.UpdateProfile(actor, details!.Id, Input!); Navigation.NavigateTo(Navigation.Uri); }
+        catch (ValidationException ex) { error = ex.Message; }
+    }
+    private async Task ChangeEmail()
+    {
+        if (details is null) return;
+        try { await Accounts.RequestEmailChange(actor, details!.Id, EmailInput!.Email, EmailInput.Operation); Navigation.NavigateTo(Navigation.Uri); }
+        catch (ValidationException ex) { error = ex.Message; }
+    }
+    private async Task ChangeLifecycle()
+    {
+        if (details is null) return;
+        try
+        {
+            if (Lifecycle!.Action == "terminate") await Membership.BeginDeletion(actor, details.Id, Lifecycle.Operation, Lifecycle.Reason);
+            else if (Lifecycle.Action == "restore") await Membership.Restore(actor, details.Id, Lifecycle.Operation, Lifecycle.Reason);
+            else throw new ValidationException("Choose a membership action.");
+            Navigation.NavigateTo("/admin/members");
+        }
+        catch (ValidationException ex) { error = ex.Message; }
+    }
+}

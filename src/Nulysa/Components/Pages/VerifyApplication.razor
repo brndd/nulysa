@@ -1,0 +1,30 @@
+@page "/apply/verify"
+@attribute [AllowAnonymous]
+@attribute [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("verification")]
+@using Nulysa.Membership
+@using System.ComponentModel.DataAnnotations
+@inject MembershipCommands Commands
+@inject IConfiguration Configuration
+
+<PageTitle>Verify application email — @Configuration["Association:Name"]</PageTitle>
+<h1>Verify application email</h1>
+@if (verified) { <p role="status">Email verified. Your application is now awaiting administrator review. Verification alone does not grant login access.</p> }
+else
+{
+    @if (error is not null) { <p role="alert">@error</p> }
+    <EditForm Model="this" method="post" FormName="verify" OnSubmit="Verify">
+        <button type="submit">Verify my email address</button>
+    </EditForm>
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "id")] public Guid Id { get; set; }
+    [SupplyParameterFromQuery(Name = "token")] public string? Token { get; set; }
+    private bool verified;
+    private string? error;
+    private async Task Verify()
+    {
+        try { await Commands.Verify(Id, Token ?? ""); verified = true; }
+        catch (ValidationException ex) { error = ex.Message; }
+    }
+}

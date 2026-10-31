@@ -8,6 +8,8 @@
   The test suite with slow tests excluded should be able to finish in less than 60 seconds.
 - Keep slow tests to the "full" test suite.
 - Add or update tests for the code you change.
+- Prefer running the limited test suite during development. Only run the full test suite when
+  touching code that is specifically tested by it. CI will run the full suite.
 
 # Editing this file
 

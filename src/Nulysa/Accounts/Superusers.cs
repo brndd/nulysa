@@ -23,20 +23,21 @@ public sealed class SuperuserAuthorizationHandler(IServiceScopeFactory scopes) :
 public static class Superusers
 {
     // Operator-only command; never exposed by member/board editing endpoints.
-    public static async Task Set(AppDbContext db, UserManager<User> users, RoleManager<IdentityRole<long>> roles, long id, bool enabled)
+    public static async Task Set(AppDbContext db, UserManager<User> users, RoleManager<IdentityRole<long>> roles, long id, bool enabled, string role = "Superuser")
     {
+        if (role is not ("Superuser" or "Administrator")) throw new ArgumentOutOfRangeException(nameof(role));
         // Join development account creation's transaction when present.
         await using var tx = db.Database.CurrentTransaction is null ? await db.Database.BeginTransactionAsync() : null;
         await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(72134502)");
         var user = await users.FindByIdAsync(id.ToString(System.Globalization.CultureInfo.InvariantCulture))
             ?? throw new InvalidOperationException("User not found.");
-        if (enabled && !await roles.RoleExistsAsync("Superuser") &&
-            !(await roles.CreateAsync(new IdentityRole<long>("Superuser"))).Succeeded)
-            throw new InvalidOperationException("Superuser role creation failed.");
-        if (await users.IsInRoleAsync(user, "Superuser") != enabled)
+        if (enabled && !await roles.RoleExistsAsync(role) &&
+            !(await roles.CreateAsync(new IdentityRole<long>(role))).Succeeded)
+            throw new InvalidOperationException("Operator role creation failed.");
+        if (await users.IsInRoleAsync(user, role) != enabled)
         {
-            var result = enabled ? await users.AddToRoleAsync(user, "Superuser") : await users.RemoveFromRoleAsync(user, "Superuser");
-            if (!result.Succeeded) throw new InvalidOperationException("Superuser assignment failed.");
+            var result = enabled ? await users.AddToRoleAsync(user, role) : await users.RemoveFromRoleAsync(user, role);
+            if (!result.Succeeded) throw new InvalidOperationException("Operator role assignment failed.");
         }
         if (tx is not null) await tx.CommitAsync();
     }

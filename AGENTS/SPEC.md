@@ -1641,9 +1641,9 @@ security boundary. This does not defer essential operational mail from S1 to S3.
   Only registered job types with minimal identifiers/string job data are allowed;
   requests and editable templates cannot supply arbitrary job types or executable
   payloads. See [durable work](ARCHITECTURE.md#7-durable-work-email-and-scheduled-maintenance).
-- The initial association will use Scaleway's TEM API. Do not make the queue or
-  communications business rules specific to that transport; other associations
-  must be able to use other delivery backends.
+- The initial association will use Scaleway's TEM service through its SMTP endpoint.
+  Do not make the queue or communications business rules specific to that transport;
+  other associations must be able to use other delivery backends.
 - Support provider-specific rate limits and throttling. Delay queued work rather
   than discard messages or repeatedly exceed a provider's limits.
 - Keep queue progress, attempts and failures visible to administrators, and retain

@@ -1,6 +1,6 @@
-# Foundation operations
+# Application operations
 
-This is the S0 runbook, not a production-readiness declaration. Use one release
+This covers S0/S1, not a production-readiness declaration. Use one release
 artifact with `web`, `worker` and explicit maintenance commands. PostgreSQL is the
 only database; do not run against a Django database or production during development.
 
@@ -39,6 +39,8 @@ required values privately; `.env` and `.local/` are ignored by Git.
   `ReverseProxy__KnownProxy` is the single exact trusted proxy IP. Forwarded headers
   are ignored otherwise, limited to one hop. HTTPS redirect targets port 443.
 - OIDC settings and separate persistent RSA keys: see [OIDC](oidc-reference.md).
+- Essential mail, membership retention/erasure and terms settings:
+  see [S1 operations](membership.md#mail-configuration-and-failure-handling).
 - Optional `Association__Name`, `Association__TimeZone` (default Europe/Helsinki),
   `Worker__Concurrency` (default 4, allowed 1–32). All workers share scheduler name
   `Nulysa` and use automatically unique instance IDs. Default cluster check-in is
@@ -63,9 +65,13 @@ atomic with domain writes and can fail or be trimmed. Logs are not a profile arc
 - `maintenance.authentication-cleanup`: Helsinki midnight, one coalesced missed run.
   OpenIddict pruning preserves usable refresh chains. Token expiry/account gates
   are enforced on requests even if maintenance is late.
-- There are no placeholder billing, bank, deletion or storage jobs. Later slices
-  use persisted dated work/operation keys. `Schedules.Fortnightly` establishes an
-  anchored 14-calendar-day cadence across DST; day-of-month `*/14` is not equivalent.
+- `maintenance.membership-due-work`: every minute, coalescing missed scans, bounded
+  application/mail cleanup and recovery of unscheduled pending delivery intents.
+- `maintenance.final-deletion`: next local midnight on first installation, then every
+  14 calendar days; preserves its persisted phase across reinstall/restarts and DST.
+  Eligibility is rechecked per member, never inferred from a scheduler tick.
+- There are no placeholder billing, bank or storage jobs. Day-of-month `*/14` is
+  not an anchored fortnightly schedule.
 
 Recoverable jobs request recovery. Graceful shutdown cancels cooperating jobs and
 hands unfinished firings back; the host's shutdown deadline is 20 seconds. Set the
@@ -88,6 +94,8 @@ to the `operations` module; diagnostic views will be added alongside features
 throughout implementation. The first post-S0 increment is at `/system-console`,
 showing scheduler health, schedule state/next execution/last success and the latest
 50 final failure observations. It is a read-only snapshot; reload to refresh.
+S1 also shows the latest 50 delivery IDs, states, attempts and known provider IDs,
+without token-bearing message bodies or recipient profiles.
 Unavailable diagnostics are reported as unavailable, not healthy. There are no
 retry/cancel/schedule-edit actions. This is not an added S0 exit gate.
 
@@ -111,6 +119,8 @@ Checks include:
 - absent/paused/error/complete schedules, or next-fire time over two minutes late;
 - original one-shot work age over five minutes, even across recovery/crash loops;
 - unreadable enqueue metadata and recorded final failures, independently of history.
+- missing/stale membership scan, stale deletion batch after its first run, and
+  pending/failed/uncertain mail independently of Quartz execution history.
 
 All one-shot application work belongs to Quartz group `work` and stamps its original
 UTC `enqueued_at` on the job detail. The synthetic worker harness demonstrates the
@@ -125,5 +135,6 @@ or rerun arbitrary jobs to make monitoring green. A later successful occurrence 
 that job's operational failure observation, not its financial/delivery history.
 
 An uncertain external send needs provider reconciliation/review; do not blindly
-retry it. No mail is sent in S0. Before public deployment add and rehearse backups,
+retry it. S1's failure/retention handling is described in the membership runbook.
+Before public deployment add and rehearse backups,
 restore/erasure handling, alert routing, key rotation and password-guessing protection.

@@ -1,3 +1,4 @@
+using Nulysa.Membership;
 using Quartz;
 
 namespace Nulysa.Operations;
@@ -5,7 +6,7 @@ namespace Nulysa.Operations;
 public static class Schedules
 {
     public const string Group = "maintenance";
-    public static readonly string[] Names = ["heartbeat", "authentication-cleanup"];
+    public static readonly string[] Names = ["heartbeat", "authentication-cleanup", "membership-due-work", "final-deletion"];
 
     public static async Task Install(IScheduler scheduler, TimeProvider clock, TimeZoneInfo zone, CancellationToken ct = default)
     {
@@ -20,6 +21,14 @@ public static class Schedules
             .WithRetryPolicy(RetryPolicy.Fixed(2, TimeSpan.FromSeconds(10))).Build();
         await InstallOne(scheduler, JobBuilder.Create<HeartbeatJob>().WithIdentity("heartbeat", Group).RequestRecovery().Build(), heartbeat, ct);
         await InstallOne(scheduler, JobBuilder.Create<AuthenticationCleanupJob>().WithIdentity("authentication-cleanup", Group).RequestRecovery().Build(), cleanup, ct);
+        var due = TriggerBuilder.Create<MembershipDueWorkJob>().WithIdentity("membership-due-work", Group).ForJob("membership-due-work", Group)
+            .StartAt(clock.GetUtcNow()).WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromMinutes(1)).RepeatForever()
+                .WithMisfireInstruction(SimpleTriggerMisfireInstruction.FireNow)).Build();
+        await InstallOne(scheduler, JobBuilder.Create<MembershipDueWorkJob>().WithIdentity("membership-due-work", Group).RequestRecovery().Build(), due, ct);
+        var tomorrow = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(clock.GetUtcNow(), zone).DateTime).AddDays(1);
+        var deletion = Fortnightly<FinalDeletionJob>(tomorrow, zone).GetTriggerBuilder()
+            .WithIdentity("final-deletion", Group).ForJob("final-deletion", Group).Build();
+        await InstallOne(scheduler, JobBuilder.Create<FinalDeletionJob>().WithIdentity("final-deletion", Group).RequestRecovery().Build(), deletion, ct);
     }
 
     private static async Task InstallOne(IScheduler scheduler, IJobDetail job, ITrigger trigger, CancellationToken ct)
@@ -32,6 +41,9 @@ public static class Schedules
             {
                 (ISimpleTrigger a, ISimpleTrigger b) => a.RepeatInterval == b.RepeatInterval && a.RepeatCount == b.RepeatCount,
                 (ICronTrigger a, ICronTrigger b) => a.CronExpressionString == b.CronExpressionString && a.TimeZone.Id == b.TimeZone.Id,
+                (ICalendarIntervalTrigger a, ICalendarIntervalTrigger b) => a.RepeatInterval == b.RepeatInterval && a.RepeatIntervalUnit == b.RepeatIntervalUnit &&
+                    a.TimeZone.Id == b.TimeZone.Id && a.PreserveHourOfDayAcrossDaylightSavings == b.PreserveHourOfDayAcrossDaylightSavings &&
+                    a.SkipDayIfHourDoesNotExist == b.SkipDayIfHourDoesNotExist,
                 _ => false
             };
             if (existingJob?.JobType != job.JobType || existing?.JobKey != job.Key || !sameSchedule ||
@@ -43,7 +55,6 @@ public static class Schedules
         await scheduler.ScheduleJob(job, trigger, cancellationToken: ct);
     }
 
-    // Used by S5/S1's eventual dated jobs, not installed as a placeholder business job in S0.
     public static ITrigger Fortnightly<TJob>(DateOnly anchor, TimeZoneInfo zone) where TJob : IJob
     {
         var local = anchor.ToDateTime(TimeOnly.MinValue, DateTimeKind.Unspecified);

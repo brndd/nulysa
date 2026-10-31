@@ -36,6 +36,9 @@ else if (report is not null)
     <h3>Latest final failure observations (up to 50)</h3>
     <p>Diagnostic observations, not business history. A later successful occurrence can clear them.</p>
     <ul>@foreach (var failure in report.Failures) { <li>@failure.Job — @Timestamp(failure.LastFailedAt)</li> }</ul>
+    <h3>Latest essential mail deliveries (up to 50)</h3>
+    <p>Provider acceptance is not inbox delivery. Review/failed sends require investigation, not arbitrary job replay. Recipient addresses and token-bearing bodies are not retained here.</p>
+    <ul>@foreach (var delivery in report.Deliveries) { <li>@delivery.Id — @delivery.Kind — @delivery.State — attempts @delivery.Attempts — @Timestamp(delivery.CreatedAt) — provider @(delivery.ProviderId ?? "unknown")</li> }</ul>
 }
 
 @code {
@@ -45,8 +48,6 @@ else if (report is not null)
 
     protected override async Task OnInitializedAsync()
     {
-        HttpContext.Response.Headers.CacheControl = "no-cache, no-store";
-        HttpContext.Response.Headers.Pragma = "no-cache";
         try { report = await Diagnostics.Read((await Authentication.GetAuthenticationStateAsync()).User, HttpContext.RequestAborted); }
         catch (Exception error) when (error is Npgsql.NpgsqlException or Quartz.SchedulerException)
         {

@@ -7,15 +7,18 @@ using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.Playwright;
+using Nulysa.Accounts;
+using Nulysa.Membership;
 
 namespace Nulysa.Tests;
 
 [Trait("Group", "Browser")]
-public sealed class KeycloakTests : OidcTest
+public sealed class KeycloakTests : MembershipTest
 {
     [Fact]
     public async Task Real_broker_preserves_identity_after_email_change_and_does_not_pretend_downstream_sessions_are_revoked()
@@ -34,7 +37,13 @@ public sealed class KeycloakTests : OidcTest
         var adminToken = token.GetProperty("access_token").GetString();
         var realm = "nulysa-s0-" + Guid.NewGuid().ToString("N");
         var issuer = baseUrl + "/realms/" + realm;
-        var user = await CreateUser();
+        var board = await Board();
+        await using var commands = CommandsApp();
+        var userId = await Admit(commands, board);
+        var setup = await PasswordToken(commands, userId);
+        await Run(commands, sp => sp.GetRequiredService<AccountCommands>().SetPassword(userId, setup, Password));
+        await using var registry = Context();
+        var user = await registry.Users.AsNoTracking().SingleAsync(x => x.Id == userId);
         await CreateClient(issuer + "/broker/mulysa/endpoint");
         await using var provider = await StartProvider();
         var downstreamBuilder = WebApplication.CreateBuilder();
@@ -168,9 +177,11 @@ public sealed class KeycloakTests : OidcTest
             await Enter(page, Email);
             var first = await Finish(page, pending);
             Assert.Equal(Email, first.GetClaim("email").Value);
-            await using (var db = Context())
-                await db.Users.Where(x => x.Id == user.Id).ExecuteUpdateAsync(x => x.SetProperty(u => u.Email, "changed@example.test")
-                    .SetProperty(u => u.NormalizedEmail, "CHANGED@EXAMPLE.TEST"));
+            var change = Guid.NewGuid();
+            await Run(commands, sp => sp.GetRequiredService<AccountCommands>().RequestEmailChange(Actor(userId), userId, "changed@example.test", change));
+            var changeToken = await Run(commands, async sp => await sp.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<User>>()
+                .GenerateChangeEmailTokenAsync((await sp.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<User>>().FindByIdAsync(userId.ToString()))!, "changed@example.test"));
+            await Run(commands, sp => sp.GetRequiredService<AccountCommands>().ConfirmEmailChange(userId, change, changeToken));
             await using (var fresh = await browser.NewContextAsync())
             {
                 var changed = await fresh.NewPageAsync();
@@ -186,8 +197,7 @@ public sealed class KeycloakTests : OidcTest
             var links = await Admin(HttpMethod.Get, $"realms/{realm}/users/{first.Subject}/federated-identity", expected: HttpStatusCode.OK);
             Assert.Equal("mulysa", links[0].GetProperty("identityProvider").GetString());
             Assert.Equal(user.OidcSubject, links[0].GetProperty("userId").GetString());
-            await using (var db = Context())
-                await db.Users.Where(x => x.Id == user.Id).ExecuteUpdateAsync(x => x.SetProperty(u => u.Admitted, false));
+            await Run(commands, sp => sp.GetRequiredService<MembershipCommands>().BeginDeletion(board, userId, Guid.NewGuid(), "Manual termination"));
             await using (var fresh = await browser.NewContextAsync())
             {
                 var blocked = await fresh.NewPageAsync();

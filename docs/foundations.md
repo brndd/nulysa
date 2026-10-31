@@ -2,7 +2,9 @@
 
 S0 is implemented in C#/ASP.NET Core. Evidence below comes from this checkout's
 synthetic PostgreSQL/process/protocol/browser tests, **not** the Django suite.
-No membership, billing, mail delivery or legacy migration workflow is implemented.
+S0 itself included no membership, billing, mail delivery or legacy migration workflow.
+The subsequent [S1 implementation](membership.md) now adds real membership and
+essential mail, preserving these infrastructure gates; billing and migration remain later work.
 
 A first post-S0 System Console increment now provides a superuser-only static SSR
 shell and read-only scheduler diagnostics. Operator CLI commands grant/revoke the
@@ -100,9 +102,9 @@ has already completed.
 - Authentication cleanup is first due at the next Helsinki midnight. Until its first
   successful run, status honestly reports a missing cleanup observation. A fresh
   heartbeat alone does not certify cleanup or all other jobs.
-- Account gates use foundation admission/deletion facts. S1 must implement real
-  application/approval/password setup/reset/resignation/restoration/erasure commands
-  and their email failure paths. Payment standing must never become the login flag.
+- Account gates still use admission/deletion facts, now written by S1's real
+  application/approval/password setup/reset/resignation/restoration/erasure commands.
+  Payment standing must never become the login flag. See S1's separate evidence/limits.
 - Existing Keycloak/downstream sessions survive disabling the upstream account.
   Only fresh upstream access is blocked. No production realm, Matrix/Nextcloud
   mapping or legacy identity switch has been certified; those are S6 work.

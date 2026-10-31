@@ -1,0 +1,41 @@
+@page "/resign"
+@attribute [Authorize]
+@using Nulysa.Accounts
+@using Nulysa.Membership
+@using System.ComponentModel.DataAnnotations
+@inject MembershipCommands Commands
+@inject AuthenticationStateProvider Authentication
+@inject NavigationManager Navigation
+@inject IConfiguration Configuration
+
+<PageTitle>Resign from membership — @Configuration["Association:Name"]</PageTitle>
+<h1>Resign from membership</h1>
+<p>Resignation immediately blocks login and member services, even if you have paid for future time. It starts account erasure after the configured waiting period and a fortnightly batch. There is no automatic refund for unused membership time. Only an administrator can cancel pending deletion before actual erasure.</p>
+@if (error is not null) { <p role="alert">@error</p> }
+<EditForm Model="Input" method="post" FormName="resign" OnValidSubmit="Submit">
+    <DataAnnotationsValidator /><ValidationSummary />
+    <input type="hidden" name="Input.Operation" value="@Input!.Operation" />
+    <p><InputCheckbox id="resign-confirm" @bind-Value="Input.Confirmed" /> <label for="resign-confirm">I understand and want to resign now.</label></p>
+    <button type="submit">Resign and begin account deletion</button>
+</EditForm>
+
+@code {
+    public sealed class ResignInput
+    {
+        public Guid Operation { get; set; } = Guid.NewGuid();
+        [Range(typeof(bool), "true", "true", ErrorMessage = "Confirm resignation.")] public bool Confirmed { get; set; }
+    }
+    [SupplyParameterFromForm] public ResignInput? Input { get; set; }
+    private string? error;
+    protected override void OnInitialized() => Input ??= new();
+    private async Task Submit()
+    {
+        try
+        {
+            var actor = (await Authentication.GetAuthenticationStateAsync()).User;
+            await Commands.BeginDeletion(actor, Authority.Id(actor), Input!.Operation, "Voluntary resignation");
+            Navigation.NavigateTo("/Account/Login");
+        }
+        catch (ValidationException ex) { error = ex.Message; }
+    }
+}

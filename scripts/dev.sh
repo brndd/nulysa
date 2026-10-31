@@ -9,6 +9,9 @@ export ASPNETCORE_ENVIRONMENT=Development
 export ConnectionStrings__Database='Host=127.0.0.1;Port=55432;Database=nulysa;Username=nulysa;Password=synthetic-local-password;GSS Encryption Mode=Disable'
 export DataProtection__Path="$root/.local/data-protection"
 export ASPNETCORE_URLS=http://127.0.0.1:5000
+export Mail__Transport=${Mail__Transport:-Development}
+export Mail__PublicUrl=http://127.0.0.1:5000/
+export Mail__SpoolPath="$root/.local/data-protection/mail"
 
 cd "$root"
 "$engine" compose -f "$root/compose.yaml" up -d postgres

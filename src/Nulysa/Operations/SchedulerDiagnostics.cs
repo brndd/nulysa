@@ -1,13 +1,15 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using Nulysa.Communications;
 using Nulysa.Data;
 using Quartz;
 
 namespace Nulysa.Operations;
 
 public sealed record ScheduleStatus(string Name, string State, DateTimeOffset? NextFire, DateTimeOffset? LastSuccess);
-public sealed record SchedulerReport(WorkReport Work, List<ScheduleStatus> Schedules, List<FailureObservation> Failures);
+public sealed record DeliveryDiagnostic(Guid Id, MailKind Kind, DeliveryState State, int Attempts, DateTimeOffset CreatedAt, string? ProviderId);
+public sealed record SchedulerReport(WorkReport Work, List<ScheduleStatus> Schedules, List<FailureObservation> Failures, List<DeliveryDiagnostic> Deliveries);
 
 public sealed class SchedulerDiagnostics(IAuthorizationService authorization, AppDbContext db, ISchedulerFactory schedulers, TimeProvider clock)
 {
@@ -26,6 +28,8 @@ public sealed class SchedulerDiagnostics(IAuthorizationService authorization, Ap
                 trigger?.NextFireTimeUtc, observation?.LastSeen));
         }
         var failures = await db.FailureObservations.AsNoTracking().OrderByDescending(x => x.LastFailedAt).Take(50).ToListAsync(ct);
-        return new(work, schedules, failures);
+        var deliveries = await db.Deliveries.AsNoTracking().OrderByDescending(x => x.CreatedAt).Take(50)
+            .Select(x => new DeliveryDiagnostic(x.Id, x.Kind, x.State, x.Attempts, x.CreatedAt, x.ProviderId)).ToListAsync(ct);
+        return new(work, schedules, failures, deliveries);
     }
 }

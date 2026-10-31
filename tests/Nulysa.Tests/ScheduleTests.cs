@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using Nulysa.Membership;
 using Nulysa.Operations;
 using Quartz;
 
@@ -6,6 +8,17 @@ namespace Nulysa.Tests;
 
 public sealed class CalendarTests
 {
+    [Theory]
+    [InlineData(2026, 3, 15, 1, 30, 2026, 3, 29, 1, 0)]
+    [InlineData(2026, 10, 11, 0, 30, 2026, 10, 25, 1, 30)]
+    public void Deletion_waiting_preserves_wall_time_and_never_chooses_the_early_DST_resolution(
+        int year, int month, int day, int hour, int minute, int endYear, int endMonth, int endDay, int endHour, int endMinute)
+    {
+        var clock = new ManualClock { Now = new DateTimeOffset(year, month, day, hour, minute, 0, TimeSpan.Zero) };
+        var association = new AssociationClock(clock, new ConfigurationBuilder().Build());
+        Assert.Equal(new DateTimeOffset(endYear, endMonth, endDay, endHour, endMinute, 0, TimeSpan.Zero), association.AfterCalendarDays(14));
+    }
+
     [Theory]
     [InlineData(2026, 3, 28)]
     [InlineData(2026, 10, 24)]
@@ -87,7 +100,7 @@ public sealed class ScheduleTests : DatabaseTest
         await using var db = Context();
         await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE qrtz_triggers SET next_fire_time = {DateTimeOffset.UtcNow.AddDays(-3).UtcTicks} WHERE trigger_name = 'authentication-cleanup'");
         var worker = StartWorker();
-        await Until(async () => await db.Observations.CountAsync() == 2, seconds: 45);
+        await Until(async () => await db.Observations.CountAsync() == Schedules.Names.Length - 1, seconds: 45);
         await Until(async () => await db.Database.SqlQuery<int>($"SELECT count(*)::integer AS \"Value\" FROM qrtz_execution_history WHERE job_name = 'authentication-cleanup'").SingleAsync() == 1);
         Assert.True((await WorkStatus.Read(db, Scheduler, TimeProvider.System)).Healthy);
         Assert.Equal(1, await db.Database.SqlQuery<int>($"SELECT count(*)::integer AS \"Value\" FROM qrtz_execution_history WHERE job_name = 'authentication-cleanup'").SingleAsync());

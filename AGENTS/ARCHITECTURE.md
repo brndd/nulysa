@@ -1,7 +1,7 @@
 # ASP.NET Core architecture and delivery blueprint
 
-**ASP.NET Core architecture accepted in principle; S0 is implemented with its own
-acceptance suite. Later-slice implementation details remain proposals.**
+**ASP.NET Core architecture accepted in principle; S0 and S1 are implemented with
+their own acceptance suites. Later-slice implementation details remain proposals.**
 The behaviour in [SPEC.md](SPEC.md) is preserved. C#/ASP.NET Core, PostgreSQL-only
 database profiles and Quartz.NET are the selected platform direction. The stack
 below makes that direction concrete without reopening agreed domain policies.
@@ -29,7 +29,7 @@ distributed infrastructure.
 | Database | PostgreSQL in development, production and database CI, through EF Core and Npgsql. One application DbContext coordinates domain/Identity/OpenIddict tables; Quartz owns separate tables in the same database and explicitly shares application transactions for scheduling. No SQLite support initially. |
 | Web UI | Blazor Web App with static SSR and ordinary HTTP forms by default; selective Interactive Server pages/components for richer interactions. Use Blazor's enhanced navigation/form handling where useful, not a parallel HTMX layer. Customizable association branding, including page titles, with unobtrusive Nulysa attribution. No initial WebAssembly/Auto mode, separate client project, frontend authentication system or mandatory public CRUD API. Protocol/device endpoints remain ordinary ASP.NET Core endpoints. |
 | Background work | Quartz.NET 4 with PostgreSQL AdoJobStore, a separate worker process and a small configurable execution pool. Enable persistence, clustering, recovery, retry policies and database execution history explicitly. No Redis/RabbitMQ or custom queue framework. Prove transaction/recovery behaviour in S0 (section 7). |
-| Email and PDFs | Scaleway TEM adapter initially, using bounded HttpClient calls; editable, localised email templates with restricted placeholders. Keep Typst for invoice PDFs, invoking a pinned CLI as a controlled child process and reusing the association's parameterized template. Use trusted source, structured input, controlled private assets/packages/fonts and no arbitrary runtime remote fetching. Rich-text editor and sanitisation-library choices remain deferred. |
+| Email and PDFs | SMTP adapter initially, so Scaleway TEM or another transactional provider can be used through its SMTP endpoint; editable, localised email templates with restricted placeholders. Keep Typst for invoice PDFs, invoking a pinned CLI as a controlled child process and reusing the association's parameterized template. Use trusted source, structured input, controlled private assets/packages/fonts and no arbitrary runtime remote fetching. Rich-text editor and sanitisation-library choices remain deferred. |
 | Identity integration | ASP.NET Core Identity for email/password accounts and cookies; OpenIddict for the registry's upstream OAuth/OIDC server. Keep Keycloak as the SSO intermediary. Prove local continuity (section 3); production access/testing is not an early-development prerequisite. |
 | Tooling | Pin the .NET SDK and NuGet dependencies/lockfiles. Use compiler/nullable checks, .NET analyzers and formatting. Proposed tests: xUnit, ASP.NET Core integration testing and Playwright for critical browser journeys. Run database/transaction/worker tests on real PostgreSQL. Exact versions and test grouping are S0 work. |
 | Deployment | Production uses Linux containers and Kestrel behind a trusted TLS reverse proxy. Prefer one release artifact with explicit web, worker and maintenance entry points, PostgreSQL and private document storage. Persist Data Protection and OIDC signing keys. Local application development may run on the host against containerized PostgreSQL. |
@@ -647,7 +647,7 @@ below are labels, not a commitment to a new test framework or another policy lis
 | `ERASE` | Default waiting time plus fortnightly batch; admin cancellation before actual deletion; pending-deletion failed-match disposition survives restoration/reimport; new admission restores nothing; retained claims reconcile without a live profile. |
 | `ACCESS` | Qualification-scoped trainer privacy; live denial beats cache; earlier validity end beats TTL; stale Alice grant/revoke after Bob's UID claim; delayed/repeated/conflicting offline uploads and unresolved attribution. |
 | `STORE` | FIFO/skip/decline/expiry; position and member/group uniqueness; manual funded renewal; demand-based caps protect paid terms; clearance/junk-area handover; inactivity does not trigger automatic refund/release. |
-| `INTEGRATE` | TEM throttling/fallback, GoCardless reauthorisation/failure alerts, MobilePay duplicate callbacks/payout reconciliation. S0: automated synthetic replacement/Keycloak/downstream flow, email-change identity stability and login/session boundaries. S1: feature-specific authentication restrictions. S6: legacy-switch continuity and actual claim/broker mappings. |
+| `INTEGRATE` | SMTP/provider throttling and fallback, GoCardless reauthorisation/failure alerts, MobilePay duplicate callbacks/payout reconciliation. S0: automated synthetic replacement/Keycloak/downstream flow, email-change identity stability and login/session boundaries. S1: feature-specific authentication restrictions. S6: legacy-switch continuity and actual claim/broker mappings. |
 | `CUTOVER` | Repeatable opening imports, no receipt/income duplication, migrated free-day eligibility, new references, archive restrictions and an end-to-end rehearsal with representative readers. |
 
 Use pure unit tests for calendars/prices, PostgreSQL tests for constraints/commands,
@@ -695,6 +695,11 @@ S2 invoice integration is a tracked dependency and acceptance gate, not a new po
 that approval omits invoices. Later slices extend the same contracts; they must not
 retrofit a second billing path or replace the foundational user model.
 
+S1 implementation, essential-mail failure/retention handling, local usage and the
+explicit `InitialMembershipRequest` → S2 dependency are recorded in
+[`docs/membership.md`](../docs/membership.md). Approval does not claim to have issued
+an invoice or established paid coverage in this slice.
+
 ## 12. Review gate before scaffolding
 
 The reviewed domain architecture is preserved with the selected ASP.NET Core,
@@ -714,9 +719,10 @@ Once implementation is requested, its concrete checkpoints are:
 4. Preserve the S0–S6 acceptance gates, essential mail in S1 and real initial-invoice
    integration in S2 before any operational release.
 
-Then build the membership slice with tests. Rejection-email terminal-failure handling,
-precise device schemas, one-off invoice routing, accountant export mappings and
-retention/erasure settings remain feature/deployment follow-up. Raise a meaningful
+The membership slice and its rejection-email terminal-failure/erasure handling are
+now implemented; see the S1 evidence above. Precise device schemas, one-off invoice
+routing, accountant export mappings and deployment retention validation remain
+feature/deployment follow-up. Raise a meaningful
 tradeoff or change to agreed behaviour, not every field/package choice. Architectural
 agreement does not mean implementation, recovery tests or production validation have
 already happened.
