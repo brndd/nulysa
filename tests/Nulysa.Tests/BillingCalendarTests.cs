@@ -37,8 +37,10 @@ public sealed class BillingCalendarTests
         Assert.Equal(5.16m, quote.Amount);
         var discount = new Discount { StartsOn = anchor, EndsOn = new(2026, 3, 27), Kind = DiscountKind.Percentage, Value = 50 };
         quote = Pricing.Calculate(anchor, 1, new(anchor, new(2026, 4, 12)), prices, [discount], []);
-        Assert.Equal(7.58m, quote.Amount); Assert.Equal(2, quote.Segments.Count);
-        Assert.Equal(1.01m, Pricing.Round(1.005m)); Assert.Equal(-1.01m, Pricing.Round(-1.005m));
+        Assert.Equal(7.58m, quote.Amount);
+        Assert.Equal(2, quote.Segments.Count);
+        Assert.Equal(1.01m, Pricing.Round(1.005m));
+        Assert.Equal(-1.01m, Pricing.Round(-1.005m));
         var shortPeriod = BillingCalendar.Bridge(new(2026, 3, 1), 1, new(2026, 3, 28), true);
         Assert.Equal(new DateOnly(2026, 5, 1), shortPeriod.End);
         var merged = Pricing.Calculate(new(2026, 3, 1), 1, shortPeriod, [new FeePrice { EffectiveOn = new(2000, 1, 1), MonthlyAmount = 30 }], [], []);

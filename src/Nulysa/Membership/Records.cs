@@ -22,8 +22,13 @@ public sealed class ProfileInput
 
     public void CopyTo(User user)
     {
-        user.Name = Name.Trim(); user.Municipality = Municipality.Trim(); user.DateOfBirth = DateOfBirth;
-        user.Language = Language; user.PhoneNumber = PhoneNumber?.Trim(); user.Nickname = Nickname?.Trim(); user.MatrixId = MatrixId?.Trim();
+        user.Name = Name.Trim();
+        user.Municipality = Municipality.Trim();
+        user.DateOfBirth = DateOfBirth;
+        user.Language = Language;
+        user.PhoneNumber = PhoneNumber?.Trim();
+        user.Nickname = Nickname?.Trim();
+        user.MatrixId = MatrixId?.Trim();
     }
 
 }

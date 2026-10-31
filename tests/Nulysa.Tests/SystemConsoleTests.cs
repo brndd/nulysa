@@ -77,7 +77,8 @@ public sealed class SystemConsoleTests : OidcTest
         Assert.Contains("missing_schedule", missing);
         Assert.DoesNotContain("\"type\":\"server\"", missing);
         await Schedules.Install(Scheduler, Clock, TimeZoneInfo.Utc);
-        foreach (var name in Schedules.Names) await Observations.Record(db, name, Clock.Now, CancellationToken.None);
+        foreach (var name in Schedules.Names)
+            await Observations.Record(db, name, Clock.Now, CancellationToken.None);
         var healthy = await diagnostics.Read(principal);
         Assert.True(healthy.Work.Healthy);
         Assert.All(healthy.Schedules, x => Assert.NotNull(x.NextFire));
@@ -113,7 +114,8 @@ public sealed class SystemConsoleTests : OidcTest
             info.ArgumentList.Add(command);
             info.ArgumentList.Add(id);
             info.Environment["DOTNET_ENVIRONMENT"] = "Development";
-            foreach (var (name, value) in Settings) info.Environment[name.Replace(":", "__")] = value;
+            foreach (var (name, value) in Settings)
+                info.Environment[name.Replace(":", "__")] = value;
             using var process = Process.Start(info)!;
             var output = process.StandardOutput.ReadToEndAsync();
             var error = process.StandardError.ReadToEndAsync();

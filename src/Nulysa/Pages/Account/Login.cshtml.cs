@@ -16,7 +16,8 @@ public sealed class LoginModel(UserManager<User> users, SignInManager<User> sign
 
     public async Task<IActionResult> OnPostAsync()
     {
-        if (!ModelState.IsValid) return Page();
+        if (!ModelState.IsValid)
+            return Page();
         var user = await users.FindByEmailAsync(Email);
         if (user is not null && user.MayLogIn &&
             (await signIn.PasswordSignInAsync(user, Password, isPersistent: false, lockoutOnFailure: false)).Succeeded)

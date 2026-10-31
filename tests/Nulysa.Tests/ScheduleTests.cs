@@ -81,7 +81,8 @@ public sealed class ScheduleTests : DatabaseTest
         await Schedules.Install(Scheduler, TimeProvider.System, TimeZoneInfo.FindSystemTimeZoneById("Europe/Helsinki"));
         var key = new TriggerKey("heartbeat", Schedules.Group);
         var before = await Scheduler.GetTrigger(key);
-        await using (var db = Context()) await db.Database.MigrateAsync();
+        await using (var db = Context())
+            await db.Database.MigrateAsync();
         await Schedules.Install(Scheduler, TimeProvider.System, TimeZoneInfo.FindSystemTimeZoneById("Europe/Helsinki"));
         var after = await Scheduler.GetTrigger(key);
         Assert.Equal(before!.NextFireTimeUtc, after!.NextFireTimeUtc);

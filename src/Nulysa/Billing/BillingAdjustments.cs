@@ -19,7 +19,9 @@ public sealed partial class BillingCommands
                 amount <= 0 || Pricing.Round(amount) != amount || dueOn <= clock.Today)
                 throw new ValidationException("Provide a description, category, positive cent amount and future payment deadline.");
             var invoice = new Invoice { BillingAccountId = accountId, IssuedAt = clock.Now, OneOffReference = PaymentReference.Create('3') };
-            facts.Invoices.Add(invoice); db.Invoices.Add(invoice); await db.SaveChangesAsync(ct);
+            facts.Invoices.Add(invoice);
+            db.Invoices.Add(invoice);
+            await db.SaveChangesAsync(ct);
             var line = new InvoiceLine
             {
                 InvoiceId = invoice.Id,
@@ -36,7 +38,9 @@ public sealed partial class BillingCommands
                 ChargeDueOn = dueOn,
                 ExpiresOn = dueOn
             };
-            facts.Lines.Add(line); db.InvoiceLines.Add(line); operation.ResultId = invoice.Id;
+            facts.Lines.Add(line);
+            db.InvoiceLines.Add(line);
+            operation.ResultId = invoice.Id;
         }, ct);
 
     public Task CancelInvoice(ClaimsPrincipal actor, long accountId, long invoiceId, Guid key, string reason, CancellationToken ct = default)
@@ -44,8 +48,10 @@ public sealed partial class BillingCommands
         Reason(reason);
         return Change(actor, accountId, key, "cancel-invoice", new { invoiceId }, reason, true, async (facts, operation, scheduler) =>
         {
-            if (!facts.Invoices.Any(x => x.Id == invoiceId)) throw new ValidationException("Invoice belongs to another account.");
-            foreach (var line in facts.Lines.Where(x => x.InvoiceId == invoiceId)) CloseLine(facts, operation, line, LineState.Cancelled);
+            if (!facts.Invoices.Any(x => x.Id == invoiceId))
+                throw new ValidationException("Invoice belongs to another account.");
+            foreach (var line in facts.Lines.Where(x => x.InvoiceId == invoiceId))
+                CloseLine(facts, operation, line, LineState.Cancelled);
             await AllocateCredit(facts, operation, clock.Today, ct);
         }, ct);
     }
@@ -67,7 +73,10 @@ public sealed partial class BillingCommands
             if (facts.Discounts.Any(x => x.FeeDefinitionId == feeId && x.WithdrawnAt is null && x.StartsOn < end && start < x.EndsOn))
                 throw new ValidationException("Discounts for the same fee cannot overlap; withdraw the previous discount first.");
             var discount = new Discount { BillingAccountId = accountId, FeeDefinitionId = feeId, StartsOn = start, EndsOn = end, Kind = kind, Value = value, OperationId = operation.Id };
-            facts.Discounts.Add(discount); db.Discounts.Add(discount); await db.SaveChangesAsync(ct); operation.ResultId = discount.Id;
+            facts.Discounts.Add(discount);
+            db.Discounts.Add(discount);
+            await db.SaveChangesAsync(ct);
+            operation.ResultId = discount.Id;
             await RepriceAdjusted(facts, operation, feeId, ct);
             await AllocateCredit(facts, operation, clock.Today, ct);
         }, ct);
@@ -93,8 +102,10 @@ public sealed partial class BillingCommands
             var quote = Pricing.Adjust(JsonSerializer.Deserialize<List<PriceSegment>>(line.PricingJson)!,
                 facts.Discounts.Where(x => x.FeeDefinitionId == feeId).ToList(), clock.Today, facts.Periods(line.Benefit, line.ServiceDefinitionId));
             Requote(facts, operation, line, quote, new(line.StartsOn, line.EndsOn));
-            if (quote.Segments.Count == 0) CloseLine(facts, operation, line, LineState.Cancelled);
-            else if (facts.Held(line) >= line.Amount && clock.Today < line.ExpiresOn) Complete(facts, operation, line, line.Amount == 0 ? null : clock.Today);
+            if (quote.Segments.Count == 0)
+                CloseLine(facts, operation, line, LineState.Cancelled);
+            else if (facts.Held(line) >= line.Amount && clock.Today < line.ExpiresOn)
+                Complete(facts, operation, line, line.Amount == 0 ? null : clock.Today);
         }
         await db.SaveChangesAsync(ct);
     }
@@ -105,12 +116,16 @@ public sealed partial class BillingCommands
         return Change(actor, accountId, key, "membership-grant", new { months }, reason, true, async (facts, operation, scheduler) =>
         {
             Live(facts);
-            if (months is < 1 or > 120) throw new ValidationException("Grant between 1 and 120 whole months.");
+            if (months is < 1 or > 120)
+                throw new ValidationException("Grant between 1 and 120 whole months.");
             var periods = facts.Periods(Benefit.Membership, null).OrderBy(x => x.Start).ToList();
             var start = clock.Today;
             var paid = periods.Any(x => x.Start <= start && start < x.End);
-            if (!paid) throw new ValidationException("A duration extension requires current paid or granted membership coverage.");
-            foreach (var period in periods) if (period.Start <= start && period.End > start) start = period.End;
+            if (!paid)
+                throw new ValidationException("A duration extension requires current paid or granted membership coverage.");
+            foreach (var period in periods)
+                if (period.Start <= start && period.End > start)
+                    start = period.End;
             Grant(facts, operation, Benefit.Membership, null, new(start, start.AddMonths(months)), CoverageSource.AdministratorGrant, $"membership-grant:{key}");
             await RepriceAdjusted(facts, operation, 1, ct);
             await AllocateCredit(facts, operation, clock.Today, ct);
@@ -126,12 +141,14 @@ public sealed partial class BillingCommands
             var line = facts.Lines.SingleOrDefault(x => x.Id == lineId && x.State == LineState.Fulfilled) ?? throw new ValidationException("Select a completed purchase.");
             var discount = facts.Discounts.SingleOrDefault(x => x.Id == discountId && x.FeeDefinitionId == line.FeeDefinitionId && x.WithdrawnAt is null)
                 ?? throw new ValidationException("Select an applicable discount.");
-            if (discount.StartsOn < clock.Today) throw new ValidationException("Used time is not automatically refundable; review future effective time only.");
+            if (discount.StartsOn < clock.Today)
+                throw new ValidationException("Used time is not automatically refundable; review future effective time only.");
             var original = JsonSerializer.Deserialize<List<PriceSegment>>(line.PricingJson)!;
             var previous = facts.Movements.Where(x => x.InvoiceLineId == lineId && x.Kind == MovementKind.PurchaseCredit).OrderBy(x => x.Id)
                 .Select(x => (facts.Discounts.Single(d => d.Id == x.DiscountId), x.Amount)).ToList();
             var amount = Pricing.FutureDiscountCredit(original, discount, previous);
-            if (reviewedAmount <= 0 || reviewedAmount != amount) throw new ValidationException($"Review the calculated remaining credit: {amount:0.00} EUR.");
+            if (reviewedAmount <= 0 || reviewedAmount != amount)
+                throw new ValidationException($"Review the calculated remaining credit: {amount:0.00} EUR.");
             Move(facts, operation, MovementKind.PurchaseCredit, amount, clock.Today, lineId, discount: discountId);
             await AllocateCredit(facts, operation, clock.Today, ct);
         }, ct);
@@ -146,27 +163,41 @@ public sealed partial class BillingCommands
         await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(72134504)", ct);
         await Authority.RequireAdministrator(db, actor, ct);
         var service = id is { } existing ? await db.ServiceDefinitions.SingleAsync(x => x.Id == existing, ct) : new ServiceDefinition();
-        if (id is null) db.ServiceDefinitions.Add(service);
-        else if (service.Code != input.Code) throw new ValidationException("A service's stable code cannot change.");
-        service.Code = input.Code; service.Name = input.Name; service.SelfSubscriptionAllowed = input.SelfSubscriptionAllowed;
-        service.InitialFreeDays = input.InitialFreeDays; service.RenewalGraceDays = input.RenewalGraceDays; service.Priority = input.Priority;
+        if (id is null)
+            db.ServiceDefinitions.Add(service);
+        else if (service.Code != input.Code)
+            throw new ValidationException("A service's stable code cannot change.");
+        service.Code = input.Code;
+        service.Name = input.Name;
+        service.SelfSubscriptionAllowed = input.SelfSubscriptionAllowed;
+        service.InitialFreeDays = input.InitialFreeDays;
+        service.RenewalGraceDays = input.RenewalGraceDays;
+        service.Priority = input.Priority;
         await db.SaveChangesAsync(ct);
         var fee = await db.Fees.SingleOrDefaultAsync(x => x.ServiceDefinitionId == service.Id, ct);
-        if (fee is null) { fee = new FeeDefinition { ServiceDefinitionId = service.Id }; db.Fees.Add(fee); }
-        fee.Name = input.Name; fee.Category = input.Category;
-        await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return service.Id;
+        if (fee is null)
+        { fee = new FeeDefinition { ServiceDefinitionId = service.Id }; db.Fees.Add(fee); }
+        fee.Name = input.Name;
+        fee.Category = input.Category;
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+        return service.Id;
     }
 
     public async Task SetPrice(ClaimsPrincipal actor, long feeId, DateOnly effectiveOn, decimal monthlyAmount, CancellationToken ct = default)
     {
-        if (monthlyAmount < 0 || Pricing.Round(monthlyAmount) != monthlyAmount) throw new ValidationException("Use a nonnegative cent price.");
+        if (monthlyAmount < 0 || Pricing.Round(monthlyAmount) != monthlyAmount)
+            throw new ValidationException("Use a nonnegative cent price.");
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(72134504)", ct);
         await Authority.RequireAdministrator(db, actor, ct);
         var existing = await db.FeePrices.Where(x => x.FeeDefinitionId == feeId).ToListAsync(ct);
-        if (existing.Any(x => x.EffectiveOn == effectiveOn)) throw new ValidationException("A price already exists for this date. Add a new dated price; issued quotes remain unchanged.");
-        if (existing.Count > 0 && effectiveOn < clock.Today) throw new ValidationException("New price changes cannot be backdated.");
+        if (existing.Any(x => x.EffectiveOn == effectiveOn))
+            throw new ValidationException("A price already exists for this date. Add a new dated price; issued quotes remain unchanged.");
+        if (existing.Count > 0 && effectiveOn < clock.Today)
+            throw new ValidationException("New price changes cannot be backdated.");
         db.FeePrices.Add(new() { FeeDefinitionId = feeId, EffectiveOn = effectiveOn, MonthlyAmount = monthlyAmount });
-        await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
     }
 }

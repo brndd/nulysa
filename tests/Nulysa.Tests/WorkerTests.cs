@@ -72,7 +72,8 @@ public sealed class WorkerTests : DatabaseTest
             await Probe.Enqueue(db, Scheduler, "crash", mode: mode == "crash-after" ? "block-after" : "block-before");
             var first = StartWorker();
             await Until(async () => await Attempts("crash") == 1);
-            if (mode == "crash-after") await Until(async () => await Effects("crash") == 1);
+            if (mode == "crash-after")
+                await Until(async () => await Effects("crash") == 1);
             StartWorker();
             await Until(async () => await db.Database.SqlQuery<int>($"SELECT count(*)::integer AS \"Value\" FROM qrtz_scheduler_state").SingleAsync() == 2);
             await first.Signal("KILL");

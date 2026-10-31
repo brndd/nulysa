@@ -27,8 +27,10 @@ public sealed class ConfigurationTests : DatabaseTest
         Assert.Equal(valid, BillingOptions.ValidIban(iban));
         Settings["Billing:Iban"] = iban;
         await using var app = Build("commands");
-        if (valid || iban.Length == 0) Assert.Equal(iban, app.Services.GetRequiredService<IOptions<BillingOptions>>().Value.Iban);
-        else Assert.Throws<OptionsValidationException>(() => app.Services.GetRequiredService<IOptions<BillingOptions>>().Value);
+        if (valid || iban.Length == 0)
+            Assert.Equal(iban, app.Services.GetRequiredService<IOptions<BillingOptions>>().Value.Iban);
+        else
+            Assert.Throws<OptionsValidationException>(() => app.Services.GetRequiredService<IOptions<BillingOptions>>().Value);
     }
 
     [Fact]
@@ -46,7 +48,8 @@ public sealed class ConfigurationTests : DatabaseTest
         await using (var app = Build("commands"))
             Assert.Throws<OptionsValidationException>(() => app.Services.GetRequiredService<IOptions<MailOptions>>().Value);
         Settings["Mail:PublicUrl"] = "https://registry.example.test/";
-        Settings["Mail:Transport"] = "Smtp"; Settings["Mail:Host"] = "smtp.example.test";
+        Settings["Mail:Transport"] = "Smtp";
+        Settings["Mail:Host"] = "smtp.example.test";
         await using (var app = Build("commands"))
             Assert.Throws<OptionsValidationException>(() => app.Services.GetRequiredService<IOptions<MailOptions>>().Value);
         Settings["Mail:FromEmail"] = "from@example.test";
@@ -68,7 +71,8 @@ public sealed class ConfigurationTests : DatabaseTest
             info.ArgumentList.Add(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../../src/Nulysa/bin", configuration, "net10.0/Nulysa.dll")));
             info.ArgumentList.Add("create-development-user");
             info.Environment["DOTNET_ENVIRONMENT"] = "Development";
-            foreach (var (name, value) in Settings) info.Environment[name.Replace(":", "__")] = value;
+            foreach (var (name, value) in Settings)
+                info.Environment[name.Replace(":", "__")] = value;
             info.Environment["DevelopmentUser__Email"] = email;
             info.Environment["DevelopmentUser__Password"] = password;
             using var process = Process.Start(info)!;
@@ -138,7 +142,8 @@ public sealed class ConfigurationTests : DatabaseTest
             info.ArgumentList.Add(executable);
             info.ArgumentList.Add("status");
             info.Environment["DOTNET_ENVIRONMENT"] = "Development";
-            foreach (var (name, value) in settings) info.Environment[name.Replace(":", "__")] = value;
+            foreach (var (name, value) in settings)
+                info.Environment[name.Replace(":", "__")] = value;
             using var process = Process.Start(info)!;
             var stdout = process.StandardOutput.ReadToEndAsync();
             var stderr = process.StandardError.ReadToEndAsync();
@@ -155,7 +160,8 @@ public sealed class ConfigurationTests : DatabaseTest
         await Schedules.Install(Scheduler, TimeProvider.System, TimeZoneInfo.Utc);
         await using (var db = Context())
         {
-            foreach (var name in Schedules.Names) await Observations.Record(db, name, DateTimeOffset.UtcNow, CancellationToken.None);
+            foreach (var name in Schedules.Names)
+                await Observations.Record(db, name, DateTimeOffset.UtcNow, CancellationToken.None);
         }
         var healthy = await Status(Settings);
         Assert.Equal(0, healthy.Exit);

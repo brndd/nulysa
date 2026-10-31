@@ -40,8 +40,10 @@ public sealed class BillingQueries(AppDbContext db, AssociationClock clock, IOpt
     public async Task<BillingView> Account(ClaimsPrincipal actor, long accountId, CancellationToken ct = default)
     {
         var account = await db.BillingAccounts.AsNoTracking().SingleAsync(x => x.Id == accountId, ct);
-        if (account.UserId is { } id) await Authority.RequireOwnerOrAdministrator(db, actor, id, ct);
-        else await Authority.RequireAdministrator(db, actor, ct);
+        if (account.UserId is { } id)
+            await Authority.RequireOwnerOrAdministrator(db, actor, id, ct);
+        else
+            await Authority.RequireAdministrator(db, actor, ct);
         var facts = await BillingFacts.Load(db, accountId, ct, options.Value.MembershipRenewalGraceDays);
         var invoices = facts.Invoices.OrderByDescending(x => x.IssuedAt).ThenByDescending(x => x.Id).Select(x => View(facts, x)).ToList();
         var forecasts = new List<Forecast>();
@@ -53,7 +55,9 @@ public sealed class BillingQueries(AppDbContext db, AssociationClock clock, IOpt
                 var fee = facts.Fees.Single(x => x.Id == item.FeeDefinitionId);
                 var start = item.NextOn;
                 var benefit = item.MembershipId is not null ? Benefit.Membership : Benefit.Service;
-                foreach (var covered in facts.Periods(benefit, fee.ServiceDefinitionId).OrderBy(x => x.Start)) if (covered.Start <= start && covered.End > start) start = covered.End;
+                foreach (var covered in facts.Periods(benefit, fee.ServiceDefinitionId).OrderBy(x => x.Start))
+                    if (covered.Start <= start && covered.End > start)
+                        start = covered.End;
                 var period = BillingCalendar.Bridge(group.Anchor, group.IntervalMonths, start, true);
                 if (facts.Prices.Any(x => x.FeeDefinitionId == fee.Id && x.EffectiveOn <= start))
                 {
@@ -135,7 +139,9 @@ public sealed class BillingQueries(AppDbContext db, AssociationClock clock, IOpt
         var purchase = Sum(MovementKind.ReceiptToPurchase, MovementKind.BillingToPurchase) - Sum(MovementKind.PurchaseToBilling, MovementKind.PurchaseRefund, MovementKind.PurchaseReceiptReversal);
         var held = Sum(MovementKind.ReceiptToLine, MovementKind.BillingToLine) - Sum(MovementKind.LineToBilling, MovementKind.LinePurchase);
         var receipts = await db.Receipts.Where(x => x.State == ReceiptState.Posted).SumAsync(x => x.Amount, ct);
-        var bought = Sum(MovementKind.LinePurchase); var corrections = Sum(MovementKind.PurchaseCredit); var refunds = Sum(MovementKind.BillingRefund, MovementKind.PurchaseRefund);
+        var bought = Sum(MovementKind.LinePurchase);
+        var corrections = Sum(MovementKind.PurchaseCredit);
+        var refunds = Sum(MovementKind.BillingRefund, MovementKind.PurchaseRefund);
         var invalidLines = await db.InvoiceLines.Where(line => db.MoneyMovements.Where(x => x.InvoiceLineId == line.Id).Sum(x =>
             x.Kind == MovementKind.ReceiptToLine || x.Kind == MovementKind.BillingToLine ? x.Amount : x.Kind == MovementKind.LineToBilling || x.Kind == MovementKind.LinePurchase ? -x.Amount : 0) < 0 ||
             (line.State != LineState.Open && db.MoneyMovements.Where(x => x.InvoiceLineId == line.Id).Sum(x =>
@@ -149,7 +155,8 @@ public sealed class BillingQueries(AppDbContext db, AssociationClock clock, IOpt
     public async Task<string> Export(ClaimsPrincipal actor, DateOnly start, DateOnly end, CancellationToken ct = default)
     {
         await Authority.RequireAdministrator(db, actor, ct);
-        if (end <= start) throw new System.ComponentModel.DataAnnotations.ValidationException("Choose an end date after the start date.");
+        if (end <= start)
+            throw new System.ComponentModel.DataAnnotations.ValidationException("Choose an end date after the start date.");
         var rows = await (from movement in db.MoneyMovements.AsNoTracking()
                           join operation in db.BillingOperations on movement.OperationId equals operation.Id
                           join line in db.InvoiceLines on movement.InvoiceLineId equals line.Id into lines
@@ -173,7 +180,8 @@ public sealed class BillingQueries(AppDbContext db, AssociationClock clock, IOpt
     public async Task<string> ExportReceipts(ClaimsPrincipal actor, DateOnly start, DateOnly end, CancellationToken ct = default)
     {
         await Authority.RequireAdministrator(db, actor, ct);
-        if (end <= start) throw new System.ComponentModel.DataAnnotations.ValidationException("Choose an end date after the start date.");
+        if (end <= start)
+            throw new System.ComponentModel.DataAnnotations.ValidationException("Choose an end date after the start date.");
         var receipts = await db.Receipts.AsNoTracking().Where(x => x.ReceivedOn >= start && x.ReceivedOn < end)
             .OrderBy(x => x.ReceivedOn).ThenBy(x => x.Id).ToListAsync(ct);
         var csv = new StringBuilder("receipt_id,source,source_account,external_id,received_on,imported_at,amount,currency,reference,message,counterparty,state,account_id,review_reason\r\n");
@@ -193,7 +201,8 @@ public sealed class BillingQueries(AppDbContext db, AssociationClock clock, IOpt
             IFormattable number => number.ToString(null, CultureInfo.InvariantCulture),
             _ => value?.ToString() ?? ""
         };
-        if (value is string && (text.TrimStart().StartsWith('=') || text.TrimStart().StartsWith('+') || text.TrimStart().StartsWith('@') || text.TrimStart().StartsWith('-'))) text = "'" + text;
+        if (value is string && (text.TrimStart().StartsWith('=') || text.TrimStart().StartsWith('+') || text.TrimStart().StartsWith('@') || text.TrimStart().StartsWith('-')))
+            text = "'" + text;
         return "\"" + text.Replace("\"", "\"\"") + "\"";
     }
 }

@@ -24,11 +24,13 @@ public sealed class InvoicePdf(AppDbContext db, IOptions<BillingOptions> options
     internal async Task<byte[]?> Render(long invoiceId, int? requiredRevision, CancellationToken ct)
     {
         var invoice = await db.Invoices.AsNoTracking().SingleAsync(x => x.Id == invoiceId, ct);
-        if (requiredRevision is not null && invoice.Revision != requiredRevision) return null;
+        if (requiredRevision is not null && invoice.Revision != requiredRevision)
+            return null;
         var facts = await BillingFacts.Load(db, invoice.BillingAccountId, ct);
         var view = BillingQueries.View(facts, invoice);
         var settings = options.Value;
-        if (!BillingOptions.ValidIban(settings.Iban)) throw new InvalidOperationException("Billing:Iban must be a checksum-valid payment destination.");
+        if (!BillingOptions.ValidIban(settings.Iban))
+            throw new InvalidOperationException("Billing:Iban must be a checksum-valid payment destination.");
         var data = new
         {
             number = invoice.Id.ToString(),
@@ -46,15 +48,18 @@ public sealed class InvoicePdf(AppDbContext db, IOptions<BillingOptions> options
         };
         var root = Path.Combine(Path.GetTempPath(), "nulysa-invoice-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(root);
-        if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(root, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        if (!OperatingSystem.IsWindows())
+            File.SetUnixFileMode(root, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         try
         {
             var templates = settings.TemplateDirectory ?? Path.Combine(AppContext.BaseDirectory, "Billing", "Templates");
             foreach (var file in Directory.EnumerateFiles(templates, "*", SearchOption.AllDirectories))
             {
-                if ((File.GetAttributes(file) & FileAttributes.ReparsePoint) != 0) throw new InvalidOperationException("Invoice assets must be ordinary private files, not symlinks.");
+                if ((File.GetAttributes(file) & FileAttributes.ReparsePoint) != 0)
+                    throw new InvalidOperationException("Invoice assets must be ordinary private files, not symlinks.");
                 var target = Path.Combine(root, Path.GetRelativePath(templates, file));
-                Directory.CreateDirectory(Path.GetDirectoryName(target)!); File.Copy(file, target);
+                Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+                File.Copy(file, target);
             }
             await File.WriteAllTextAsync(Path.Combine(root, "invoice.json"), JsonSerializer.Serialize(data), ct);
             Directory.CreateDirectory(Path.Combine(root, "packages"));
@@ -63,22 +68,32 @@ public sealed class InvoicePdf(AppDbContext db, IOptions<BillingOptions> options
             using (var version = Process.Start(new ProcessStartInfo(settings.TypstPath) { ArgumentList = { "--version" }, RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false })!)
             {
                 var output = version.StandardOutput.ReadToEndAsync(deadline.Token);
-                try { await version.WaitForExitAsync(deadline.Token); }
+                try
+                { await version.WaitForExitAsync(deadline.Token); }
                 catch { if (!version.HasExited) version.Kill(entireProcessTree: true); throw; }
-                if (version.ExitCode != 0 || !(await output).StartsWith("typst " + TypstVersion + " ", StringComparison.Ordinal)) throw new InvalidOperationException("The invoice renderer must be Typst " + TypstVersion + ".");
+                if (version.ExitCode != 0 || !(await output).StartsWith("typst " + TypstVersion + " ", StringComparison.Ordinal))
+                    throw new InvalidOperationException("The invoice renderer must be Typst " + TypstVersion + ".");
             }
             var info = new ProcessStartInfo(settings.TypstPath) { WorkingDirectory = root, RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
-            foreach (var argument in new[] { "compile", "--root", root, "--ignore-system-fonts", "--package-path", Path.Combine(root, "packages"), "--package-cache-path", Path.Combine(root, "packages"), "--input", "invoice=invoice.json", "lasku.typ", "invoice.pdf" }) info.ArgumentList.Add(argument);
+            foreach (var argument in new[] { "compile", "--root", root, "--ignore-system-fonts", "--package-path", Path.Combine(root, "packages"), "--package-cache-path", Path.Combine(root, "packages"), "--input", "invoice=invoice.json", "lasku.typ", "invoice.pdf" })
+                info.ArgumentList.Add(argument);
             // Trusted templates are self-contained. No network packages are permitted.
-            info.Environment["http_proxy"] = "http://127.0.0.1:9"; info.Environment["https_proxy"] = "http://127.0.0.1:9"; info.Environment["ALL_PROXY"] = "http://127.0.0.1:9";
-            info.Environment["NO_PROXY"] = ""; info.Environment["no_proxy"] = "";
+            info.Environment["http_proxy"] = "http://127.0.0.1:9";
+            info.Environment["https_proxy"] = "http://127.0.0.1:9";
+            info.Environment["ALL_PROXY"] = "http://127.0.0.1:9";
+            info.Environment["NO_PROXY"] = "";
+            info.Environment["no_proxy"] = "";
             using var process = Process.Start(info) ?? throw new InvalidOperationException("Could not start Typst.");
-            var stdout = process.StandardOutput.ReadToEndAsync(ct); var stderr = process.StandardError.ReadToEndAsync(ct);
-            try { await process.WaitForExitAsync(deadline.Token); }
+            var stdout = process.StandardOutput.ReadToEndAsync(ct);
+            var stderr = process.StandardError.ReadToEndAsync(ct);
+            try
+            { await process.WaitForExitAsync(deadline.Token); }
             catch { if (!process.HasExited) process.Kill(entireProcessTree: true); await process.WaitForExitAsync(CancellationToken.None); throw; }
             await Task.WhenAll(stdout, stderr);
-            if (process.ExitCode != 0) throw new InvalidOperationException("Invoice rendering failed; verify the trusted template and payment configuration.");
-            if (!await db.Invoices.AsNoTracking().AnyAsync(x => x.Id == invoiceId && x.Revision == invoice.Revision, ct)) return null;
+            if (process.ExitCode != 0)
+                throw new InvalidOperationException("Invoice rendering failed; verify the trusted template and payment configuration.");
+            if (!await db.Invoices.AsNoTracking().AnyAsync(x => x.Id == invoiceId && x.Revision == invoice.Revision, ct))
+                return null;
             return await File.ReadAllBytesAsync(Path.Combine(root, "invoice.pdf"), ct);
         }
         finally { Directory.Delete(root, recursive: true); }

@@ -16,8 +16,10 @@ public sealed class ConfirmEmailModel(AccountCommands commands) : PageModel
     [BindProperty(SupportsGet = true), Required] public string Token { get; set; } = "";
     public async Task<IActionResult> OnPostAsync()
     {
-        if (!ModelState.IsValid) return Page();
-        try { await commands.ConfirmEmailChange(Id, Version, Token, HttpContext.RequestAborted); return RedirectToPage("Login"); }
+        if (!ModelState.IsValid)
+            return Page();
+        try
+        { await commands.ConfirmEmailChange(Id, Version, Token, HttpContext.RequestAborted); return RedirectToPage("Login"); }
         catch (ValidationException ex) { ModelState.AddModelError("", ex.Message); return Page(); }
         catch (DbUpdateException) { ModelState.AddModelError("", "That address is unavailable. Request a new change from your profile."); return Page(); }
     }

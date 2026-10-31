@@ -20,7 +20,8 @@ public static class Oidc
     public static void Configure(OpenIddictServerBuilder server, IConfiguration config, bool development)
     {
         var issuer = new Uri(config["Oidc:Issuer"] ?? throw new InvalidOperationException("Oidc:Issuer is required."));
-        if (!development && issuer.Scheme != "https") throw new InvalidOperationException("OIDC requires HTTPS.");
+        if (!development && issuer.Scheme != "https")
+            throw new InvalidOperationException("OIDC requires HTTPS.");
         server.SetIssuer(issuer)
             .SetAuthorizationEndpointUris("connect/authorize")
             .SetTokenEndpointUris("connect/token")
@@ -49,16 +50,19 @@ public static class Oidc
             .EnableAuthorizationEndpointPassthrough()
             .EnableTokenEndpointPassthrough()
             .EnableUserInfoEndpointPassthrough();
-        if (development) aspnet.DisableTransportSecurityRequirement();
+        if (development)
+            aspnet.DisableTransportSecurityRequirement();
     }
 
     private static RsaSecurityKey LoadKey(string? path)
     {
-        if (string.IsNullOrWhiteSpace(path)) throw new InvalidOperationException("Persistent OIDC key paths are required.");
+        if (string.IsNullOrWhiteSpace(path))
+            throw new InvalidOperationException("Persistent OIDC key paths are required.");
         var rsa = RSA.Create();
         rsa.ImportFromPem(File.ReadAllText(path));
         _ = rsa.ExportParameters(includePrivateParameters: true);
-        if (rsa.KeySize < 2048) throw new InvalidOperationException("OIDC RSA keys must be at least 2048 bits.");
+        if (rsa.KeySize < 2048)
+            throw new InvalidOperationException("OIDC RSA keys must be at least 2048 bits.");
         var key = new RsaSecurityKey(rsa);
         key.KeyId = Base64UrlEncoder.Encode(key.ComputeJwkThumbprint());
         return key;
@@ -77,16 +81,19 @@ public sealed class OidcController(AppDbContext db, UserManager<User> users) : C
         var cookie = await HttpContext.AuthenticateAsync(IdentityConstants.ApplicationScheme);
         if (!cookie.Succeeded)
         {
-            if (request.HasPromptValue(PromptValues.None)) return Deny(Errors.LoginRequired);
+            if (request.HasPromptValue(PromptValues.None))
+                return Deny(Errors.LoginRequired);
             return Challenge(new AuthenticationProperties { RedirectUri = Request.PathBase + Request.Path + Request.QueryString },
                 IdentityConstants.ApplicationScheme);
         }
         var user = await users.GetUserAsync(cookie.Principal!);
-        if (user is null || !user.MayLogIn) return Deny(Errors.AccessDenied);
+        if (user is null || !user.MayLogIn)
+            return Deny(Errors.AccessDenied);
         if (request.HasPromptValue(PromptValues.Login) || request.MaxAge is not null)
         {
             // No authentication time is stored, so max_age always re-authenticates; prompt=none cannot satisfy that.
-            if (request.MaxAge is not null && request.HasPromptValue(PromptValues.None)) return Deny(Errors.LoginRequired);
+            if (request.MaxAge is not null && request.HasPromptValue(PromptValues.None))
+                return Deny(Errors.LoginRequired);
             var query = QueryHelpers.ParseQuery(Request.QueryString.Value);
             query.Remove("prompt");
             query.Remove("max_age");
@@ -102,10 +109,12 @@ public sealed class OidcController(AppDbContext db, UserManager<User> users) : C
     public async Task<IActionResult> Token(CancellationToken ct)
     {
         var result = await HttpContext.AuthenticateAsync(Scheme);
-        if (!result.Succeeded) return Deny(Errors.InvalidGrant);
+        if (!result.Succeeded)
+            return Deny(Errors.InvalidGrant);
         var subject = result.Principal!.GetClaim(Claims.Subject);
         var user = await db.Users.AsNoTracking().SingleOrDefaultAsync(x => x.OidcSubject == subject, ct);
-        if (user is null || !user.MayLogIn) return Deny(Errors.InvalidGrant);
+        if (user is null || !user.MayLogIn)
+            return Deny(Errors.InvalidGrant);
         var request = HttpContext.GetOpenIddictServerRequest()!;
         var scopes = result.Principal.GetScopes();
         var disclosed = request.IsRefreshTokenGrantType() && !string.IsNullOrEmpty(request.Scope)
@@ -117,17 +126,20 @@ public sealed class OidcController(AppDbContext db, UserManager<User> users) : C
     public async Task<IActionResult> UserInfo(CancellationToken ct)
     {
         var result = await HttpContext.AuthenticateAsync(Scheme);
-        if (!result.Succeeded) return Challenge(Scheme);
+        if (!result.Succeeded)
+            return Challenge(Scheme);
         var subject = result.Principal!.GetClaim(Claims.Subject);
         var user = await db.Users.AsNoTracking().SingleOrDefaultAsync(x => x.OidcSubject == subject, ct);
-        if (user is null || !user.MayLogIn) return Deny(Errors.InvalidToken);
+        if (user is null || !user.MayLogIn)
+            return Deny(Errors.InvalidToken);
         var claims = new Dictionary<string, object?> { [Claims.Subject] = user.OidcSubject };
         if (result.Principal.HasScope(Scopes.Email))
         {
             claims[Claims.Email] = user.Email;
             claims[Claims.EmailVerified] = user.EmailConfirmed;
         }
-        if (result.Principal.HasScope(Scopes.Profile)) claims[Claims.Name] = user.Name;
+        if (result.Principal.HasScope(Scopes.Profile))
+            claims[Claims.Name] = user.Name;
         return Ok(claims);
     }
 

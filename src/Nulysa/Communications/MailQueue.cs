@@ -14,7 +14,8 @@ public sealed class MailQueue(AppDbContext db, TimeProvider clock)
     public async Task Add(IScheduler scheduler, Guid id, MailKind kind, long? userId = null, Guid? applicationId = null,
         Guid version = default, CancellationToken ct = default, long? invoiceId = null, int? invoiceRevision = null)
     {
-        if (db.Database.CurrentTransaction is null) throw new InvalidOperationException("Mail scheduling requires a command transaction.");
+        if (db.Database.CurrentTransaction is null)
+            throw new InvalidOperationException("Mail scheduling requires a command transaction.");
         var existing = await db.Deliveries.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct);
         if (existing is not null)
         {

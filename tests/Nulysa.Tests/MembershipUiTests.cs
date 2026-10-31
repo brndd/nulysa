@@ -31,7 +31,8 @@ public sealed class MembershipFormTests : MembershipTest
         Assert.Equal("/Account/AccessDenied", (await client.GetAsync("admin/applications")).Headers.Location!.AbsolutePath);
         Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("admin/members/" + Nulysa.Accounts.Authority.Id(board))).StatusCode);
         var html = await client.GetStringAsync("profile");
-        Assert.Contains("Input.DateOfBirth", html); Assert.DoesNotContain("PasswordHash", html);
+        Assert.Contains("Input.DateOfBirth", html);
+        Assert.DoesNotContain("PasswordHash", html);
         Assert.True((await client.GetAsync("profile")).Headers.CacheControl?.NoStore);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsync("billing", new FormUrlEncodedContent([]))).StatusCode);
         Assert.Contains("Issued payment requests", await client.GetStringAsync("billing"));

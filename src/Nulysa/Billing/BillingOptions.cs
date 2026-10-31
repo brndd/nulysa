@@ -23,8 +23,10 @@ public sealed class BillingOptions
     {
         var iban = PaymentReference.Normalize(value);
         if (iban.Length is < 15 or > 34 || !iban[..2].All(c => c is >= 'A' and <= 'Z') ||
-            !iban.Substring(2, 2).All(char.IsAsciiDigit) || !iban.All(char.IsAsciiLetterOrDigit)) return false;
-        if (iban.StartsWith("FI", StringComparison.Ordinal) && (iban.Length != 18 || !iban[2..].All(char.IsAsciiDigit))) return false;
+            !iban.Substring(2, 2).All(char.IsAsciiDigit) || !iban.All(char.IsAsciiLetterOrDigit))
+            return false;
+        if (iban.StartsWith("FI", StringComparison.Ordinal) && (iban.Length != 18 || !iban[2..].All(char.IsAsciiDigit)))
+            return false;
         var remainder = 0;
         foreach (var c in iban[4..] + iban[..4])
         {

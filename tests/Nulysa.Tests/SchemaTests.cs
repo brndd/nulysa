@@ -25,14 +25,16 @@ public sealed class SchemaTests : DatabaseTest
             """);
         await db.Database.MigrateAsync();
         var accounts = await db.BillingAccounts.AsNoTracking().ToListAsync();
-        Assert.Equal(2, accounts.Count); Assert.Equal(2, accounts.Select(x => x.PurchaseDepositReference).Distinct().Count());
+        Assert.Equal(2, accounts.Count);
+        Assert.Equal(2, accounts.Select(x => x.PurchaseDepositReference).Distinct().Count());
         foreach (var account in accounts)
         {
             Assert.Equal(account.PurchaseDepositReference, PaymentReference.Complete(account.PurchaseDepositReference[..^1]));
             Assert.True(account.EmailInvoices);
         }
         Assert.Equal(2, await db.InitialMembershipRequests.CountAsync(x => x.InvoiceId == null));
-        Assert.Empty(await db.FeePrices.ToListAsync()); Assert.Empty(await db.Invoices.ToListAsync());
+        Assert.Empty(await db.FeePrices.ToListAsync());
+        Assert.Empty(await db.Invoices.ToListAsync());
     }
 
     [Fact]

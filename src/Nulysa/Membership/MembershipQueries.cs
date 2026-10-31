@@ -22,7 +22,8 @@ public sealed class MembershipQueries(AppDbContext db, AssociationClock clock, I
     {
         await Authority.RequireAdministrator(db, actor, ct);
         var query = db.Applications.AsNoTracking().Where(x => x.VerifiedAt != null && x.RejectedAt == null);
-        if (id is not null) query = query.Where(x => x.Id == id);
+        if (id is not null)
+            query = query.Where(x => x.Id == id);
         return await query.OrderBy(x => x.VerifiedAt).Take(100)
             .Select(x => new ApplicationReview(x.Id, x.Name, x.Email, x.Municipality, x.DateOfBirth, x.Language, x.PhoneNumber, x.Nickname, x.MatrixId, x.Message)).ToListAsync(ct);
     }
@@ -72,7 +73,8 @@ public sealed class MembershipQueries(AppDbContext db, AssociationClock clock, I
                                  Nickname = user.Nickname,
                                  MatrixId = user.MatrixId
                              }, member.JoinedOn, user.PendingDeletionAt, member.DeletionEligibleAt, user.PendingEmail, null, new List<LifecycleAction>())).SingleOrDefaultAsync(ct);
-        if (details is null) return null;
+        if (details is null)
+            return null;
         if (await Authority.IsAdministrator(db, actor, ct))
         {
             details = details with { Approval = await db.Approvals.AsNoTracking().SingleOrDefaultAsync(x => x.UserId == id, ct) };

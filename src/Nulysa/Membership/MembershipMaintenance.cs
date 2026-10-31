@@ -25,12 +25,14 @@ public sealed class MembershipMaintenance(AppDbContext db, AssociationClock cloc
             {
                 // Recheck after the row lock: verification/rejection/approval may have raced the scan.
                 var application = await db.Applications.FromSqlInterpolated($"SELECT * FROM \"Applications\" WHERE \"Id\" = {id} FOR UPDATE").SingleOrDefaultAsync(ct);
-                if (application is null || !((application.VerifiedAt == null && application.CreatedAt <= unverified) || application.RejectedAt <= rejected)) continue;
+                if (application is null || !((application.VerifiedAt == null && application.CreatedAt <= unverified) || application.RejectedAt <= rejected))
+                    continue;
                 var deliveries = await db.Deliveries.Where(x => x.ApplicationId == id).ToListAsync(ct);
                 foreach (var delivery in deliveries)
                 {
                     await scheduler.DeleteJob(MailQueue.JobKey(delivery.Id), ct);
-                    if (delivery.State != DeliveryState.Accepted) delivery.State = delivery.Kind == MailKind.Rejection ? DeliveryState.Failed : DeliveryState.Cancelled;
+                    if (delivery.State != DeliveryState.Accepted)
+                        delivery.State = delivery.Kind == MailKind.Rejection ? DeliveryState.Failed : DeliveryState.Cancelled;
                 }
                 db.Applications.Remove(application);
             }
@@ -60,7 +62,9 @@ public sealed class MembershipMaintenance(AppDbContext db, AssociationClock cloc
             var user = await membership.LockUser(id, ct);
             if (user.PendingEmailRequestedAt <= clock.Now.AddDays(-1))
             {
-                user.PendingEmail = null; user.PendingEmailVersion = null; user.PendingEmailRequestedAt = null;
+                user.PendingEmail = null;
+                user.PendingEmailVersion = null;
+                user.PendingEmailRequestedAt = null;
                 await db.SaveChangesAsync(ct);
             }
             await cleanup.CommitAsync(ct);
@@ -104,6 +108,7 @@ public sealed class FinalDeletionJob(IServiceScopeFactory scopes, TimeProvider c
         }
         await using var observation = scopes.CreateAsyncScope();
         await Observations.Record(observation.ServiceProvider.GetRequiredService<AppDbContext>(), "final-deletion", clock.GetUtcNow(), cancellationToken);
-        if (failures.Count > 0) throw new AggregateException("Final deletion failed for one or more members; the rest were processed.", failures);
+        if (failures.Count > 0)
+            throw new AggregateException("Final deletion failed for one or more members; the rest were processed.", failures);
     }
 }

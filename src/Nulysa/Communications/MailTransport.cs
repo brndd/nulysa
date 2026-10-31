@@ -18,7 +18,8 @@ public sealed class SmtpMailTransport(IOptions<MailOptions> options, IConfigurat
             IsBodyHtml = false
         };
         message.To.Add(mail.To);
-        if (mail.Pdf is not null) message.Attachments.Add(new Attachment(new MemoryStream(mail.Pdf), mail.FileName ?? "invoice.pdf", "application/pdf"));
+        if (mail.Pdf is not null)
+            message.Attachments.Add(new Attachment(new MemoryStream(mail.Pdf), mail.FileName ?? "invoice.pdf", "application/pdf"));
         message.Headers.Add("X-Nulysa-Delivery-ID", id.ToString("D"));
         using var client = new SmtpClient(settings.Host, settings.Port)
         {

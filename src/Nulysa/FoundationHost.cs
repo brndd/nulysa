@@ -28,9 +28,11 @@ public static class FoundationHost
     {
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions { Args = args, ApplicationName = typeof(FoundationHost).Assembly.GetName().Name });
         customize?.Invoke(builder);
-        if (builder.Environment.IsDevelopment()) builder.WebHost.UseStaticWebAssets();
+        if (builder.Environment.IsDevelopment())
+            builder.WebHost.UseStaticWebAssets();
         var mode = args.FirstOrDefault() ?? "web";
-        if (mode == "status") builder.Logging.ClearProviders();
+        if (mode == "status")
+            builder.Logging.ClearProviders();
         ConfigureServices(builder, mode);
         var development = builder.Environment.IsDevelopment();
         var app = builder.Build();
@@ -64,21 +66,25 @@ public static class FoundationHost
         app.MapRazorPages();
         app.MapGet("/billing/invoices/{id:long}/pdf", async (long id, HttpContext context, InvoicePdf pdf) =>
         {
-            try { return Results.File(await pdf.ForMember(context.User, id, context.RequestAborted), "application/pdf", $"invoice-{id}.pdf"); }
+            try
+            { return Results.File(await pdf.ForMember(context.User, id, context.RequestAborted), "application/pdf", $"invoice-{id}.pdf"); }
             catch (UnauthorizedAccessException) { return Results.Forbid(); }
         }).RequireAuthorization();
         app.MapGet("/admin/payments/export", async (DateOnly start, DateOnly end, HttpContext context, BillingQueries queries) =>
         {
-            if (end <= start) return Results.BadRequest("Choose an end date after the start date.");
+            if (end <= start)
+                return Results.BadRequest("Choose an end date after the start date.");
             return Results.File(System.Text.Encoding.UTF8.GetBytes(await queries.Export(context.User, start, end, context.RequestAborted)), "text/csv; charset=utf-8", "ledger.csv");
         }).RequireAuthorization("Administrator");
         app.MapGet("/admin/payments/receipts-export", async (DateOnly start, DateOnly end, HttpContext context, BillingQueries queries) =>
         {
-            if (end <= start) return Results.BadRequest("Choose an end date after the start date.");
+            if (end <= start)
+                return Results.BadRequest("Choose an end date after the start date.");
             return Results.File(System.Text.Encoding.UTF8.GetBytes(await queries.ExportReceipts(context.User, start, end, context.RequestAborted)), "text/csv; charset=utf-8", "bank-transactions.csv");
         }).RequireAuthorization("Administrator");
         app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
-        if (builder.Configuration.GetValue<bool>("Oidc:Enabled")) app.MapControllers();
+        if (builder.Configuration.GetValue<bool>("Oidc:Enabled"))
+            app.MapControllers();
         app.MapGet("/health/live", () => Results.Ok(new { status = "alive" }));
         return app;
     }
@@ -96,17 +102,21 @@ public static class FoundationHost
         var development = builder.Environment.IsDevelopment();
         _ = TimeZoneInfo.FindSystemTimeZoneById(config["Association:TimeZone"] ?? "Europe/Helsinki");
         var concurrency = config.GetValue("Worker:Concurrency", 4);
-        if (concurrency is < 1 or > 32) throw new InvalidOperationException("Worker:Concurrency must be between 1 and 32.");
+        if (concurrency is < 1 or > 32)
+            throw new InvalidOperationException("Worker:Concurrency must be between 1 and 32.");
         var idleWaitSeconds = config.GetValue("Worker:IdleWaitSeconds", development ? 1 : 5);
-        if (idleWaitSeconds is < 1 or > 60) throw new InvalidOperationException("Worker:IdleWaitSeconds must be between 1 and 60.");
+        if (idleWaitSeconds is < 1 or > 60)
+            throw new InvalidOperationException("Worker:IdleWaitSeconds must be between 1 and 60.");
         builder.Services.Configure<ForwardedHeadersOptions>(options =>
         {
             options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
             options.ForwardLimit = 1;
             options.KnownIPNetworks.Clear();
             options.KnownProxies.Clear();
-            if (config["ReverseProxy:KnownProxy"] is { Length: > 0 } proxy) options.KnownProxies.Add(IPAddress.Parse(proxy));
-            else options.ForwardedHeaders = ForwardedHeaders.None;
+            if (config["ReverseProxy:KnownProxy"] is { Length: > 0 } proxy)
+                options.KnownProxies.Add(IPAddress.Parse(proxy));
+            else
+                options.ForwardedHeaders = ForwardedHeaders.None;
         });
         builder.Services.TryAddSingleton(TimeProvider.System);
         builder.Services.AddScoped<AssociationClock>();
@@ -176,13 +186,15 @@ public static class FoundationHost
             options.Events.OnValidatePrincipal = AccountGate.ValidateCookie;
         });
         var keys = config["DataProtection:Path"] ?? throw new InvalidOperationException("DataProtection:Path is required.");
-        if (!Path.IsPathFullyQualified(keys)) throw new InvalidOperationException("DataProtection:Path must be absolute.");
+        if (!Path.IsPathFullyQualified(keys))
+            throw new InvalidOperationException("DataProtection:Path must be absolute.");
         var protection = builder.Services.AddDataProtection().SetApplicationName("Nulysa").PersistKeysToFileSystem(new DirectoryInfo(keys));
         if (!development)
         {
             var certificate = config["DataProtection:CertificatePath"] ?? throw new InvalidOperationException("Production requires a Data Protection encryption certificate.");
             var wrappingKey = X509CertificateLoader.LoadPkcs12FromFile(certificate, config["DataProtection:CertificatePassword"]);
-            if (!wrappingKey.HasPrivateKey) throw new InvalidOperationException("The Data Protection certificate needs its private key.");
+            if (!wrappingKey.HasPrivateKey)
+                throw new InvalidOperationException("The Data Protection certificate needs its private key.");
             protection.ProtectKeysWithCertificate(wrappingKey);
         }
         if (mode != "worker")
@@ -206,7 +218,8 @@ public static class FoundationHost
             });
         }
         var oidc = builder.Services.AddOpenIddict().AddCore(options => options.UseEntityFrameworkCore().UseDbContext<AppDbContext>());
-        if (mode != "worker" && config.GetValue<bool>("Oidc:Enabled")) oidc.AddServer(options => Oidc.Configure(options, config, development));
+        if (mode != "worker" && config.GetValue<bool>("Oidc:Enabled"))
+            oidc.AddServer(options => Oidc.Configure(options, config, development));
 
         builder.Services.Configure<HostOptions>(options => options.ShutdownTimeout = TimeSpan.FromSeconds(20));
         builder.Services.AddQuartz(q =>
@@ -240,7 +253,8 @@ public static class FoundationHost
                 });
                 store.UseSystemTextJsonSerializer();
                 store.UseExecutionHistory();
-                if (mode == "migrate") store.ProvisionSchema();
+                if (mode == "migrate")
+                    store.ProvisionSchema();
             });
         });
         builder.Services.AddQuartzExecutionHistory(options =>
@@ -249,7 +263,9 @@ public static class FoundationHost
             options.MaxEntriesPerScheduler = 2000;
             options.RecordInput = false;
         });
-        if (mode is "web" or "worker") builder.Services.AddHostedService<ValidateSchema>();
-        if (mode == "worker") builder.Services.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
+        if (mode is "web" or "worker")
+            builder.Services.AddHostedService<ValidateSchema>();
+        if (mode == "worker")
+            builder.Services.AddQuartzHostedService(options => options.WaitForJobsToComplete = true);
     }
 }

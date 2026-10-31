@@ -14,15 +14,20 @@ public sealed class BillingBrowserTests : MembershipTest
     {
         Clock.Now = DateTimeOffset.UtcNow; // Browser cookie expiry uses its real wall clock.
         Settings["Billing:PurchaseBalanceEnabled"] = "true";
-        var board = await Board(); await using var commands = CommandsApp(); var id = await Admit(commands, board);
+        var board = await Board();
+        await using var commands = CommandsApp();
+        var id = await Admit(commands, board);
         var token = await PasswordToken(commands, id);
         await Run(commands, sp => sp.GetRequiredService<AccountCommands>().SetPassword(id, token, Password));
         var view = (await Run(commands, sp => sp.GetRequiredService<BillingQueries>().Member(board, id)))!;
         await using var web = await StartProvider();
         using var playwright = await Playwright.CreateAsync();
         await using var browser = await playwright.Chromium.LaunchAsync(new() { Headless = true });
-        await using var member = await browser.NewContextAsync(); await using var administrator = await browser.NewContextAsync();
-        var page = await member.NewPageAsync(); var admin = await administrator.NewPageAsync(); var root = Settings["Oidc:Issuer"]!;
+        await using var member = await browser.NewContextAsync();
+        await using var administrator = await browser.NewContextAsync();
+        var page = await member.NewPageAsync();
+        var admin = await administrator.NewPageAsync();
+        var root = Settings["Oidc:Issuer"]!;
         async Task LoginPage(IPage target, string email)
         {
             await target.GotoAsync(root + "Account/Login");
@@ -35,18 +40,22 @@ public sealed class BillingBrowserTests : MembershipTest
         var configurationPage = await admin.GotoAsync(root + "admin/billing-configuration");
         Assert.True(configurationPage!.Ok, "Configuration page failed: " + string.Join(" ", await admin.Locator(".titleerror").AllTextContentsAsync()));
         Assert.Contains("Stable code", await admin.ContentAsync());
-        await admin.GetByLabel("Stable code").FillAsync("door"); await admin.GetByLabel("Name", new() { Exact = true }).FillAsync("Door");
+        await admin.GetByLabel("Stable code").FillAsync("door");
+        await admin.GetByLabel("Name", new() { Exact = true }).FillAsync("Door");
         await admin.GetByLabel("Accounting category").FillAsync("door");
-        await admin.GetByLabel("Members may subscribe").CheckAsync(); await admin.GetByLabel("Initial free calendar days").FillAsync("0");
+        await admin.GetByLabel("Members may subscribe").CheckAsync();
+        await admin.GetByLabel("Initial free calendar days").FillAsync("0");
         await admin.GetByRole(AriaRole.Button, new() { Name = "Save service definition" }).ClickAsync();
         await Assertions.Expect(admin.GetByRole(AriaRole.Cell, new() { NameRegex = new System.Text.RegularExpressions.Regex(@"^#\d+ Door$") })).ToBeVisibleAsync();
-        await using var db = Context(); var fee = await db.Fees.SingleAsync(x => x.ServiceDefinitionId != null);
+        await using var db = Context();
+        var fee = await db.Fees.SingleAsync(x => x.ServiceDefinitionId != null);
         await admin.GetByLabel("Fee", new() { Exact = true }).SelectOptionAsync(fee.Id.ToString());
         await admin.GetByLabel("Monthly EUR").FillAsync("30");
         await admin.GetByRole(AriaRole.Button, new() { Name = "Add price", Exact = true }).ClickAsync();
         await Assertions.Expect(admin.GetByText("30.00 EUR/month")).ToBeVisibleAsync();
 
-        await LoginPage(page, Email); await page.GotoAsync(root + "billing");
+        await LoginPage(page, Email);
+        await page.GotoAsync(root + "billing");
         await page.GetByLabel("Email invoice PDFs").UncheckAsync();
         await page.GetByRole(AriaRole.Button, new() { Name = "Save preference" }).ClickAsync();
         await Assertions.Expect(page.GetByLabel("Email invoice PDFs")).Not.ToBeCheckedAsync();
@@ -78,7 +87,8 @@ public sealed class BillingBrowserTests : MembershipTest
         await Assertions.Expect(admin.GetByRole(AriaRole.Row).Filter(new() { HasText = "not-a-reference" })).ToHaveCountAsync(0);
 
         await Import("deposit", view.DepositReference, "10");
-        await page.ReloadAsync(); await page.GetByLabel("Amount (EUR)", new() { Exact = true }).FillAsync("10");
+        await page.ReloadAsync();
+        await page.GetByLabel("Amount (EUR)", new() { Exact = true }).FillAsync("10");
         await page.GetByRole(AriaRole.Button, new() { Name = "Transfer available funds" }).ClickAsync();
         await Assertions.Expect(page.GetByRole(AriaRole.Row).Filter(new() { HasText = "Door" })).ToContainTextAsync("22.00");
         await page.GetByRole(AriaRole.Button, new() { Name = "Stop renewal; keep remaining covered time" }).ClickAsync();
@@ -95,7 +105,8 @@ public sealed class BillingBrowserTests : MembershipTest
         await Assertions.Expect(admin.GetByLabel("Description", new() { Exact = true })).ToBeEmptyAsync();
         await page.ReloadAsync();
         var download = await page.RunAndWaitForDownloadAsync(() => page.GetByRole(AriaRole.Link, new() { Name = "Download current PDF" }).First.ClickAsync());
-        var path = Path.Combine(DirectoryPath, "browser-invoice.pdf"); await download.SaveAsAsync(path);
+        var path = Path.Combine(DirectoryPath, "browser-invoice.pdf");
+        await download.SaveAsAsync(path);
         Assert.StartsWith("%PDF-", System.Text.Encoding.ASCII.GetString((await File.ReadAllBytesAsync(path))[..8]));
         var workshop = await db.Invoices.AsNoTracking().SingleAsync(x => x.OneOffReference != null);
         await Import("workshop", "unknown-workshop-reference", "5");

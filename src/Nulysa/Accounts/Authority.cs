@@ -12,7 +12,8 @@ public static class Authority
 
     public static async Task<bool> IsAdministrator(AppDbContext db, ClaimsPrincipal actor, CancellationToken ct = default)
     {
-        if (!await AccountGate.Allows(db, actor, ct)) return false;
+        if (!await AccountGate.Allows(db, actor, ct))
+            return false;
         var id = Id(actor);
         return await (from assignment in db.UserRoles
                       join role in db.Roles on assignment.RoleId equals role.Id
@@ -22,7 +23,8 @@ public static class Authority
 
     public static async Task RequireAdministrator(AppDbContext db, ClaimsPrincipal actor, CancellationToken ct)
     {
-        if (!await IsAdministrator(db, actor, ct)) throw new UnauthorizedAccessException();
+        if (!await IsAdministrator(db, actor, ct))
+            throw new UnauthorizedAccessException();
     }
 
     public static async Task RequireOwnerOrAdministrator(AppDbContext db, ClaimsPrincipal actor, long userId, CancellationToken ct)
@@ -39,6 +41,7 @@ public sealed class AdministratorAuthorizationHandler(IServiceScopeFactory scope
     protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, AdministratorRequirement requirement)
     {
         await using var scope = scopes.CreateAsyncScope();
-        if (await Authority.IsAdministrator(scope.ServiceProvider.GetRequiredService<AppDbContext>(), context.User)) context.Succeed(requirement);
+        if (await Authority.IsAdministrator(scope.ServiceProvider.GetRequiredService<AppDbContext>(), context.User))
+            context.Succeed(requirement);
     }
 }

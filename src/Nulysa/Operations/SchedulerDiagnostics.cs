@@ -17,7 +17,8 @@ public sealed class SchedulerDiagnostics(IAuthorizationService authorization, Ap
 {
     public async Task<SchedulerReport> Read(ClaimsPrincipal user, CancellationToken ct = default)
     {
-        if (!(await authorization.AuthorizeAsync(user, null, "Superuser")).Succeeded) throw new UnauthorizedAccessException();
+        if (!(await authorization.AuthorizeAsync(user, null, "Superuser")).Succeeded)
+            throw new UnauthorizedAccessException();
         var scheduler = await schedulers.GetScheduler(ct);
         var work = await WorkStatus.Read(db, scheduler, clock, ct);
         var schedules = new List<ScheduleStatus>();

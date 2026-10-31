@@ -45,7 +45,8 @@ public abstract class DatabaseTest : IAsyncLifetime
             using var rsa = RSA.Create(2048);
             var path = Path.Combine(DirectoryPath, name + ".pem");
             await File.WriteAllTextAsync(path, rsa.ExportRSAPrivateKeyPem());
-            if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite);
+            if (!OperatingSystem.IsWindows())
+                File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite);
         }
         Settings["ConnectionStrings:Database"] = parsed.ConnectionString;
         Settings["DataProtection:Path"] = Path.Combine(DirectoryPath, "data-protection");
@@ -117,7 +118,8 @@ public abstract class DatabaseTest : IAsyncLifetime
     public static async Task Until(Func<Task<bool>> condition, int seconds = 30)
     {
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(seconds));
-        while (!await condition()) await Task.Delay(100, deadline.Token);
+        while (!await condition())
+            await Task.Delay(100, deadline.Token);
     }
 
     public static int FreePort()
@@ -129,9 +131,12 @@ public abstract class DatabaseTest : IAsyncLifetime
 
     public async Task DisposeAsync()
     {
-        foreach (var worker in Workers) await worker.DisposeAsync();
-        if (Scheduler is not null) await Scheduler.Shutdown();
-        if (Maintenance is not null) await Maintenance.DisposeAsync();
+        foreach (var worker in Workers)
+            await worker.DisposeAsync();
+        if (Scheduler is not null)
+            await Scheduler.Shutdown();
+        if (Maintenance is not null)
+            await Maintenance.DisposeAsync();
         NpgsqlConnection.ClearAllPools();
         await using var connection = new NpgsqlConnection(admin);
         await connection.OpenAsync();
@@ -154,7 +159,8 @@ public sealed class WorkerProcess : IAsyncDisposable
         var info = new ProcessStartInfo("dotnet") { RedirectStandardError = true, RedirectStandardOutput = true };
         info.ArgumentList.Add(Path.Combine(project, "bin", configuration, "net10.0", "Nulysa.WorkerHarness.dll"));
         info.Environment["DOTNET_ENVIRONMENT"] = "Development";
-        foreach (var (key, value) in settings) info.Environment[key.Replace(":", "__")] = value;
+        foreach (var (key, value) in settings)
+            info.Environment[key.Replace(":", "__")] = value;
         info.Environment["Logging__LogLevel__Default"] = "Warning";
         process = Process.Start(info)!;
         stdout = process.StandardOutput.ReadToEndAsync();
@@ -170,7 +176,8 @@ public sealed class WorkerProcess : IAsyncDisposable
 
     public async Task Stop()
     {
-        if (HasExited) return;
+        if (HasExited)
+            return;
         await Signal("TERM");
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(25));
         await process.WaitForExitAsync(deadline.Token);
@@ -181,7 +188,8 @@ public sealed class WorkerProcess : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
-        if (!process.HasExited) { process.Kill(entireProcessTree: true); await process.WaitForExitAsync(); }
+        if (!process.HasExited)
+        { process.Kill(entireProcessTree: true); await process.WaitForExitAsync(); }
         await Task.WhenAll(stdout, stderr);
         process.Dispose();
     }

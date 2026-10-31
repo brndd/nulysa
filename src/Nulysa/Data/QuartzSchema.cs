@@ -6,7 +6,8 @@ public static class QuartzSchema
 {
     public static async Task Upgrade(AppDbContext db, CancellationToken ct = default)
     {
-        if (!await db.Database.SqlQuery<bool>($"SELECT to_regclass('qrtz_job_details') IS NOT NULL AS \"Value\"").SingleAsync(ct)) return;
+        if (!await db.Database.SqlQuery<bool>($"SELECT to_regclass('qrtz_job_details') IS NOT NULL AS \"Value\"").SingleAsync(ct))
+            return;
         if (!await db.Database.SqlQuery<bool>($"SELECT to_regclass('qrtz_job_status') IS NOT NULL AS \"Value\"").SingleAsync(ct))
             throw new InvalidOperationException("Quartz schemas older than 4.4 require the reviewed upstream migrations first.");
         // The three 4.6 columns and two indexes, from Quartz v4.6.2's Apache-2.0 migrations.

@@ -23,7 +23,8 @@ public abstract class MembershipTest : OidcTest
     protected WebApplication CommandsApp(IMailTransport? transport = null) => Build("commands", builder =>
     {
         builder.Services.AddSingleton<TimeProvider>(Clock);
-        if (transport is not null) builder.Services.AddSingleton(transport);
+        if (transport is not null)
+            builder.Services.AddSingleton(transport);
     });
 
     protected static ClaimsPrincipal Actor(long id) => new(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, id.ToString())], "test"));
@@ -41,12 +42,14 @@ public abstract class MembershipTest : OidcTest
 
     protected static async Task Run(WebApplication app, Func<IServiceProvider, Task> action)
     {
-        await using var scope = app.Services.CreateAsyncScope(); await action(scope.ServiceProvider);
+        await using var scope = app.Services.CreateAsyncScope();
+        await action(scope.ServiceProvider);
     }
 
     protected static async Task<T> Run<T>(WebApplication app, Func<IServiceProvider, Task<T>> action)
     {
-        await using var scope = app.Services.CreateAsyncScope(); return await action(scope.ServiceProvider);
+        await using var scope = app.Services.CreateAsyncScope();
+        return await action(scope.ServiceProvider);
     }
 
     protected static ApplicationInput Input(string email = Email) => new()
@@ -85,7 +88,8 @@ public sealed class RecordingMail : IMailTransport
     public SendOutcome Outcome { get; set; } = SendOutcome.Accepted;
     public Task<SendResult> Send(Guid id, OutgoingMail mail, CancellationToken ct)
     {
-        Sent.Add(mail); return Task.FromResult(new SendResult(Outcome, Outcome == SendOutcome.Accepted ? "synthetic-provider-id" : null));
+        Sent.Add(mail);
+        return Task.FromResult(new SendResult(Outcome, Outcome == SendOutcome.Accepted ? "synthetic-provider-id" : null));
     }
 }
 
@@ -141,7 +145,8 @@ public sealed class MembershipTests : MembershipTest
         var board = await Board();
         await using var app = CommandsApp();
         var id = Guid.NewGuid();
-        var input = Input(); input.AcceptTerms = false;
+        var input = Input();
+        input.AcceptTerms = false;
         await Assert.ThrowsAsync<ValidationException>(() => Run(app, sp => sp.GetRequiredService<MembershipCommands>().Apply(id, input)));
         input.AcceptTerms = true;
         await Run(app, sp => sp.GetRequiredService<MembershipCommands>().Apply(id, input));
@@ -176,7 +181,9 @@ public sealed class MembershipTests : MembershipTest
         Assert.Equal(results[0], results[1]);
         await using var db = Context();
         var user = await db.Users.SingleAsync(x => x.Id == results[0]);
-        Assert.True(user.MayLogIn); Assert.True(user.EmailConfirmed); Assert.Null(user.PasswordHash);
+        Assert.True(user.MayLogIn);
+        Assert.True(user.EmailConfirmed);
+        Assert.Null(user.PasswordHash);
         Assert.Empty(await db.Applications.ToListAsync());
         Assert.Single(await db.Members.ToListAsync());
         var account = Assert.Single(await db.BillingAccounts.ToListAsync());
@@ -185,7 +192,9 @@ public sealed class MembershipTests : MembershipTest
         Assert.Equal(DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(Clock.Now, TimeZoneInfo.FindSystemTimeZoneById("Europe/Helsinki")).DateTime), request.Anchor);
         Assert.Null(request.CancelledAt);
         var approval = Assert.Single(await db.Approvals.ToListAsync());
-        Assert.Equal(Authority.Id(board), approval.AdministratorId); Assert.Equal(user.Id, approval.UserId); Assert.Equal(Clock.Now, approval.ApprovedAt);
+        Assert.Equal(Authority.Id(board), approval.AdministratorId);
+        Assert.Equal(user.Id, approval.UserId);
+        Assert.Equal(Clock.Now, approval.ApprovedAt);
         Assert.Single(await db.Deliveries.Where(x => x.Kind == MailKind.Welcome).ToListAsync());
     }
 
@@ -220,7 +229,8 @@ public sealed class MembershipTests : MembershipTest
     {
         public override ValueTask<int> SavedChangesAsync(SaveChangesCompletedEventData eventData, int result, CancellationToken cancellationToken = default)
         {
-            if (eventData.Context!.ChangeTracker.Entries<Member>().Any()) clock.Now = new DateTimeOffset(2026, 1, 15, 22, 0, 0, TimeSpan.Zero);
+            if (eventData.Context!.ChangeTracker.Entries<Member>().Any())
+                clock.Now = new DateTimeOffset(2026, 1, 15, 22, 0, 0, TimeSpan.Zero);
             return ValueTask.FromResult(result);
         }
     }
@@ -235,9 +245,12 @@ public sealed class MembershipTests : MembershipTest
             TriggerBuilder.Create<ProbeJob>().StartAt(DateTimeOffset.UtcNow.AddDays(1)).Build());
         await Assert.ThrowsAsync<ObjectAlreadyExistsException>(() => Run(app, sp => sp.GetRequiredService<MembershipCommands>().Approve(board, id)));
         await using var db = Context();
-        Assert.Single(await db.Applications.ToListAsync()); Assert.Empty(await db.Members.ToListAsync());
-        Assert.Empty(await db.BillingAccounts.ToListAsync()); Assert.Empty(await db.Approvals.ToListAsync());
-        Assert.Equal(1, await db.Users.CountAsync()); Assert.False(await db.Deliveries.AnyAsync(x => x.Kind == MailKind.Welcome));
+        Assert.Single(await db.Applications.ToListAsync());
+        Assert.Empty(await db.Members.ToListAsync());
+        Assert.Empty(await db.BillingAccounts.ToListAsync());
+        Assert.Empty(await db.Approvals.ToListAsync());
+        Assert.Equal(1, await db.Users.CountAsync());
+        Assert.False(await db.Deliveries.AnyAsync(x => x.Kind == MailKind.Welcome));
     }
 
     [Fact]
@@ -253,7 +266,8 @@ public sealed class MembershipTests : MembershipTest
             TriggerBuilder.Create<ProbeJob>().StartAt(DateTimeOffset.UtcNow.AddDays(1)).Build());
         await Assert.ThrowsAsync<ObjectAlreadyExistsException>(() => Run(app, sp => sp.GetRequiredService<MembershipCommands>().BeginDeletion(board, id, operation, "Manual termination")));
         var after = await db.Users.AsNoTracking().SingleAsync(x => x.Id == id);
-        Assert.True(after.MayLogIn); Assert.Equal(before, after.SecurityStamp);
+        Assert.True(after.MayLogIn);
+        Assert.Equal(before, after.SecurityStamp);
         Assert.Null((await db.Members.SingleAsync()).DeletionEligibleAt);
         Assert.Null((await db.InitialMembershipRequests.SingleAsync()).CancelledAt);
         Assert.Empty(await db.LifecycleActions.ToListAsync());
@@ -270,7 +284,8 @@ public sealed class MembershipTests : MembershipTest
         Clock.Now = Clock.Now.AddDays(14);
         var restore = Task.Run(async () =>
         {
-            try { await Run(app, sp => sp.GetRequiredService<MembershipCommands>().Restore(board, id, Guid.NewGuid(), "Verified request")); return true; }
+            try
+            { await Run(app, sp => sp.GetRequiredService<MembershipCommands>().Restore(board, id, Guid.NewGuid(), "Verified request")); return true; }
             catch (ValidationException) { return false; }
         });
         var erase = Run(app, sp => sp.GetRequiredService<MembershipCommands>().Erase(id));
@@ -324,7 +339,8 @@ public sealed class MembershipTests : MembershipTest
         await Run(app, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(id));
         await Run(app, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(id));
         await Run(app, sp => sp.GetRequiredService<MembershipCommands>().Reject(board, id, "Optional explanation"));
-        Assert.Single(transport.Sent); Assert.Contains("Optional explanation", transport.Sent[0].Text);
+        Assert.Single(transport.Sent);
+        Assert.Contains("Optional explanation", transport.Sent[0].Text);
         Assert.Equal(state, (await db.Deliveries.AsNoTracking().SingleAsync(x => x.Id == id)).State);
         Assert.Equal(outcome != SendOutcome.Accepted, await db.Applications.AnyAsync(x => x.Id == id));
         if (outcome != SendOutcome.Accepted)
@@ -350,7 +366,9 @@ public sealed class MembershipTests : MembershipTest
         var user = await db.Users.AsNoTracking().SingleAsync(x => x.Id == id);
         var subject = user.OidcSubject;
         var originalUsername = user.UserName;
-        var profile = Input().Profile; profile.Name = "Edited Name"; profile.DateOfBirth = new DateOnly(1995, 2, 28);
+        var profile = Input().Profile;
+        profile.Name = "Edited Name";
+        profile.DateOfBirth = new DateOnly(1995, 2, 28);
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Run(app, sp => sp.GetRequiredService<AccountCommands>().UpdateProfile(Actor(other), id, profile)));
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Run(app, sp => sp.GetRequiredService<MembershipQueries>().Registry(Actor(id), "")));
         await Run(app, sp => sp.GetRequiredService<AccountCommands>().UpdateProfile(Actor(id), id, profile));
@@ -366,8 +384,11 @@ public sealed class MembershipTests : MembershipTest
         await db.Users.Where(x => x.Id == other).ExecuteUpdateAsync(x => x.SetProperty(u => u.Email, "other@example.test").SetProperty(u => u.NormalizedEmail, "OTHER@EXAMPLE.TEST"));
         await Run(app, sp => sp.GetRequiredService<AccountCommands>().ConfirmEmailChange(id, operation, link["token"]!));
         var changed = await db.Users.AsNoTracking().SingleAsync(x => x.Id == id);
-        Assert.Equal(subject, changed.OidcSubject); Assert.Equal("changed@example.test", changed.Email); Assert.Equal(originalUsername, changed.UserName);
-        Assert.Equal("Edited Name", changed.Name); Assert.Null(changed.PendingEmail);
+        Assert.Equal(subject, changed.OidcSubject);
+        Assert.Equal("changed@example.test", changed.Email);
+        Assert.Equal(originalUsername, changed.UserName);
+        Assert.Equal("Edited Name", changed.Name);
+        Assert.Null(changed.PendingEmail);
     }
 
     [Fact]
@@ -404,7 +425,8 @@ public sealed class MembershipTests : MembershipTest
         await CreateClient();
         await using var web = await StartProvider();
         using var client = Client();
-        var tokens = await Tokens(client); var code = await Code(client);
+        var tokens = await Tokens(client);
+        var code = await Code(client);
         var reset = await PasswordToken(commands, id);
         var operation = Guid.NewGuid();
         await Run(commands, sp => sp.GetRequiredService<MembershipCommands>().BeginDeletion(Actor(id), id, operation, "Voluntary resignation"));
@@ -447,13 +469,16 @@ public sealed class MembershipTests : MembershipTest
         Clock.Now = Clock.Now.AddMinutes(90); // Helsinki 8 Nov, 01:30: exactly 14 calendar days, spanning DST.
         await Run(app, async sp => await ActivatorUtilities.CreateInstance<FinalDeletionJob>(sp).Execute(null!));
         await using var db = Context();
-        Assert.False(await db.Users.AnyAsync(x => x.Id == id)); Assert.Empty(await db.Members.ToListAsync());
-        Assert.Null((await db.BillingAccounts.SingleAsync()).UserId); Assert.Single(await db.Approvals.ToListAsync());
+        Assert.False(await db.Users.AnyAsync(x => x.Id == id));
+        Assert.Empty(await db.Members.ToListAsync());
+        Assert.Null((await db.BillingAccounts.SingleAsync()).UserId);
+        Assert.Single(await db.Approvals.ToListAsync());
         Assert.False(await db.Deliveries.AnyAsync(x => x.UserId == id));
         var rejoined = await Admit(app, board);
         Assert.True(rejoined > id);
         Assert.NotEqual(subject, (await db.Users.AsNoTracking().SingleAsync(x => x.Id == rejoined)).OidcSubject);
-        Assert.Equal(2, await db.BillingAccounts.CountAsync()); Assert.Equal(2, await db.Approvals.CountAsync());
+        Assert.Equal(2, await db.BillingAccounts.CountAsync());
+        Assert.Equal(2, await db.Approvals.CountAsync());
         Assert.Equal(1, await db.BillingAccounts.CountAsync(x => x.UserId == null));
     }
 
@@ -463,7 +488,8 @@ public sealed class MembershipTests : MembershipTest
         var board = await Board();
         await using var app = CommandsApp();
         var id = await Verified(app);
-        await using (var db = Context()) await db.UserRoles.Where(x => x.UserId == Authority.Id(board)).ExecuteDeleteAsync();
+        await using (var db = Context())
+            await db.UserRoles.Where(x => x.UserId == Authority.Id(board)).ExecuteDeleteAsync();
         ((ClaimsIdentity)board.Identity!).AddClaim(new Claim(ClaimTypes.Role, "Administrator"));
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Run(app, sp => sp.GetRequiredService<MembershipQueries>().Applications(board)));
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Run(app, sp => sp.GetRequiredService<MembershipCommands>().Approve(board, id)));

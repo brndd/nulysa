@@ -22,13 +22,16 @@ public static class Probe
 
     public static async Task ScheduleInTransaction(AppDbContext db, IScheduler scheduler, string key, int input = 1, string mode = "ok", DateTimeOffset? created = null)
     {
-        if (db.Database.CurrentTransaction is null) throw new InvalidOperationException("An outer transaction is required.");
+        if (db.Database.CurrentTransaction is null)
+            throw new InvalidOperationException("An outer transaction is required.");
         var inserted = await db.Database.ExecuteSqlInterpolatedAsync($"""
             INSERT INTO probe_operations (id, input) VALUES ({key}, {input}) ON CONFLICT DO NOTHING
             """);
         var actual = await db.Database.SqlQuery<int>($"SELECT input AS \"Value\" FROM probe_operations WHERE id = {key}").SingleAsync();
-        if (actual != input) throw new InvalidOperationException("Conflicting operation input.");
-        if (inserted == 0) return;
+        if (actual != input)
+            throw new InvalidOperationException("Conflicting operation input.");
+        if (inserted == 0)
+            return;
         var job = JobBuilder.Create<ProbeJob>().WithIdentity(key, "work").RequestRecovery()
             .UsingJobData("operation", key).UsingJobData("mode", mode)
             .UsingJobData("enqueued_at", (created ?? DateTimeOffset.UtcNow).ToString("O", CultureInfo.InvariantCulture)).Build();
@@ -64,18 +67,23 @@ public sealed class ProbeJob(AppDbContext db) : IJob
             await Probe.Complete(db, key, CancellationToken.None);
             return;
         }
-        if (mode == "crash-always" || (first && mode == "crash-before")) Crash();
-        if (mode == "fail") throw new InvalidOperationException("private-test-provider-payload");
+        if (mode == "crash-always" || (first && mode == "crash-before"))
+            Crash();
+        if (mode == "fail")
+            throw new InvalidOperationException("private-test-provider-payload");
         if (mode == "timeout")
         {
             using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             deadline.CancelAfter(TimeSpan.FromMilliseconds(150));
             await Task.Delay(Timeout.InfiniteTimeSpan, deadline.Token);
         }
-        if (first && mode is "block-before" or "overlap") await WaitForRelease(db, key, cancellationToken);
+        if (first && mode is "block-before" or "overlap")
+            await WaitForRelease(db, key, cancellationToken);
         await Probe.Complete(db, key, cancellationToken);
-        if (first && mode == "crash-after") Crash();
-        if (first && mode == "block-after") await WaitForRelease(db, key, cancellationToken);
+        if (first && mode == "crash-after")
+            Crash();
+        if (first && mode == "block-after")
+            await WaitForRelease(db, key, cancellationToken);
     }
 
     // SIGKILL simulates process death without SIGABRT, which desktop crash reporters flag.

@@ -39,7 +39,8 @@ public sealed class RedactJobFailures : IJobExecutionMiddleware
 {
     public async ValueTask Invoke(IJobExecutionContext context, JobExecutionDelegate next, CancellationToken cancellationToken = default)
     {
-        try { await next(context, cancellationToken); }
+        try
+        { await next(context, cancellationToken); }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception error)
         {

@@ -48,7 +48,9 @@ public sealed partial class BillingCommands
                     Message = input.Message,
                     Counterparty = input.Counterparty
                 };
-                db.Receipts.Add(receipt); await db.SaveChangesAsync(ct); id = receipt.Id;
+                db.Receipts.Add(receipt);
+                await db.SaveChangesAsync(ct);
+                id = receipt.Id;
             }
             await tx.CommitAsync(ct);
         }
@@ -73,7 +75,8 @@ public sealed partial class BillingCommands
         bool manualDeposit = false, Guid operationKey = default, string reason = "Reference matching", CancellationToken ct = default, long? manualInvoice = null)
     {
         var source = await db.Receipts.AsNoTracking().SingleAsync(x => x.Id == receiptId, ct);
-        if (actor is null && source.State != ReceiptState.New) return;
+        if (actor is null && source.State != ReceiptState.New)
+            return;
         var reference = PaymentReference.Normalize(source.Reference);
         var group = await db.BillingGroups.AsNoTracking().SingleOrDefaultAsync(x => x.PaymentReference == reference, ct);
         var oneOff = await db.Invoices.AsNoTracking().SingleOrDefaultAsync(x => x.OneOffReference == reference, ct);
@@ -85,8 +88,10 @@ public sealed partial class BillingCommands
         BillingFacts? facts = accountId is { } account ? await Lock(account, ct) : null;
         db.ChangeTracker.Entries<Receipt>().ToList().ForEach(x => x.State = EntityState.Detached);
         var receipt = await db.Receipts.FromSqlInterpolated($"SELECT * FROM \"Receipts\" WHERE \"Id\" = {receiptId} FOR UPDATE").SingleAsync(ct);
-        if (actor is not null) await Authority.RequireAdministrator(db, actor, ct);
-        if (actor is null && receipt.State != ReceiptState.New) return;
+        if (actor is not null)
+            await Authority.RequireAdministrator(db, actor, ct);
+        if (actor is null && receipt.State != ReceiptState.New)
+            return;
         var toDeposit = actor is null ? deposit is not null : manualDeposit;
         var groupId = actor is null ? group?.Id : manualGroup;
         var invoiceId = actor is null ? oneOff?.Id : manualInvoice;
@@ -99,22 +104,31 @@ public sealed partial class BillingCommands
         }
         if (facts is null || facts.User is not { MayLogIn: true } || receipt.Amount < 0 || receipt.Currency != "EUR")
         {
-            if (actor is not null) throw new ValidationException("Only incoming EUR receipts can be assigned to a live member.");
+            if (actor is not null)
+                throw new ValidationException("Only incoming EUR receipts can be assigned to a live member.");
             receipt.State = ReceiptState.Review;
             receipt.ReviewReason = facts?.User is { PendingDeletionAt: not null } ? "Account pending deletion — manual repair required after restoration" : "Unknown reference, unavailable account, outgoing transaction or unsupported currency";
-            await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return;
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+            return;
         }
         if (invoiceId is not null && (groupId is not null || toDeposit || !facts.Invoices.Any(x => x.Id == invoiceId && x.BillingGroupId is null)))
             throw new ValidationException("Select a one-off invoice belonging to this account, without a group or deposit destination.");
-        if (groupId is not null && !facts.Groups.Any(x => x.Id == groupId)) throw new ValidationException("The selected group belongs to another account.");
+        if (groupId is not null && !facts.Groups.Any(x => x.Id == groupId))
+            throw new ValidationException("The selected group belongs to another account.");
         if (toDeposit && (!Settings.PurchaseBalanceEnabled || groupId is not null))
         {
-            if (actor is not null) throw new ValidationException("Purchase deposits are unavailable or conflict with a group selection.");
-            receipt.State = ReceiptState.Review; receipt.ReviewReason = "Purchase balance is disabled";
-            await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return;
+            if (actor is not null)
+                throw new ValidationException("Purchase deposits are unavailable or conflict with a group selection.");
+            receipt.State = ReceiptState.Review;
+            receipt.ReviewReason = "Purchase balance is disabled";
+            await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
+            return;
         }
         var operation = await Operation(facts, actor is null ? Guid.NewGuid() : operationKey, "receipt", input, actor is null ? null : Authority.Id(actor), reason, ct);
-        if (operation is null) return;
+        if (operation is null)
+            return;
         operation.ResultId = receiptId;
         if (!toDeposit)
         {
@@ -122,10 +136,14 @@ public sealed partial class BillingCommands
                 (groupId is not null ? facts.Invoices.Single(i => i.Id == x.InvoiceId).BillingGroupId == groupId : x.InvoiceId == invoiceId)).ToList();
             if (candidates.Any(x => !CanRecover(facts, x)))
             {
-                receipt.State = ReceiptState.Review; receipt.ReviewReason = "Timely delayed receipt conflicts with later allocation or explicit lifecycle changes";
-                await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return;
+                receipt.State = ReceiptState.Review;
+                receipt.ReviewReason = "Timely delayed receipt conflicts with later allocation or explicit lifecycle changes";
+                await db.SaveChangesAsync(ct);
+                await tx.CommitAsync(ct);
+                return;
             }
-            foreach (var line in candidates) Recover(facts, operation, line);
+            foreach (var line in candidates)
+                Recover(facts, operation, line);
             var timely = facts.Lines.Where(x => x.State == LineState.Open && receipt.ReceivedOn < x.ExpiresOn &&
                 (groupId is not null ? facts.Invoices.Single(i => i.Id == x.InvoiceId).BillingGroupId == groupId : x.InvoiceId == invoiceId)).Select(x => x.Id).ToHashSet();
             await Expire(facts, operation, scheduler, ct, timely);
@@ -141,33 +159,41 @@ public sealed partial class BillingCommands
                 }
             }
         }
-        receipt.BillingAccountId = facts.Account.Id; receipt.State = ReceiptState.Posted; receipt.ReviewReason = null;
-        if (toDeposit) Move(facts, operation, MovementKind.ReceiptToPurchase, receipt.Amount, receipt.ReceivedOn, receipt: receipt.Id);
+        receipt.BillingAccountId = facts.Account.Id;
+        receipt.State = ReceiptState.Posted;
+        receipt.ReviewReason = null;
+        if (toDeposit)
+            Move(facts, operation, MovementKind.ReceiptToPurchase, receipt.Amount, receipt.ReceivedOn, receipt: receipt.Id);
         else
         {
             var remaining = receipt.Amount;
             var invoices = facts.Invoices.Where(x => groupId is not null ? x.BillingGroupId == groupId : x.Id == invoiceId).ToList();
             foreach (var line in OrderedLines(facts, invoices))
             {
-                if (remaining == 0) break;
+                if (remaining == 0)
+                    break;
                 remaining -= await Fund(facts, operation, line, remaining, receipt.ReceivedOn, receipt.Id, ct);
             }
             Move(facts, operation, MovementKind.ReceiptToBilling, remaining, receipt.ReceivedOn, receipt: receipt.Id);
             await Expire(facts, operation, scheduler, ct);
             await AllocateCredit(facts, operation, clock.Today, ct);
         }
-        await Finish(facts, scheduler, false, ct); await tx.CommitAsync(ct);
+        await Finish(facts, scheduler, false, ct);
+        await tx.CommitAsync(ct);
     }
 
     private bool CanRecover(BillingFacts facts, InvoiceLine line)
     {
-        if (line.Benefit == Benefit.Membership && line.RecurringItemId is { } membershipItem && facts.Items.Single(x => x.Id == membershipItem).EndedAt is not null) return false;
-        if (facts.Lines.Any(x => x.Id != line.Id && x.RecurringItemId == line.RecurringItemId && x.RecurringItemId != null && x.StartsOn >= line.StartsOn && x.State is LineState.Open or LineState.Fulfilled)) return false;
+        if (line.Benefit == Benefit.Membership && line.RecurringItemId is { } membershipItem && facts.Items.Single(x => x.Id == membershipItem).EndedAt is not null)
+            return false;
+        if (facts.Lines.Any(x => x.Id != line.Id && x.RecurringItemId == line.RecurringItemId && x.RecurringItemId != null && x.StartsOn >= line.StartsOn && x.State is LineState.Open or LineState.Fulfilled))
+            return false;
         if (line.ServiceEnrollmentId is { } id)
         {
             var enrollment = facts.Enrollments.Single(x => x.Id == id);
             if (enrollment.RenewalStoppedAt is not null || (enrollment.EndedAt is not null && enrollment.EndReason != "nonpayment") ||
-                facts.Enrollments.Any(x => x.Id != id && x.ServiceDefinitionId == enrollment.ServiceDefinitionId && x.StartedAt >= enrollment.StartedAt)) return false;
+                facts.Enrollments.Any(x => x.Id != id && x.ServiceDefinitionId == enrollment.ServiceDefinitionId && x.StartedAt >= enrollment.StartedAt))
+                return false;
         }
         var release = facts.Movements.Where(x => x.InvoiceLineId == line.Id && x.Kind == MovementKind.LineToBilling).OrderByDescending(x => x.Id).FirstOrDefault();
         return release is null || (facts.Balances.BillingCredit >= release.Amount && !facts.Movements.Any(x => x.Id > release.Id &&
@@ -176,13 +202,16 @@ public sealed partial class BillingCommands
 
     private void Recover(BillingFacts facts, BillingOperation operation, InvoiceLine line)
     {
-        if (line.State != LineState.Expired) return;
+        if (line.State != LineState.Expired)
+            return;
         line.State = LineState.Open;
         if (line.ServiceEnrollmentId is { } id)
         {
             var enrollment = facts.Enrollments.Single(x => x.Id == id);
-            enrollment.EndedAt = null; enrollment.EndReason = null;
-            var item = facts.Items.Single(x => x.Id == line.RecurringItemId); item.EndedAt = null;
+            enrollment.EndedAt = null;
+            enrollment.EndReason = null;
+            var item = facts.Items.Single(x => x.Id == line.RecurringItemId);
+            item.EndedAt = null;
             db.ServiceChanges.Add(new() { ServiceEnrollmentId = id, OperationId = operation.Id, Action = "timely-receipt-correction" });
         }
         var release = facts.Movements.Where(x => x.InvoiceLineId == line.Id && x.Kind == MovementKind.LineToBilling).OrderByDescending(x => x.Id).FirstOrDefault();
@@ -199,8 +228,10 @@ public sealed partial class BillingCommands
     private async Task<decimal> Fund(BillingFacts facts, BillingOperation operation, InvoiceLine line, decimal available, DateOnly on, long? receiptId, CancellationToken ct)
     {
         var effective = line.LastFundingOn is { } previous && previous > on ? previous : on;
-        if (line.State != LineState.Open || effective >= line.ExpiresOn) return 0;
-        if (line.ServiceEnrollmentId is { } enrollmentId && !facts.Enrollments.Any(x => x.Id == enrollmentId && x.EndedAt is null && x.RenewalStoppedAt is null)) return 0;
+        if (line.State != LineState.Open || effective >= line.ExpiresOn)
+            return 0;
+        if (line.ServiceEnrollmentId is { } enrollmentId && !facts.Enrollments.Any(x => x.Id == enrollmentId && x.EndedAt is null && x.RenewalStoppedAt is null))
+            return 0;
         var held = facts.Held(line);
         if (line.Purpose == PurchasePurpose.Resumption || (line.Purpose == PurchasePurpose.Initial && line.Benefit == Benefit.Service))
         {
@@ -233,8 +264,10 @@ public sealed partial class BillingCommands
         }
         var amount = Math.Min(available, Math.Max(0, line.Amount - facts.Held(line)));
         Move(facts, operation, receiptId is null ? MovementKind.BillingToLine : MovementKind.ReceiptToLine, amount, on, line.Id, receiptId);
-        if (amount > 0) line.LastFundingOn = effective;
-        if (facts.Held(line) == line.Amount) Complete(facts, operation, line, line.Amount == 0 ? null : effective);
+        if (amount > 0)
+            line.LastFundingOn = effective;
+        if (facts.Held(line) == line.Amount)
+            Complete(facts, operation, line, line.Amount == 0 ? null : effective);
         await db.SaveChangesAsync(ct);
         return amount;
     }
@@ -244,7 +277,8 @@ public sealed partial class BillingCommands
         foreach (var line in OrderedLines(facts, facts.Invoices.Where(x => x.BillingGroupId is not null)))
         {
             var available = facts.Balances.BillingCredit;
-            if (available <= 0) break;
+            if (available <= 0)
+                break;
             await Fund(facts, operation, line, available, on, null, ct);
         }
     }
@@ -255,9 +289,12 @@ public sealed partial class BillingCommands
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         await Authority.RequireAdministrator(db, actor, ct);
         var receipt = await db.Receipts.FromSqlInterpolated($"SELECT * FROM \"Receipts\" WHERE \"Id\" = {id} FOR UPDATE").SingleAsync(ct);
-        if (receipt.State == ReceiptState.Posted) throw new ValidationException("Posted receipts cannot be ignored.");
-        receipt.State = ReceiptState.Ignored; receipt.ReviewReason = $"Administrator #{Authority.Id(actor)}: {reason}";
-        await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
+        if (receipt.State == ReceiptState.Posted)
+            throw new ValidationException("Posted receipts cannot be ignored.");
+        receipt.State = ReceiptState.Ignored;
+        receipt.ReviewReason = $"Administrator #{Authority.Id(actor)}: {reason}";
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
     }
 
     private async Task<long?> Change(ClaimsPrincipal actor, long accountId, Guid key, string kind, object input, string reason,
@@ -267,12 +304,16 @@ public sealed partial class BillingCommands
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         using var enlistment = scheduler.EnlistTransaction(tx.GetDbTransaction());
         var facts = await Lock(accountId, ct);
-        if (administrator) await Authority.RequireAdministrator(db, actor, ct);
-        else await Authority.RequireOwnerOrAdministrator(db, actor, facts.Account.UserId ?? 0, ct);
+        if (administrator)
+            await Authority.RequireAdministrator(db, actor, ct);
+        else
+            await Authority.RequireOwnerOrAdministrator(db, actor, facts.Account.UserId ?? 0, ct);
         var operation = await Operation(facts, key, kind, input, Authority.Id(actor), reason, ct);
-        if (operation is null) return (await db.BillingOperations.SingleAsync(x => x.Id == key, ct)).ResultId;
+        if (operation is null)
+            return (await db.BillingOperations.SingleAsync(x => x.Id == key, ct)).ResultId;
         await change(facts, operation, scheduler);
-        await Finish(facts, scheduler, true, ct); await tx.CommitAsync(ct);
+        await Finish(facts, scheduler, true, ct);
+        await tx.CommitAsync(ct);
         return operation.ResultId;
     }
 
@@ -280,11 +321,13 @@ public sealed partial class BillingCommands
         => Change(actor, accountId, key, "transfer", new { amount, toPurchase }, "Member balance transfer", false, async (facts, operation, scheduler) =>
         {
             Live(facts);
-            if (!Settings.PurchaseBalanceEnabled) throw new ValidationException("Purchase balance is disabled.");
+            if (!Settings.PurchaseBalanceEnabled)
+                throw new ValidationException("Purchase balance is disabled.");
             if (amount <= 0 || Pricing.Round(amount) != amount || amount > (toPurchase ? facts.Balances.BillingCredit : facts.Balances.PurchaseBalance))
                 throw new ValidationException("Transfer requires a positive cent amount within the available balance.");
             Move(facts, operation, toPurchase ? MovementKind.BillingToPurchase : MovementKind.PurchaseToBilling, amount, clock.Today);
-            if (!toPurchase) await AllocateCredit(facts, operation, clock.Today, ct);
+            if (!toPurchase)
+                await AllocateCredit(facts, operation, clock.Today, ct);
         }, ct);
 
     public Task Refund(ClaimsPrincipal actor, long accountId, Guid key, decimal amount, bool purchase, string reason, CancellationToken ct = default)
@@ -295,7 +338,8 @@ public sealed partial class BillingCommands
             if (amount <= 0 || Pricing.Round(amount) != amount || amount > (purchase ? facts.Balances.PurchaseBalance : facts.Balances.BillingCredit))
                 throw new ValidationException("Record only a confirmed refund within the available balance; held and spent funds are unavailable.");
             Move(facts, operation, purchase ? MovementKind.PurchaseRefund : MovementKind.BillingRefund, amount, clock.Today);
-            if (facts.Balances is { BillingCredit: 0, PurchaseBalance: 0, Held: 0 }) { facts.Account.ClaimName = null; facts.Account.ClaimEmail = null; }
+            if (facts.Balances is { BillingCredit: 0, PurchaseBalance: 0, Held: 0 })
+            { facts.Account.ClaimName = null; facts.Account.ClaimEmail = null; }
             return Task.CompletedTask;
         }, ct);
     }
@@ -306,7 +350,8 @@ public sealed partial class BillingCommands
         return Change(actor, accountId, key, "unassign-receipt", new { receiptId }, reason, true, async (facts, operation, scheduler) =>
         {
             var receipt = await db.Receipts.FromSqlInterpolated($"SELECT * FROM \"Receipts\" WHERE \"Id\" = {receiptId} FOR UPDATE").SingleAsync(ct);
-            if (receipt.State != ReceiptState.Posted || receipt.BillingAccountId != accountId) throw new ValidationException("Select a posted receipt assigned to this account.");
+            if (receipt.State != ReceiptState.Posted || receipt.BillingAccountId != accountId)
+                throw new ValidationException("Select a posted receipt assigned to this account.");
             var original = facts.Movements.Where(x => x.ReceiptId == receiptId && x.Kind is MovementKind.ReceiptToLine or MovementKind.ReceiptToBilling or MovementKind.ReceiptToPurchase)
                 .Where(x => !facts.Movements.Any(r => r.ReversesMovementId == x.Id)).ToList();
             if (original.Any(x => x.InvoiceLineId is { } lineId && facts.Lines.Single(l => l.Id == lineId).State == LineState.Fulfilled))
@@ -320,9 +365,12 @@ public sealed partial class BillingCommands
             foreach (var movement in original)
                 Move(facts, operation, movement.Kind == MovementKind.ReceiptToPurchase ? MovementKind.PurchaseReceiptReversal : MovementKind.BillingReceiptReversal,
                     movement.Amount, clock.Today, receipt: receiptId, reverses: movement.Id);
-            receipt.BillingAccountId = null; receipt.State = ReceiptState.Review; receipt.ReviewReason = "Allocation reversed by administrator — explicit purpose assignment required";
+            receipt.BillingAccountId = null;
+            receipt.State = ReceiptState.Review;
+            receipt.ReviewReason = "Allocation reversed by administrator — explicit purpose assignment required";
             operation.ResultId = receiptId;
-            if (facts.User is null && facts.Balances is { BillingCredit: 0, PurchaseBalance: 0, Held: 0 }) { facts.Account.ClaimName = null; facts.Account.ClaimEmail = null; }
+            if (facts.User is null && facts.Balances is { BillingCredit: 0, PurchaseBalance: 0, Held: 0 })
+            { facts.Account.ClaimName = null; facts.Account.ClaimEmail = null; }
         }, ct);
     }
 }

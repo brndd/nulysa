@@ -41,8 +41,10 @@ public static class GoCardlessTransactions
         foreach (var transaction in payload.GetProperty("transactions").GetProperty("booked").EnumerateArray())
         {
             var id = Text(transaction, "transactionId");
-            if (string.IsNullOrWhiteSpace(id)) id = Text(transaction, "internalTransactionId");
-            if (string.IsNullOrWhiteSpace(id)) throw new ValidationException("Booked transaction lacks a stable provider identifier.");
+            if (string.IsNullOrWhiteSpace(id))
+                id = Text(transaction, "internalTransactionId");
+            if (string.IsNullOrWhiteSpace(id))
+                throw new ValidationException("Booked transaction lacks a stable provider identifier.");
             var amountObject = transaction.GetProperty("transactionAmount");
             if (!decimal.TryParse(Text(amountObject, "amount"), NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var amount) ||
                 !DateOnly.TryParseExact(Text(transaction, "bookingDate"), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var booked))
@@ -59,7 +61,8 @@ public static class GoCardlessTransactions
             var counterparty = Text(transaction, amount > 0 ? "debtorName" : "creditorName");
             if (transaction.TryGetProperty(amount > 0 ? "debtorAccount" : "creditorAccount", out var bankAccount))
                 counterparty = string.Join(" / ", new[] { counterparty, Text(bankAccount, "iban") }.Where(x => x.Length > 0));
-            if (amount != 0) result.Add(new("gocardless", account, id, amount, Text(amountObject, "currency"), booked, reference, message, counterparty));
+            if (amount != 0)
+                result.Add(new("gocardless", account, id, amount, Text(amountObject, "currency"), booked, reference, message, counterparty));
         }
         return result;
     }
@@ -72,7 +75,8 @@ public sealed class BankFeed(HttpClient http, IOptions<BankOptions> options, ISe
 {
     public async Task Sync(CancellationToken ct = default)
     {
-        if (!options.Value.Enabled) return;
+        if (!options.Value.Enabled)
+            return;
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
         deadline.CancelAfter(TimeSpan.FromMinutes(2));
         var accounts = options.Value.Accounts;
@@ -115,7 +119,8 @@ public sealed class BankFeed(HttpClient http, IOptions<BankOptions> options, ISe
             foreach (var account in accounts)
             {
                 var state = await db.BankSyncStates.AsNoTracking().SingleOrDefaultAsync(x => x.Account == account, ct);
-                if (state is null || state.LastAttempt < started || state.Status == "Synchronizing") await Update(account, false, "Authentication or feed failed", ct);
+                if (state is null || state.LastAttempt < started || state.Status == "Synchronizing")
+                    await Update(account, false, "Authentication or feed failed", ct);
                 await Alert(account, ct);
             }
             throw new InvalidOperationException("Bank synchronization failed; inspect bank status and renew provider authorization if required.");
@@ -134,13 +139,15 @@ public sealed class BankFeed(HttpClient http, IOptions<BankOptions> options, ISe
 
     public async Task CheckStale(CancellationToken ct)
     {
-        if (!options.Value.Enabled) return;
+        if (!options.Value.Enabled)
+            return;
         foreach (var account in options.Value.Accounts)
         {
             var state = await db.BankSyncStates.AsNoTracking().SingleOrDefaultAsync(x => x.Account == account, ct);
             if (state?.LastSuccess is null || state.LastSuccess < clock.GetUtcNow().AddHours(-options.Value.StaleHours))
             {
-                if (state is null) await Update(account, false, "Never synchronized", ct);
+                if (state is null)
+                    await Update(account, false, "Never synchronized", ct);
                 await Alert(account, ct);
             }
         }
@@ -153,15 +160,19 @@ public sealed class BankFeed(HttpClient http, IOptions<BankOptions> options, ISe
         using var enlistment = scheduler.EnlistTransaction(tx.GetDbTransaction());
         db.ChangeTracker.Clear();
         var state = await db.BankSyncStates.FromSqlInterpolated($"SELECT * FROM \"BankSyncStates\" WHERE \"Account\" = {account} FOR UPDATE").SingleAsync(ct);
-        if (state.LastAlert > clock.GetUtcNow().AddHours(-24)) return;
+        if (state.LastAlert > clock.GetUtcNow().AddHours(-24))
+            return;
         var administrators = await (from assignment in db.UserRoles
                                     join role in db.Roles on assignment.RoleId equals role.Id
                                     join user in db.Users on assignment.UserId equals user.Id
                                     where role.NormalizedName == "ADMINISTRATOR" && user.Admitted && user.EmailConfirmed && user.PendingDeletionAt == null
                                     select user.Id).ToListAsync(ct);
-        foreach (var id in administrators) await mail.Add(scheduler, Guid.NewGuid(), MailKind.BankAlert, id, ct: ct);
-        if (administrators.Count > 0) state.LastAlert = clock.GetUtcNow();
-        await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
+        foreach (var id in administrators)
+            await mail.Add(scheduler, Guid.NewGuid(), MailKind.BankAlert, id, ct: ct);
+        if (administrators.Count > 0)
+            state.LastAlert = clock.GetUtcNow();
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
     }
 
     private sealed class BankAuthorizationException : Exception;

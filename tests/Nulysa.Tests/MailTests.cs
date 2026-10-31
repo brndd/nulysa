@@ -141,9 +141,11 @@ public sealed class MailTransportTests
                     while (await reader.ReadLineAsync() is { } body)
                     {
                         text.AppendLine(body);
-                        if (body == ".") break;
+                        if (body == ".")
+                            break;
                     }
-                    if (dataReply is not null) await writer.WriteLineAsync(dataReply);
+                    if (dataReply is not null)
+                        await writer.WriteLineAsync(dataReply);
                 }
                 else if (line.StartsWith("QUIT", StringComparison.OrdinalIgnoreCase))
                 {
@@ -160,7 +162,8 @@ public sealed class MailTransportTests
         public async ValueTask DisposeAsync()
         {
             listener.Stop();
-            try { await transcript.WaitAsync(TimeSpan.FromSeconds(5)); }
+            try
+            { await transcript.WaitAsync(TimeSpan.FromSeconds(5)); }
             catch (Exception error) when (error is TimeoutException or SocketException or ObjectDisposedException) { }
         }
     }

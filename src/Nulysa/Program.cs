@@ -22,7 +22,8 @@ if (mode == "worker")
     return;
 }
 WebApplication app;
-try { app = FoundationHost.Build(args); }
+try
+{ app = FoundationHost.Build(args); }
 catch (Exception) when (mode == "status")
 {
     Console.WriteLine("{\"healthy\":false,\"issues\":[\"configuration_invalid\"]}");
@@ -44,7 +45,8 @@ try
         // Npgsql reads the history table before EF's create-if-not-exists step, so a fresh
         // database logs a benign command failure. Ensure both exist first.
         var creator = db.GetService<IRelationalDatabaseCreator>();
-        if (!await creator.ExistsAsync()) await creator.CreateAsync();
+        if (!await creator.ExistsAsync())
+            await creator.CreateAsync();
         await db.GetService<IHistoryRepository>().CreateIfNotExistsAsync();
         await db.Database.MigrateAsync();
         await using var upgrade = await db.Database.BeginTransactionAsync();
@@ -54,7 +56,8 @@ try
     var scheduler = await scope.ServiceProvider.GetRequiredService<ISchedulerFactory>().GetScheduler();
     switch (mode)
     {
-        case "migrate": break;
+        case "migrate":
+            break;
         case "install-schedules":
             await using (var tx = await db.Database.BeginTransactionAsync())
             using (scheduler.EnlistTransaction(tx.GetDbTransaction()))
@@ -84,7 +87,8 @@ try
         case "register-client":
             var clients = scope.ServiceProvider.GetRequiredService<IOpenIddictApplicationManager>();
             var id = app.Configuration["Oidc:ClientId"] ?? throw new InvalidOperationException("Oidc:ClientId required.");
-            if (await clients.FindByClientIdAsync(id) is not null) throw new InvalidOperationException("Client exists; use an explicit reviewed update.");
+            if (await clients.FindByClientIdAsync(id) is not null)
+                throw new InvalidOperationException("Client exists; use an explicit reviewed update.");
             await clients.CreateAsync(new OpenIddictApplicationDescriptor
             {
                 ClientId = id,
@@ -103,14 +107,16 @@ try
                 var users = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
                 var email = app.Configuration["DevelopmentUser:Email"] ?? throw new InvalidOperationException("DevelopmentUser:Email required.");
                 var password = app.Configuration["DevelopmentUser:Password"];
-                if (string.IsNullOrWhiteSpace(password)) throw new InvalidOperationException("A non-empty development password is required.");
+                if (string.IsNullOrWhiteSpace(password))
+                    throw new InvalidOperationException("A non-empty development password is required.");
                 // Only this Development-only command's scoped manager accepts weak passwords.
                 users.PasswordValidators.Clear();
                 await using var creation = await db.Database.BeginTransactionAsync();
                 using var enlisted = scheduler.EnlistTransaction(creation.GetDbTransaction());
                 var user = new User { Email = email, UserName = Guid.NewGuid().ToString("N"), EmailConfirmed = true, Admitted = true, Name = "Synthetic Member" };
                 var result = await users.CreateAsync(user, password);
-                if (!result.Succeeded) throw new InvalidOperationException("Development user creation failed.");
+                if (!result.Succeeded)
+                    throw new InvalidOperationException("Development user creation failed.");
                 var clock = scope.ServiceProvider.GetRequiredService<AssociationClock>();
                 db.Members.Add(new() { UserId = user.Id, JoinedOn = clock.Today });
                 var account = new BillingAccount { UserId = user.Id, CreatedAt = clock.Now };
@@ -128,7 +134,8 @@ try
                 Console.WriteLine($"Created development user with ID {user.Id}.");
                 break;
             }
-        default: throw new InvalidOperationException("Use web, worker, migrate, install-schedules, status, grant-superuser/revoke-superuser/grant-administrator/revoke-administrator <user-id>, register-client or create-development-user (Development only).");
+        default:
+            throw new InvalidOperationException("Use web, worker, migrate, install-schedules, status, grant-superuser/revoke-superuser/grant-administrator/revoke-administrator <user-id>, register-client or create-development-user (Development only).");
     }
     await scheduler.Shutdown();
 }

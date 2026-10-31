@@ -58,9 +58,11 @@ public sealed class KeycloakTests : MembershipTest
         {
             using var request = new HttpRequestMessage(method, baseUrl + "/admin/" + path);
             request.Headers.Authorization = new("Bearer", adminToken);
-            if (data is not null) request.Content = JsonContent.Create(data);
+            if (data is not null)
+                request.Content = JsonContent.Create(data);
             var response = await http.SendAsync(request);
-            if (expected == HttpStatusCode.OK) return await Json(response);
+            if (expected == HttpStatusCode.OK)
+                return await Json(response);
             Assert.True(response.StatusCode == expected, await response.Content.ReadAsStringAsync());
             return default;
         }
@@ -71,7 +73,8 @@ public sealed class KeycloakTests : MembershipTest
             var executions = await Admin(HttpMethod.Get, $"realms/{realm}/authentication/flows/first%20broker%20login/executions", expected: HttpStatusCode.OK);
             foreach (var execution in executions.EnumerateArray())
             {
-                if (!execution.TryGetProperty("providerId", out var name) || name.GetString() != "idp-review-profile") continue;
+                if (!execution.TryGetProperty("providerId", out var name) || name.GetString() != "idp-review-profile")
+                    continue;
                 var edited = JsonSerializer.Deserialize<Dictionary<string, object>>(execution.GetRawText())!;
                 edited["requirement"] = "DISABLED";
                 await Admin(HttpMethod.Put, $"realms/{realm}/authentication/flows/first%20broker%20login/executions", edited);

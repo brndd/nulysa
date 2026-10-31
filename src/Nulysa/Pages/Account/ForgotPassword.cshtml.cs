@@ -14,7 +14,8 @@ public sealed class ForgotPasswordModel(AccountCommands commands) : PageModel
     public bool Submitted { get; private set; }
     public async Task OnPostAsync()
     {
-        if (!ModelState.IsValid) return;
+        if (!ModelState.IsValid)
+            return;
         await commands.RequestPasswordReset(Email, HttpContext.RequestAborted);
         Submitted = true;
     }

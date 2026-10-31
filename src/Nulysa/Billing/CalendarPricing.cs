@@ -13,11 +13,13 @@ public static class BillingCalendar
 {
     public static Period Containing(DateOnly anchor, int months, DateOnly date)
     {
-        if (months is < 1 or > 120) throw new ArgumentOutOfRangeException(nameof(months));
+        if (months is < 1 or > 120)
+            throw new ArgumentOutOfRangeException(nameof(months));
         var difference = (date.Year - anchor.Year) * 12 + date.Month - anchor.Month;
         var step = (int)Math.Floor((decimal)difference / months);
         var start = anchor.AddMonths(step * months);
-        if (start > date) start = anchor.AddMonths(--step * months);
+        if (start > date)
+            start = anchor.AddMonths(--step * months);
         return new(start, anchor.AddMonths((step + 1) * months));
     }
 
@@ -25,7 +27,8 @@ public static class BillingCalendar
     {
         var period = Containing(anchor, months, start);
         var end = period.End;
-        if (mergeShort && end.DayNumber - start.DayNumber < 7) end = Containing(anchor, months, end).End;
+        if (mergeShort && end.DayNumber - start.DayNumber < 7)
+            end = Containing(anchor, months, end).End;
         return new(start, end);
     }
 
@@ -35,12 +38,16 @@ public static class BillingCalendar
         var start = period.Start;
         foreach (var covered in coverage.OrderBy(x => x.Start))
         {
-            if (covered.End <= start || covered.Start >= period.End) continue;
-            if (covered.Start > start) result.Add(new(start, covered.Start));
+            if (covered.End <= start || covered.Start >= period.End)
+                continue;
+            if (covered.Start > start)
+                result.Add(new(start, covered.Start));
             start = covered.End > start ? covered.End : start;
-            if (start >= period.End) break;
+            if (start >= period.End)
+                break;
         }
-        if (start < period.End) result.Add(new(start, period.End));
+        if (start < period.End)
+            result.Add(new(start, period.End));
         return result;
     }
 }
@@ -52,7 +59,8 @@ public static class Pricing
     public static Quote Calculate(DateOnly anchor, int months, Period period, IReadOnlyList<FeePrice> prices,
         IReadOnlyList<Discount> discounts, IEnumerable<Period> coverage)
     {
-        if (period.End <= period.Start) throw new ValidationException("A billing period must have positive length.");
+        if (period.End <= period.Start)
+            throw new ValidationException("A billing period must have positive length.");
         var segments = new List<PriceSegment>();
         foreach (var uncovered in BillingCalendar.Uncovered(period, coverage))
         {
@@ -97,7 +105,8 @@ public static class Pricing
                 {
                     var end = new[] { uncovered.End }.Concat(discounts.SelectMany(x => new[] { x.StartsOn, x.EndsOn }))
                         .Append(effectiveOn).Where(x => x > cursor).Min();
-                    if (cursor < effectiveOn) result.Add(original with { Start = cursor, End = end });
+                    if (cursor < effectiveOn)
+                        result.Add(original with { Start = cursor, End = end });
                     else
                     {
                         var discount = discounts.SingleOrDefault(x => x.WithdrawnAt is null && x.StartsOn <= cursor && cursor < x.EndsOn);
@@ -124,7 +133,8 @@ public static class Pricing
         }).ToList();
         static decimal Reduction(PriceSegment segment, Discount adjustment)
         {
-            if (segment.Start < adjustment.StartsOn || segment.End > adjustment.EndsOn) return 0;
+            if (segment.Start < adjustment.StartsOn || segment.End > adjustment.EndsOn)
+                return 0;
             var months = (segment.BasisEnd.Year - segment.BasisStart.Year) * 12 + segment.BasisEnd.Month - segment.BasisStart.Month;
             var reduced = adjustment.Kind == DiscountKind.Percentage ? segment.BasePrice * (100 - adjustment.Value) / 100 : adjustment.Value * months;
             return Math.Max(0, segment.Price - reduced) * (segment.End.DayNumber - segment.Start.DayNumber) / (segment.BasisEnd.DayNumber - segment.BasisStart.DayNumber);
@@ -134,9 +144,11 @@ public static class Pricing
         {
             var outstanding = pieces.Select((piece, i) => Math.Max(0, Reduction(piece, credit.Discount) - credited[i])).ToArray();
             var total = outstanding.Sum();
-            if (total == 0) throw new ValidationException("Previous discount credits require treasurer reconciliation.");
+            if (total == 0)
+                throw new ValidationException("Previous discount credits require treasurer reconciliation.");
             // Distribute actual rounded money only over the days this correction compensated.
-            for (var i = 0; i < pieces.Count; i++) credited[i] += credit.Amount * outstanding[i] / total;
+            for (var i = 0; i < pieces.Count; i++)
+                credited[i] += credit.Amount * outstanding[i] / total;
         }
         var remaining = Round(pieces.Select((piece, i) => Math.Max(0, Reduction(piece, discount) - credited[i])).Sum());
         return Math.Max(0, Math.Min(remaining, FromSegments(original).Amount - previous.Sum(x => x.Amount)));

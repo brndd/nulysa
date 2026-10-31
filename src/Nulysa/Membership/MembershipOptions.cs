@@ -18,7 +18,8 @@ public sealed class AssociationClock(TimeProvider clock, IConfiguration config)
     {
         var local = DateTime.SpecifyKind(TimeZoneInfo.ConvertTime(Now, Zone).DateTime.AddDays(days), DateTimeKind.Unspecified);
         // Never move erasure earlier to resolve a missing or ambiguous local wall time.
-        while (Zone.IsInvalidTime(local)) local = local.AddMinutes(1);
+        while (Zone.IsInvalidTime(local))
+            local = local.AddMinutes(1);
         var offset = Zone.IsAmbiguousTime(local) ? Zone.GetAmbiguousTimeOffsets(local).Min() : Zone.GetUtcOffset(local);
         return new DateTimeOffset(local, offset).ToUniversalTime();
     }

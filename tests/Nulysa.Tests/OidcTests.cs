@@ -192,7 +192,8 @@ public sealed class OidcTests : OidcTest
     [Fact]
     public async Task Narrow_refresh_scope_does_not_disclose_profile_claims_or_expand_the_original_grant()
     {
-        await CreateUser(); await CreateClient();
+        await CreateUser();
+        await CreateClient();
         await using var app = await StartProvider();
         using var client = Client();
         var original = await Tokens(client);
@@ -228,7 +229,8 @@ public sealed class OidcTests : OidcTest
     [Fact]
     public async Task Wrong_secret_PKCE_redirect_scope_plain_challenge_and_unsupported_grants_are_rejected()
     {
-        await CreateUser(); await CreateClient();
+        await CreateUser();
+        await CreateClient();
         await using var app = await StartProvider();
         using var client = Client();
         await Login(client);
@@ -241,7 +243,8 @@ public sealed class OidcTests : OidcTest
             var response = await client.GetAsync(url);
             Assert.True(response.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Redirect);
             Assert.False(response.Headers.Location?.Host == "unregistered.example.test");
-            if (response.Headers.Location is { } location) Assert.Contains("error=", location.Query);
+            if (response.Headers.Location is { } location)
+                Assert.Contains("error=", location.Query);
         }
         foreach (var grant in new[] { "password", "client_credentials", "urn:ietf:params:oauth:grant-type:device_code" })
         {
@@ -255,7 +258,8 @@ public sealed class OidcTests : OidcTest
     [Fact]
     public async Task Prompt_login_and_max_age_require_a_fresh_login_before_issuing_a_code()
     {
-        await CreateUser(); await CreateClient();
+        await CreateUser();
+        await CreateClient();
         await using var app = await StartProvider();
         using var client = Client();
         Assert.Equal(HttpStatusCode.Redirect, (await Login(client)).StatusCode);
@@ -278,7 +282,8 @@ public sealed class OidcTests : OidcTest
     [Fact]
     public async Task Prompt_none_with_max_age_returns_login_required_without_showing_the_login_page()
     {
-        await CreateUser(); await CreateClient();
+        await CreateUser();
+        await CreateClient();
         await using var app = await StartProvider();
         using var client = Client();
         Assert.Equal(HttpStatusCode.Redirect, (await Login(client)).StatusCode);
@@ -292,7 +297,8 @@ public sealed class OidcTests : OidcTest
     [Fact]
     public async Task Abandoning_a_fresh_login_keeps_the_existing_session()
     {
-        await CreateUser(); await CreateClient();
+        await CreateUser();
+        await CreateClient();
         await using var app = await StartProvider();
         using var client = Client();
         Assert.Equal(HttpStatusCode.Redirect, (await Login(client)).StatusCode);
@@ -306,15 +312,18 @@ public sealed class OidcTests : OidcTest
     [InlineData(true)]
     public async Task Account_gate_blocks_existing_cookie_code_refresh_and_userinfo(bool pendingDeletion)
     {
-        var user = await CreateUser(); await CreateClient();
+        var user = await CreateUser();
+        await CreateClient();
         await using var app = await StartProvider();
         using var client = Client();
         var tokens = await Tokens(client);
         var code = await Code(client);
         await using (var db = Context())
         {
-            if (pendingDeletion) await db.Users.Where(x => x.Id == user.Id).ExecuteUpdateAsync(x => x.SetProperty(u => u.PendingDeletionAt, DateTimeOffset.UtcNow));
-            else await db.Users.Where(x => x.Id == user.Id).ExecuteUpdateAsync(x => x.SetProperty(u => u.Admitted, false));
+            if (pendingDeletion)
+                await db.Users.Where(x => x.Id == user.Id).ExecuteUpdateAsync(x => x.SetProperty(u => u.PendingDeletionAt, DateTimeOffset.UtcNow));
+            else
+                await db.Users.Where(x => x.Id == user.Id).ExecuteUpdateAsync(x => x.SetProperty(u => u.Admitted, false));
         }
         Assert.Equal(HttpStatusCode.BadRequest, (await Redeem(client, code)).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await Refresh(client, tokens)).StatusCode);
@@ -335,14 +344,16 @@ public sealed class OidcTests : OidcTest
     [InlineData(1, false)]
     public async Task Refresh_expires_at_365_idle_days_even_without_cleanup_and_success_renews_lifetime(int boundarySeconds, bool valid)
     {
-        await CreateUser(); await CreateClient();
+        await CreateUser();
+        await CreateClient();
         await using var app = await StartProvider();
         using var client = Client();
         var issued = Clock.Now;
         var tokens = await Tokens(client);
         Clock.Now = issued.AddDays(365).AddSeconds(boundarySeconds);
         var response = await Refresh(client, tokens);
-        if (!valid) { Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode); return; }
+        if (!valid)
+        { Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode); return; }
         var renewed = await Json(response);
         Clock.Now = issued.AddDays(600);
         Assert.Equal(HttpStatusCode.OK, (await Refresh(client, renewed)).StatusCode);
@@ -352,7 +363,8 @@ public sealed class OidcTests : OidcTest
     [Fact]
     public async Task Concurrent_code_redemption_has_only_one_success_and_replay_is_rejected()
     {
-        await CreateUser(); await CreateClient();
+        await CreateUser();
+        await CreateClient();
         await using var app = await StartProvider();
         using var client = Client();
         await Login(client);
@@ -368,7 +380,8 @@ public sealed class OidcTests : OidcTest
     [Fact]
     public async Task Cookie_and_signing_keys_survive_restart_and_shared_web_instances_and_forms_require_antiforgery()
     {
-        await CreateUser(); await CreateClient();
+        await CreateUser();
+        await CreateClient();
         var cookies = new CookieContainer();
         string keys;
         JsonElement tokens;
@@ -400,7 +413,8 @@ public sealed class OidcTests : OidcTest
     [Fact]
     public async Task Cleanup_removes_obsolete_records_without_breaking_usable_refresh_chain()
     {
-        await CreateUser(); await CreateClient();
+        await CreateUser();
+        await CreateClient();
         await using var app = await StartProvider();
         using var client = Client();
         var tokens = await Tokens(client);
