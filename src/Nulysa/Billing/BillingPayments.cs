@@ -132,9 +132,13 @@ public sealed partial class BillingCommands
             if (groupId is not null && Settings.AutomaticMembershipReactivation && !facts.Membership(receipt.ReceivedOn).Active &&
                 !facts.Lines.Any(x => x.Benefit == Benefit.Membership && x.State == LineState.Open))
             {
-                var membership = facts.Items.SingleOrDefault(x => x.MembershipId is not null && x.EndedAt is null && x.BillingGroupId == groupId);
-                if (membership is not null) await Issue(facts, operation, membership, receipt.ReceivedOn, PurchasePurpose.Resumption,
-                    receipt.ReceivedOn.AddDays(Settings.InitialMembershipGraceDays), ct);
+                var membership = facts.Items.Where(x => x.MembershipId is not null).OrderByDescending(x => x.Id).FirstOrDefault();
+                if (membership is not null && membership.BillingGroupId == groupId)
+                {
+                    membership.EndedAt = null;
+                    await Issue(facts, operation, membership, receipt.ReceivedOn, PurchasePurpose.Resumption,
+                        receipt.ReceivedOn.AddDays(Settings.InitialMembershipGraceDays), ct);
+                }
             }
         }
         receipt.BillingAccountId = facts.Account.Id; receipt.State = ReceiptState.Posted; receipt.ReviewReason = null;

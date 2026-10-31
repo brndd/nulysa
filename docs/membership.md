@@ -113,6 +113,8 @@ not retain rejected personal data indefinitely while attempting delivery.
   or repair pending-deletion payments. Surviving current membership coverage resumes
   ordinary renewal billing on the existing calendar, without reopening cancelled
   purchases, granting new grace or reinstating removed services.
+  If coverage has expired, a later qualifying payment can request a prorated return
+  when automatic membership reactivation is enabled; restoration alone grants no time.
 - Final erasure rechecks under billing-account/member locks, deletes Identity/profile,
   member and authentication records and unnecessary deliveries, and detaches the
   financial owner. ID-only approval/lifecycle facts and the cancelled financial request
