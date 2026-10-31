@@ -453,9 +453,15 @@ public sealed class BillingTests : MembershipTest
             .AssignReceipt(board, receipt, view.AccountId, view.Groups.Single().Id, false, Guid.NewGuid(), "Conflicting purpose", invoiceId: invoiceId)));
         await Assert.ThrowsAsync<ValidationException>(() => Run(app, sp => sp.GetRequiredService<BillingCommands>()
             .AssignReceipt(board, receipt, view.AccountId, null, false, Guid.NewGuid(), "Not a one-off", invoiceId: view.Invoices[0].Invoice.Id)));
-        await using var db = Context(); Assert.Equal(ReceiptState.Review, (await db.Receipts.AsNoTracking().SingleAsync()).State);
-        Assert.Empty(await db.MoneyMovements.ToListAsync());
         var key = Guid.NewGuid();
+        foreach (var invalidAccount in new[] { 0L, -1L, long.MaxValue })
+        {
+            var error = await Assert.ThrowsAsync<ValidationException>(() => Run(app, sp => sp.GetRequiredService<BillingCommands>()
+                .AssignReceipt(board, receipt, invalidAccount, null, false, key, "Verified workshop payment", invoiceId: invoiceId)));
+            Assert.Equal("Choose an existing financial account ID.", error.Message);
+        }
+        await using var db = Context(); Assert.Equal(ReceiptState.Review, (await db.Receipts.AsNoTracking().SingleAsync()).State);
+        Assert.Empty(await db.MoneyMovements.ToListAsync()); Assert.False(await db.BillingOperations.AnyAsync(x => x.Id == key));
         async Task Assign(long? target) => await Run(app, sp => sp.GetRequiredService<BillingCommands>()
             .AssignReceipt(board, receipt, view.AccountId, null, false, key, "Verified workshop payment", invoiceId: target));
         await Assign(invoiceId); await Assign(invoiceId);

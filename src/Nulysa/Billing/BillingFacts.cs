@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using Microsoft.EntityFrameworkCore;
 using Nulysa.Accounts;
 using Nulysa.Data;
@@ -28,7 +29,8 @@ internal sealed class BillingFacts
 
     public static async Task<BillingFacts> Load(AppDbContext db, long id, CancellationToken ct, int membershipRenewalGraceDays = 0)
     {
-        var account = await db.BillingAccounts.SingleAsync(x => x.Id == id, ct);
+        var account = await db.BillingAccounts.SingleOrDefaultAsync(x => x.Id == id, ct)
+            ?? throw new ValidationException("Choose an existing financial account ID.");
         var invoices = await db.Invoices.Where(x => x.BillingAccountId == id).ToListAsync(ct);
         var groups = await db.BillingGroups.Where(x => x.BillingAccountId == id).ToListAsync(ct);
         return new()

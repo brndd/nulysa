@@ -171,9 +171,14 @@ mocked, including a custom template with an association-local date assertion.
 Review regressions cover receipts predating return quotes, adjusted pricing across
 rollover/free coverage, renewal billing after restoration, date-scoped discount
 credits and reviewed one-off payments, including ownership and retry checks.
+Follow-up regressions also run maintenance after backdated settlement, preserve
+the selected renewal interval, exercise payment-triggered return after expired
+coverage restoration, and price unquoted days through local-date discount withdrawals.
+Browser retries for blank/nonexistent financial accounts retain the intended
+invoice, purpose and operation key without moving money on validation errors.
 
-The final Release runs passed **102/102 standard tests in 58 seconds** and **122/122
-full tests in 3m 14s**, including Chromium/Keycloak and real workers, with no skips.
+The final Release runs passed **109/109 standard tests in 59 seconds** and **129/129
+full tests in 3m 13s**, including Chromium/Keycloak and real workers, with no skips.
 Release compilation, formatting, migration-model consistency, launcher/script
 checks and the production-mode container smoke (including pinned Typst) also passed.
 
