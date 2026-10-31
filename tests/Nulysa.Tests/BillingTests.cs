@@ -76,6 +76,27 @@ public sealed class BillingTests : MembershipTest
         Assert.Equal(4.67m, view.Balances.BillingCredit);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    [Trait("Acceptance", "DATE")]
+    public async Task Delayed_return_payment_before_its_quote_buys_from_receipt_date_without_repricing_quoted_days(bool changePrice)
+    {
+        On(6, 1); var board = await Board(); await using var app = CommandsApp(); var id = await Admit(app, board);
+        var initial = await View(app, board, id); var account = initial.AccountId; var reference = initial.Invoices[0].Reference;
+        On(6, 20); await Scan(app, account);
+        await Run(app, sp => sp.GetRequiredService<BillingCommands>().ResumeMembership(Actor(id), account, Guid.NewGuid()));
+        if (changePrice) await Run(app, sp => sp.GetRequiredService<BillingCommands>().SetPrice(board, 1, new(2026, 6, 20), 20));
+        On(6, 21); await Pay(app, reference, 10, new(2026, 6, 18));
+        var view = await View(app, board, id);
+        var line = Assert.Single(view.Invoices.SelectMany(x => x.Lines), x => x.Line.Purpose == PurchasePurpose.Resumption).Line;
+        Assert.Equal(LineState.Fulfilled, line.State); Assert.Equal(4.33m, line.Amount);
+        Assert.Equal(new DateOnly(2026, 6, 18), line.StartsOn); Assert.Equal(new DateOnly(2026, 7, 1), line.EndsOn);
+        Assert.Equal(new DateOnly(2026, 6, 18), line.EffectiveOn); Assert.Equal(5.67m, view.Balances.BillingCredit);
+        Assert.Equal(new DateOnly(2026, 6, 18), view.Coverage.Min(x => x.StartsOn));
+        Assert.Equal(0m, (await Run(app, sp => sp.GetRequiredService<BillingQueries>().Reconcile(board))).Difference);
+    }
+
     [Fact]
     [Trait("Acceptance", "DATE")]
     public async Task Initial_service_uses_last_required_receipt_date_including_out_of_order_and_never_reprices_on_a_timer()

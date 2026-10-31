@@ -199,12 +199,15 @@ public sealed partial class BillingCommands
         {
             var segments = JsonSerializer.Deserialize<List<PriceSegment>>(effective < line.StartsOn ? line.OriginalPricingJson : line.PricingJson)!;
             var quote = Pricing.Slice(segments, effective, facts.Periods(line.Benefit, line.ServiceDefinitionId));
-            if (quote.Segments.Count == 0)
+            if (quote.Segments.Count == 0 || (line.Purpose == PurchasePurpose.Resumption && effective < line.OriginalStartsOn))
             {
                 var group = facts.Groups.Single(x => x.Id == facts.Invoices.Single(i => i.Id == line.InvoiceId).BillingGroupId);
                 var period = BillingCalendar.Bridge(group.Anchor, group.IntervalMonths, effective, false);
-                quote = Pricing.Calculate(group.Anchor, group.IntervalMonths, period, facts.Prices.Where(x => x.FeeDefinitionId == line.FeeDefinitionId).ToList(),
+                var unquotedEnd = quote.Segments.Count == 0 || period.End < quote.Segments[0].Start ? period.End : quote.Segments[0].Start;
+                var prefix = Pricing.Calculate(group.Anchor, group.IntervalMonths, new(effective, unquotedEnd), facts.Prices.Where(x => x.FeeDefinitionId == line.FeeDefinitionId).ToList(),
                     facts.Discounts.Where(x => x.FeeDefinitionId == line.FeeDefinitionId).ToList(), facts.Periods(line.Benefit, line.ServiceDefinitionId));
+                quote = Pricing.FromSegments(prefix.Segments.Concat(quote.Segments.Where(x => x.Start < period.End)
+                    .Select(x => x with { End = x.End > period.End ? period.End : x.End })));
             }
             if (quote.Segments.Count > 0 && held + available >= quote.Amount)
                 Requote(facts, operation, line, quote, new(quote.Segments.Min(x => x.Start), quote.Segments.Max(x => x.End)));
