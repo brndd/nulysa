@@ -3,6 +3,7 @@
 @using System.ComponentModel.DataAnnotations
 @using System.Security.Claims
 @using Nulysa.Billing
+@using Nulysa.Services
 @inject BillingQueries Queries
 @inject BillingCommands Commands
 @inject AuthenticationStateProvider Authentication
@@ -14,6 +15,14 @@
 <table><caption>Dated fee prices</caption><thead><tr><th>Fee</th><th>Category</th><th>Price history</th></tr></thead><tbody>
 @foreach (var fee in fees) { <tr><td>#@fee.Id @fee.Name</td><td>@fee.Category</td><td>@foreach (var price in prices.Where(x => x.FeeDefinitionId == fee.Id)) { <div>@price.EffectiveOn: @price.MonthlyAmount.ToString("0.00") EUR/month</div> }</td></tr> }
 </tbody></table>
+<h2>Service definitions</h2>
+<table><caption>Services</caption><thead><tr><th>ID</th><th>Code</th><th>Name</th><th>Category</th><th>Free days</th><th>Grace days</th><th>Priority</th><th>State</th><th>Edit</th></tr></thead><tbody>
+@foreach (var service in services)
+{
+    var fee = fees.SingleOrDefault(x => x.ServiceDefinitionId == service.Id);
+    <tr><td>@service.Id</td><td>@service.Code</td><td>@service.Name</td><td>@fee?.Category</td><td>@service.InitialFreeDays</td><td>@service.RenewalGraceDays</td><td>@service.Priority</td><td>@(service.Retired ? "Retired" : "Active")</td><td><a href="@($"/admin/billing-configuration?service={service.Id}")">Edit</a></td></tr>
+}
+</tbody></table>
 <h2>Add a dated price</h2>
 <EditForm Model="Price" method="post" FormName="price" OnValidSubmit="SavePrice"><DataAnnotationsValidator /><ValidationSummary />
     <p><label for="fee">Fee</label> <InputSelect id="fee" @bind-Value="Price!.FeeId">@foreach (var fee in fees) { <option value="@fee.Id">@fee.Name</option> }</InputSelect></p>
@@ -23,20 +32,20 @@
 <h2>Create or update a service</h2>
 <p>Leave the ID empty to create a service. Its code is permanent. A returning subscriber gets free days only when an administrator explicitly selects that grant.</p>
 <EditForm Model="Service" method="post" FormName="service-definition" OnValidSubmit="SaveService"><DataAnnotationsValidator /><ValidationSummary />
-    <p><label for="service-id">Existing service ID (optional)</label> <InputNumber id="service-id" @bind-Value="Service!.Id" /></p>
-    <p><label for="service-code">Stable code</label> <InputText id="service-code" @bind-Value="Service.Code" required maxlength="80" /></p>
+    <p><label for="service-id">Existing service ID (optional)</label> <InputNumber id="service-id" @bind-Value="Service!.Id" readonly="@(Service!.Id is not null)" /></p>
+    <p><label for="service-code">Stable code</label> <InputText id="service-code" @bind-Value="Service!.Code" required maxlength="80" readonly="@(Service!.Id is not null)" /></p>
     <p><label for="service-name">Name</label> <InputText id="service-name" @bind-Value="Service.Name" required maxlength="200" /></p>
     <p><label for="category">Accounting category</label> <InputText id="category" @bind-Value="Service.Category" required maxlength="80" /></p>
     <p><InputCheckbox id="self-subscribe" @bind-Value="Service.SelfSubscribe" /> <label for="self-subscribe">Members may subscribe and resubscribe themselves</label></p>
     <p><label for="free-days">Initial free calendar days</label> <InputNumber id="free-days" @bind-Value="Service.FreeDays" /></p>
-    <p><label for="grace-days">Renewal grace calendar days (zero allowed)</label> <InputNumber id="grace-days" @bind-Value="Service.GraceDays" /></p>
+    <p><label for="grace-days">Renewal grace days after the due date (zero allowed)</label> <InputNumber id="grace-days" @bind-Value="Service.GraceDays" /></p>
     <p><label for="priority">Funding order after membership (lower first)</label> <InputNumber id="priority" @bind-Value="Service.Priority" /></p>
     <p><label for="service-retirement">Retirement</label>
-        <InputSelect id="service-retirement" @bind-Value="Service.Retirement">
-            <option value="leave">Leave unchanged</option>
-            <option value="retired">Retired (hidden from members and new subscriptions)</option>
-            <option value="active">Active</option>
-        </InputSelect></p><button>Save service definition</button>
+        <select id="service-retirement" name="Service.Retirement" @bind="Service!.Retirement">
+            <option value="leave" selected="@(Service!.Retirement == "leave")">Leave unchanged</option>
+            <option value="retired" selected="@(Service!.Retirement == "retired")">Retired (hidden from members and new subscriptions)</option>
+            <option value="active" selected="@(Service!.Retirement == "active")">Active</option>
+        </select></p><button>Save service definition</button>
 </EditForm>
 
 @code {
@@ -48,10 +57,36 @@
         [Range(0, 365)] public int GraceDays { get; set; } = 7; [Range(0, int.MaxValue)] public int Priority { get; set; } = 100;
         public string Retirement { get; set; } = "leave";
     }
+    [SupplyParameterFromQuery(Name = "service")] public long? ServiceId { get; set; }
     [SupplyParameterFromForm(FormName = "price")] public PriceInput? Price { get; set; }
     [SupplyParameterFromForm(FormName = "service-definition")] public ServiceForm? Service { get; set; }
-    private ClaimsPrincipal actor = null!; private List<FeeDefinition> fees = []; private List<FeePrice> prices = []; private string? error;
-    protected override async Task OnInitializedAsync() { Price ??= new(); Service ??= new(); actor = (await Authentication.GetAuthenticationStateAsync()).User; fees = await Queries.Fees(actor); prices = await Queries.Prices(actor); }
+    private ClaimsPrincipal actor = null!; private List<FeeDefinition> fees = []; private List<FeePrice> prices = []; private List<ServiceDefinition> services = []; private string? error;
+    protected override async Task OnInitializedAsync()
+    {
+        var isNewForm = Service is null;
+        Price ??= new();
+        Service ??= new();
+        actor = (await Authentication.GetAuthenticationStateAsync()).User;
+        fees = await Queries.Fees(actor);
+        services = await Queries.AllServices(actor);
+        prices = await Queries.Prices(actor);
+        if (isNewForm && ServiceId is { } id && services.SingleOrDefault(x => x.Id == id) is { } existing)
+        {
+            var fee = fees.SingleOrDefault(x => x.ServiceDefinitionId == id);
+            Service = new ServiceForm
+            {
+                Id = existing.Id,
+                Code = existing.Code,
+                Name = existing.Name,
+                Category = fee?.Category ?? "",
+                SelfSubscribe = existing.SelfSubscriptionAllowed,
+                FreeDays = existing.InitialFreeDays,
+                GraceDays = existing.RenewalGraceDays,
+                Priority = existing.Priority,
+                Retirement = existing.Retired ? "retired" : "active"
+            };
+        }
+    }
     private async Task SavePrice() { try { await Commands.SetPrice(actor, Price!.FeeId, Price.EffectiveOn, Price.Amount); Navigation.NavigateTo(Navigation.Uri); } catch (ValidationException ex) { error = ex.Message; } }
     private async Task SaveService()
     {

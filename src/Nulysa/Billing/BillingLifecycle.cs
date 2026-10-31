@@ -33,8 +33,34 @@ public sealed partial class BillingCommands
 
         // A scan is a wake-up; logical purchase keys and persisted dates prevent replayed cycles.
         var operation = (await Operation(facts, Guid.NewGuid(), "due-work", new { on = clock.Today }, null, "Dated billing maintenance", ct))!;
+        await IssueDueRenewals(facts, operation, clock.Today, null, null, ct);
+
+        await Expire(facts, operation, scheduler, ct);
+        await AllocateCredit(facts, operation, clock.Today, ct);
+        await Finish(facts, scheduler, true, ct);
+
+        // Avoid a journal of empty minute ticks.
+        var hasJournaledWork = operation.ResultId is not null
+            || db.ChangeTracker.Entries().Any(x => (x.State is EntityState.Added or EntityState.Modified) && x.Entity is not BillingOperation)
+            || facts.Movements.Any(x => x.OperationId == operation.Id)
+            || facts.Coverage.Any(x => x.OperationId == operation.Id)
+            || await db.LineAdjustments.AnyAsync(x => x.OperationId == operation.Id, ct)
+            || await db.ServiceChanges.AnyAsync(x => x.OperationId == operation.Id, ct);
+        if (!hasJournaledWork)
+            db.BillingOperations.Remove(operation);
+
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+    }
+
+    private async Task IssueDueRenewals(BillingFacts facts, BillingOperation operation, DateOnly on, DateOnly? through,
+        long? groupId, CancellationToken ct)
+    {
         foreach (var item in facts.Items.Where(x => x.EndedAt is null).OrderBy(x => x.MembershipId is null).ToList())
         {
+            if (groupId is { } selectedGroup && item.BillingGroupId != selectedGroup)
+                continue;
+
             var fee = facts.Fees.Single(x => x.Id == item.FeeDefinitionId);
             if (fee.Retired)
                 continue;
@@ -57,7 +83,9 @@ public sealed partial class BillingCommands
                     if (period.Start <= nextStart && nextStart < period.End)
                         nextStart = period.End;
 
-                if (nextStart > clock.Today.AddDays(Settings.InvoiceLeadDays))
+                if (nextStart > on.AddDays(Settings.InvoiceLeadDays))
+                    break;
+                if (through is { } limit && nextStart > limit)
                     break;
 
                 var previousLine = facts.Lines.Where(x => x.RecurringItemId == item.Id).OrderByDescending(x => x.Id).FirstOrDefault();
@@ -66,7 +94,7 @@ public sealed partial class BillingCommands
                 if (previousPeriodHasGap)
                     break;
 
-                var membershipIsActive = facts.Membership(clock.Today).Active;
+                var membershipIsActive = facts.Membership(on).Active;
                 if (item.MembershipId is null && !membershipIsActive)
                     break;
 
@@ -78,7 +106,7 @@ public sealed partial class BillingCommands
                     ? Settings.MembershipRenewalGraceDays
                     : facts.Services.Single(x => x.Id == fee.ServiceDefinitionId).RenewalGraceDays;
                 var renewalExpiresOn = BillingCalendar.ExclusiveExpiry(nextStart, graceDays);
-                var shouldStopCatchUp = quote.Amount > 0 && (!membershipIsActive || renewalExpiresOn <= clock.Today);
+                var shouldStopCatchUp = quote.Amount > 0 && (!membershipIsActive || renewalExpiresOn <= on);
                 if (shouldStopCatchUp)
                     break;
 
@@ -87,23 +115,6 @@ public sealed partial class BillingCommands
                 await Issue(facts, operation, item, nextStart, purpose, renewalExpiresOn, ct);
             }
         }
-
-        await Expire(facts, operation, scheduler, ct);
-        await AllocateCredit(facts, operation, clock.Today, ct);
-        await Finish(facts, scheduler, true, ct);
-
-        // Avoid a journal of empty minute ticks.
-        var hasJournaledWork = operation.ResultId is not null
-            || db.ChangeTracker.Entries().Any(x => (x.State is EntityState.Added or EntityState.Modified) && x.Entity is not BillingOperation)
-            || facts.Movements.Any(x => x.OperationId == operation.Id)
-            || facts.Coverage.Any(x => x.OperationId == operation.Id)
-            || await db.LineAdjustments.AnyAsync(x => x.OperationId == operation.Id, ct)
-            || await db.ServiceChanges.AnyAsync(x => x.OperationId == operation.Id, ct);
-        if (!hasJournaledWork)
-            db.BillingOperations.Remove(operation);
-
-        await db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
     }
 
     private async Task Expire(BillingFacts facts, BillingOperation operation, IScheduler scheduler, CancellationToken ct, HashSet<long>? preserved = null)
@@ -166,7 +177,9 @@ public sealed partial class BillingCommands
             if (hasRemainingCoverage || hasValidInitial || !graceExpired)
                 continue;
 
-            var endReason = enrollment.RenewalStoppedAt is null ? "nonpayment" : "stopped";
+            var serviceFee = facts.Fees.Single(x => x.ServiceDefinitionId == enrollment.ServiceDefinitionId);
+            var endReason = enrollment.RenewalStoppedAt is not null ? "stopped"
+                : serviceFee.Retired ? "service-retired" : "nonpayment";
             EndService(facts, operation, enrollment, endReason, LineState.Expired);
         }
     }

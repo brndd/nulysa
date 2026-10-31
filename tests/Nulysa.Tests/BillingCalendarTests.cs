@@ -33,9 +33,9 @@ public sealed class BillingCalendarTests
 
     [Theory]
     [InlineData(0, 1)]
-    [InlineData(1, 1)]
-    [InlineData(7, 7)]
-    public void Due_dates_are_inclusive_and_expiry_is_never_the_same_day(int graceDays, int expectedOffset)
+    [InlineData(1, 2)]
+    [InlineData(7, 8)]
+    public void Due_dates_are_inclusive_and_grace_days_come_after_them(int graceDays, int expectedOffset)
     {
         var due = new DateOnly(2026, 6, 20);
 

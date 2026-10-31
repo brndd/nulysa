@@ -6,8 +6,10 @@ Standing derives from dated coverage and per-charge grace, not an unpaid-invoice
 flag. Requests expire without debt. Coverage periods are start-inclusive/end-exclusive.
 Payment due dates are inclusive: a receipt booked on the due date can fund the
 original request, including initial membership, returns, services and one-offs.
-Expiry is an exclusive cutoff, no earlier than the following day; any longer
-renewal grace keeps its existing cutoff. Overdue notices begin after the due date.
+Expiry is an exclusive cutoff, no earlier than the following day; renewal grace
+days are counted after the due date. Existing open requests keep the expiry they
+were issued with; newly issued renewals use the post-due grace. Overdue notices
+begin after the due date.
 
 The `InclusiveBillingDueDates` migration extends only open requests whose old
 expiry was on or before their due date. Already-inclusive windows and completed,
@@ -44,8 +46,10 @@ approval**; a missing price rolls back approval, including its mail intents.
 3. Use `/admin/members/{user-id}/billing` to add an admin-only service. The unchecked
    free-days exception is an explicit, retry-safe grant for a returning subscriber.
    Stopping renewal preserves purchased/granted time; immediate removal is separate.
-   Retirement prevents new subscriptions, but existing subscriptions remain visible
-   with stop-renewal/member and immediate-removal/administrator controls.
+   Retirement hides the service, prevents new subscriptions, and stops future renewal
+   charges for the service's existing subscribers; already-paid coverage remains and
+   existing subscriptions stay visible with stop-renewal/member and
+   immediate-removal/administrator controls. The membership fee itself is not retired.
 4. At `/admin/payments`, manually import a **synthetic** confirmed bank transaction
    with its stable source/account/transaction ID and actual booked date. Use the
    invoice's recurring-group reference, not the purchase-deposit reference. Partial
@@ -81,7 +85,7 @@ variables use `__` in place of `:`. Timing is in association-local calendar days
 | `Billing:AllowedIntervals:0`… | Integer months 1–12 by default; allowed values 1–120. |
 | `Billing:InvoiceLeadDays` | 14. |
 | `Billing:InitialMembershipGraceDays` | 14, no additional renewal grace on initial nonpayment. |
-| `Billing:MembershipRenewalGraceDays` | 7, zero allowed. |
+| `Billing:MembershipRenewalGraceDays` | 7 days after the due date, zero allowed. |
 | `Billing:ServicePaymentWindowDays` | 14; independent from initial free coverage. |
 | `Billing:AutomaticMembershipReactivation` | true; otherwise administrator approval of a return request is required. |
 | `Billing:PurchaseBalanceEnabled` | false; enables deliberate deposits and member transfers between available balances. |

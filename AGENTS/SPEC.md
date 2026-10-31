@@ -566,7 +566,7 @@ bringing forward membership's grace or expiry.
 | --- | --- | --- |
 | Invoice sent | Due date minus 14 days | Invoice/payment notice. |
 | Invoice becomes overdue; grace begins | Day after due date | Grace-start notice; membership remains active. |
-| Grace ends | Due date plus 7 days | Grace-end notice; membership becomes inactive and membership billing pauses. |
+| Grace ends | Due date plus 7 days | Grace-end notice; membership becomes inactive the following day and membership billing pauses. |
 | Membership terminated by administrator | Manual decision, not a timer | Mark account for deletion and send final warning; no separate retained terminated state. |
 
 Unfunded requests expire under the nonpayment rules without leaving collectible
@@ -1231,7 +1231,8 @@ as unanswered policy or erase financial events to update a bill.
 - Payment due dates are inclusive for all charges. A bank receipt booked on the
   due date may settle the original request, even if imported later. Exclusive
   expiry cannot precede the following day, including zero-renewal-grace charges.
-  Longer renewal-grace cutoffs are unchanged; coverage period ends remain exclusive.
+  Renewal grace days are counted after the due date; existing open requests keep
+  the expiry they were issued with. Coverage period ends remain exclusive.
 - A charge's own due/renewal boundary governs nonpayment grace or inactivity under
   its applicable membership/service rules. One invoice-visible due date summarises
   the earliest relevant unfinished-charge date; it is not an invoice-wide lifecycle

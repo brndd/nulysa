@@ -195,6 +195,10 @@ public sealed partial class BillingCommands
                 .ToHashSet();
             await Expire(billingFacts, operation, scheduler, ct, timelyLineIds);
 
+            // A timely receipt can settle a renewal the worker has not issued yet.
+            if (groupId is { } matchedGroup)
+                await IssueDueRenewals(billingFacts, operation, receipt.ReceivedOn, receipt.ReceivedOn, matchedGroup, ct);
+
             var needsMembershipResumption = groupId is not null
                 && Settings.AutomaticMembershipReactivation
                 && !billingFacts.Membership(receipt.ReceivedOn).Active

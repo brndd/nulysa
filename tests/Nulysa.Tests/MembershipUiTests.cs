@@ -67,6 +67,28 @@ public sealed class MembershipFormTests : MembershipTest
     }
 
     [Fact]
+    public async Task Billing_configuration_prefills_every_service_field()
+    {
+        var board = await Board();
+        await using var commands = CommandsApp();
+        var service = await Run(commands, sp => sp.GetRequiredService<BillingCommands>().ConfigureService(board, null,
+            new("door", "Door", true, 21, 5, 7, "space")));
+        await using var app = await StartProvider();
+        using var client = Client();
+        await Login(client, "board@example.test");
+        var html = await client.GetStringAsync("admin/billing-configuration?service=" + service);
+
+        Assert.Contains("value=\"door\"", html);
+        Assert.Contains("value=\"Door\"", html);
+        Assert.Contains("value=\"space\"", html);
+        Assert.Contains("value=\"21\"", html);
+        Assert.Contains("value=\"5\"", html);
+        Assert.Contains("value=\"7\"", html);
+        Assert.Contains("checked", html);
+        Assert.Matches("<option[^>]*(value=\"active\"[^>]*selected|selected[^>]*value=\"active\")", html);
+    }
+
+    [Fact]
     public async Task Public_and_member_mutations_require_antiforgery_and_private_admin_routes_are_not_a_directory()
     {
         var board = await Board();

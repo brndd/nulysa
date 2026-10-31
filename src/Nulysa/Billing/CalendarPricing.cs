@@ -33,9 +33,9 @@ public static class BillingCalendar
         return new(start, end);
     }
 
-    // A due date is payable through that day; the first non-payable day is at least the next day.
+    // The due date is payable; renewal grace days are the days after it.
     public static DateOnly ExclusiveExpiry(DateOnly due, int graceDays)
-        => due.AddDays(Math.Max(1, graceDays));
+        => due.AddDays(1 + Math.Max(0, graceDays));
 
     public static List<Period> Uncovered(Period period, IEnumerable<Period> coverage)
     {

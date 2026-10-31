@@ -223,6 +223,8 @@ public sealed partial class BillingCommands
         }
         fee.Name = input.Name;
         fee.Category = input.Category;
+        if (input.Retired is { } retiredFee)
+            fee.Retired = retiredFee;
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
         return service.Id;

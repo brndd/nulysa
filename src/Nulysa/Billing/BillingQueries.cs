@@ -109,6 +109,12 @@ public sealed class BillingQueries(AppDbContext db, AssociationClock clock, IOpt
         return await db.ServiceDefinitions.AsNoTracking().Where(x => !x.Retired).OrderBy(x => x.Priority).ThenBy(x => x.Id).ToListAsync(ct);
     }
 
+    public async Task<List<ServiceDefinition>> AllServices(ClaimsPrincipal actor, CancellationToken ct = default)
+    {
+        await Authority.RequireAdministrator(db, actor, ct);
+        return await db.ServiceDefinitions.AsNoTracking().OrderBy(x => x.Id).ToListAsync(ct);
+    }
+
     public async Task<List<Receipt>> Review(ClaimsPrincipal actor, CancellationToken ct = default)
     {
         await Authority.RequireAdministrator(db, actor, ct);

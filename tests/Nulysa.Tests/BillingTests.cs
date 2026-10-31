@@ -52,6 +52,44 @@ public sealed class BillingTests : MembershipTest
     }
 
     [Fact]
+    [Trait("Acceptance", "SVC")]
+    public async Task Retiring_a_service_stops_renewals_and_keeps_paid_coverage()
+    {
+        On(6, 1);
+        var board = await Board();
+        await using var app = CommandsApp();
+        var id = await Admit(app, board);
+        var view = await View(app, board, id);
+        await Pay(app, view.Invoices[0].Reference, 10);
+        var service = await Service(app, board, grace: 0);
+        await Run(app, sp => sp.GetRequiredService<BillingCommands>().Subscribe(board, view.AccountId, service, 1, false, Guid.NewGuid()));
+        view = await View(app, board, id);
+        var serviceBill = view.Invoices.Single(x => x.Lines.Any(l => l.Line.Benefit == Benefit.Service));
+        await Pay(app, serviceBill.Reference, serviceBill.Remaining);
+        await Run(app, sp => sp.GetRequiredService<BillingCommands>().ConfigureService(board, service,
+            new("door", "Door", false, 0, 0, 10, "door", Retired: true)));
+        On(6, 20);
+        await Scan(app, view.AccountId);
+        view = await View(app, board, id);
+
+        Assert.DoesNotContain(view.Invoices.SelectMany(x => x.Lines),
+            x => x.Line.Benefit == Benefit.Service && x.Line.Purpose is PurchasePurpose.Renewal or PurchasePurpose.Alignment);
+        Assert.Contains(view.Coverage, x => x.Benefit == Benefit.Service && x.EndsOn == new DateOnly(2026, 7, 1));
+        await using (var db = Context())
+        {
+            Assert.True((await db.Fees.SingleAsync(x => x.ServiceDefinitionId == service)).Retired);
+            Assert.False((await db.Fees.SingleAsync(x => x.Id == 1)).Retired);
+        }
+        On(7, 2);
+        await Scan(app, view.AccountId);
+        view = await View(app, board, id);
+
+        Assert.Empty(view.Subscriptions);
+        await using var after = Context();
+        Assert.Contains(await after.ServiceChanges.ToListAsync(), x => x.Action == "service-retired");
+    }
+
+    [Fact]
     [Trait("Acceptance", "BILL")]
     public async Task Approval_partial_membership_first_funding_independent_fulfilment_and_cancellation_conserve_every_euro()
     {
@@ -253,6 +291,62 @@ public sealed class BillingTests : MembershipTest
         Assert.Equal(LineState.Expired, renewal.Line.State);
         Assert.Equal(10m, view.Balances.BillingCredit);
         Assert.False(view.Membership.Active);
+    }
+
+    [Fact]
+    [Trait("Acceptance", "DATE")]
+    public async Task Zero_grace_missed_renewal_is_settled_by_a_due_date_receipt_after_worker_outage()
+    {
+        On(6, 1);
+        Settings["Billing:MembershipRenewalGraceDays"] = "0";
+        Settings["Billing:AutomaticMembershipReactivation"] = "false";
+        var board = await Board();
+        await using var app = CommandsApp();
+        var id = await Admit(app, board);
+        var view = await View(app, board, id);
+        await Pay(app, view.Invoices[0].Reference, 10);
+        // The worker misses both invoice preparation and the first post-due scan.
+        On(7, 2);
+        await Scan(app, view.AccountId);
+        await Pay(app, view.Invoices[0].Reference, 10, new(2026, 7, 1));
+        view = await View(app, board, id);
+        var renewal = Assert.Single(view.Invoices.SelectMany(x => x.Lines), x => x.Line.Purpose == PurchasePurpose.Renewal);
+
+        Assert.Equal(LineState.Fulfilled, renewal.Line.State);
+        Assert.Equal(new DateOnly(2026, 7, 1), renewal.Line.StartsOn);
+        Assert.Contains(view.Coverage, x => x.StartsOn == new DateOnly(2026, 7, 1) && x.EndsOn == new DateOnly(2026, 8, 1));
+        Assert.Equal(new Balances(0, 0, 0), view.Balances);
+        Assert.True(view.Membership.Active);
+    }
+
+    [Fact]
+    [Trait("Acceptance", "DATE")]
+    public async Task One_day_renewal_grace_notices_and_accepts_the_following_day()
+    {
+        On(6, 1);
+        Settings["Billing:MembershipRenewalGraceDays"] = "1";
+        var board = await Board();
+        await using var app = CommandsApp();
+        var id = await Admit(app, board);
+        var view = await View(app, board, id);
+        await Pay(app, view.Invoices[0].Reference, 10);
+        On(6, 20);
+        await Scan(app, view.AccountId);
+        var renewalInvoice = (await View(app, board, id)).Invoices.Single(x => x.Invoice.ClosedAt is null);
+        On(7, 2);
+        await Scan(app, view.AccountId);
+        view = await View(app, board, id);
+        var renewal = Assert.Single(view.Invoices.SelectMany(x => x.Lines), x => x.Line.Purpose == PurchasePurpose.Renewal);
+
+        Assert.NotNull(renewal.Line.GraceNotifiedAt);
+        Assert.True(view.Membership.Active);
+        await Pay(app, renewalInvoice.Reference, 10, new(2026, 7, 2));
+        view = await View(app, board, id);
+        var settled = view.Invoices.SelectMany(x => x.Lines).Single(x => x.Line.Id == renewal.Line.Id).Line;
+
+        Assert.Equal(LineState.Fulfilled, settled.State);
+        Assert.Contains(view.Coverage, x => x.StartsOn == new DateOnly(2026, 7, 1) && x.EndsOn == new DateOnly(2026, 8, 1));
+        Assert.True(view.Membership.Active);
     }
 
     [Fact]
@@ -846,7 +940,7 @@ public sealed class BillingTests : MembershipTest
         On(7, 1);
 
         Assert.True((await View(app, board, id)).Membership.Active);
-        On(7, 8);
+        On(7, 9);
         await Scan(app, account);
 
         Assert.False((await View(app, board, id)).Membership.Active);
@@ -1183,7 +1277,7 @@ public sealed class BillingTests : MembershipTest
         await Pay(app, serviceBill.Reference, serviceBill.Remaining);
         On(6, 20);
         await Scan(app, account);
-        On(7, 8);
+        On(7, 9);
         await Scan(app, account);
         view = await View(app, board, id);
 
