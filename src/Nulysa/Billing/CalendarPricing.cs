@@ -112,6 +112,35 @@ public static class Pricing
         }
         return FromSegments(result);
     }
+
+    public static decimal FutureDiscountCredit(IReadOnlyList<PriceSegment> original, Discount discount,
+        IReadOnlyList<(Discount Discount, decimal Amount)> previous)
+    {
+        var boundaries = previous.Select(x => x.Discount).Append(discount).SelectMany(x => new[] { x.StartsOn, x.EndsOn }).Distinct().ToList();
+        var pieces = original.SelectMany(segment =>
+        {
+            var dates = boundaries.Where(x => segment.Start < x && x < segment.End).Append(segment.Start).Append(segment.End).Order().ToArray();
+            return dates.Zip(dates.Skip(1), (start, end) => segment with { Start = start, End = end });
+        }).ToList();
+        static decimal Reduction(PriceSegment segment, Discount adjustment)
+        {
+            if (segment.Start < adjustment.StartsOn || segment.End > adjustment.EndsOn) return 0;
+            var months = (segment.BasisEnd.Year - segment.BasisStart.Year) * 12 + segment.BasisEnd.Month - segment.BasisStart.Month;
+            var reduced = adjustment.Kind == DiscountKind.Percentage ? segment.BasePrice * (100 - adjustment.Value) / 100 : adjustment.Value * months;
+            return Math.Max(0, segment.Price - reduced) * (segment.End.DayNumber - segment.Start.DayNumber) / (segment.BasisEnd.DayNumber - segment.BasisStart.DayNumber);
+        }
+        var credited = new decimal[pieces.Count];
+        foreach (var credit in previous)
+        {
+            var outstanding = pieces.Select((piece, i) => Math.Max(0, Reduction(piece, credit.Discount) - credited[i])).ToArray();
+            var total = outstanding.Sum();
+            if (total == 0) throw new ValidationException("Previous discount credits require treasurer reconciliation.");
+            // Distribute actual rounded money only over the days this correction compensated.
+            for (var i = 0; i < pieces.Count; i++) credited[i] += credit.Amount * outstanding[i] / total;
+        }
+        var remaining = Round(pieces.Select((piece, i) => Math.Max(0, Reduction(piece, discount) - credited[i])).Sum());
+        return Math.Max(0, Math.Min(remaining, FromSegments(original).Amount - previous.Sum(x => x.Amount)));
+    }
 }
 
 public static class PaymentReference

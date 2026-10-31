@@ -5,6 +5,18 @@ namespace Nulysa.Tests;
 [Trait("Group", "CAL")]
 public sealed class BillingCalendarTests
 {
+    [Fact]
+    public void Overlapping_discount_credits_follow_the_days_actually_compensated_by_each_prior_credit()
+    {
+        var original = new[] { new PriceSegment(new(2026, 6, 1), new(2027, 6, 1), new(2026, 6, 1), new(2027, 6, 1), 120, 120, null) };
+        var july = new Discount { StartsOn = new(2026, 7, 1), EndsOn = new(2026, 8, 1), Value = 50 };
+        var combined = new Discount { StartsOn = new(2026, 7, 1), EndsOn = new(2026, 9, 1), Value = 50 };
+        Assert.Equal(5.10m, Pricing.FutureDiscountCredit(original, combined, [(july, 5.10m)]));
+        var julyFree = new Discount { StartsOn = july.StartsOn, EndsOn = july.EndsOn, Value = 100 };
+        Assert.Equal(5.09m, Pricing.FutureDiscountCredit(original, julyFree, [(july, 5.10m), (combined, 5.10m)]));
+        Assert.Equal(0m, Pricing.FutureDiscountCredit(original, combined, [(july, 5.10m), (combined, 5.10m)]));
+    }
+
     [Theory]
     [InlineData(2025, 28)]
     [InlineData(2024, 29)]

@@ -209,6 +209,36 @@ public sealed class BillingTests : MembershipTest
     }
 
     [Fact]
+    [Trait("Acceptance", "ADJ")]
+    public async Task Future_discount_credits_compensate_distinct_dates_and_only_uncredited_parts_of_replacement_discounts()
+    {
+        Settings["Billing:DefaultIntervalMonths"] = "12";
+        On(6, 1); var board = await Board(); await using var app = CommandsApp(); var id = await Admit(app, board);
+        var initial = await View(app, board, id); var account = initial.AccountId; await Pay(app, initial.Invoices[0].Reference, 120);
+        On(6, 20); var line = Assert.Single((await View(app, board, id)).Invoices.SelectMany(x => x.Lines)).Line;
+        async Task<long> Discount(DateOnly start, DateOnly end, decimal percent) => (await Run(app, sp => sp.GetRequiredService<BillingCommands>()
+            .AddDiscount(board, account, 1, start, end, DiscountKind.Percentage, percent, Guid.NewGuid(), "Future discount")))!.Value;
+        Task Credit(long discount, decimal amount) => Run(app, sp => sp.GetRequiredService<BillingCommands>()
+            .CreditFutureDiscount(board, account, line.Id, discount, amount, Guid.NewGuid(), "Reviewed future purchase"));
+        Task Withdraw(long discount) => Run(app, sp => sp.GetRequiredService<BillingCommands>().WithdrawDiscount(board, account, discount, Guid.NewGuid(), "Replacement discount"));
+        var july = await Discount(new(2026, 7, 1), new(2026, 8, 1), 50);
+        var august = await Discount(new(2026, 8, 1), new(2026, 9, 1), 50);
+        await Credit(july, 5.10m); await Credit(august, 5.10m);
+        Assert.Equal(10.20m, (await View(app, board, id)).Balances.BillingCredit);
+        await Assert.ThrowsAsync<ValidationException>(() => Credit(july, 5.10m));
+        await Withdraw(july); await Withdraw(august);
+        var replacement = await Discount(new(2026, 7, 1), new(2026, 9, 1), 75);
+        await Credit(replacement, 5.09m);
+        await Assert.ThrowsAsync<ValidationException>(() => Credit(replacement, 5.09m));
+        await Withdraw(replacement);
+        var julyFree = await Discount(new(2026, 7, 1), new(2026, 8, 1), 100);
+        await Credit(julyFree, 2.55m);
+        var view = await View(app, board, id); Assert.Equal(17.84m, view.Balances.BillingCredit);
+        Assert.Single(view.Coverage); Assert.Equal(120m, Assert.Single(view.Invoices.SelectMany(x => x.Lines)).Line.Amount);
+        Assert.Equal(0m, (await Run(app, sp => sp.GetRequiredService<BillingQueries>().Reconcile(board))).Difference);
+    }
+
+    [Fact]
     [Trait("Acceptance", "RACE")]
     public async Task Concurrent_transfers_cannot_double_spend_and_reused_keys_cannot_change_inputs()
     {

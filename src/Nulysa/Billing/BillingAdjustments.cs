@@ -128,18 +128,9 @@ public sealed partial class BillingCommands
                 ?? throw new ValidationException("Select an applicable discount.");
             if (discount.StartsOn < clock.Today) throw new ValidationException("Used time is not automatically refundable; review future effective time only.");
             var original = JsonSerializer.Deserialize<List<PriceSegment>>(line.PricingJson)!;
-            decimal reduction = 0;
-            foreach (var segment in original)
-            {
-                var start = segment.Start > discount.StartsOn ? segment.Start : discount.StartsOn;
-                var end = segment.End < discount.EndsOn ? segment.End : discount.EndsOn;
-                if (end <= start) continue;
-                var months = facts.Groups.Single(x => x.Id == facts.Invoices.Single(i => i.Id == line.InvoiceId).BillingGroupId).IntervalMonths;
-                var reduced = discount.Kind == DiscountKind.Percentage ? segment.BasePrice * (100 - discount.Value) / 100 : discount.Value * months;
-                reduction += Math.Max(0, segment.Price - reduced) * (end.DayNumber - start.DayNumber) / (segment.BasisEnd.DayNumber - segment.BasisStart.DayNumber);
-            }
-            var previous = facts.Movements.Where(x => x.InvoiceLineId == lineId && x.Kind == MovementKind.PurchaseCredit).Sum(x => x.Amount);
-            var amount = Math.Max(0, Pricing.Round(reduction) - previous);
+            var previous = facts.Movements.Where(x => x.InvoiceLineId == lineId && x.Kind == MovementKind.PurchaseCredit).OrderBy(x => x.Id)
+                .Select(x => (facts.Discounts.Single(d => d.Id == x.DiscountId), x.Amount)).ToList();
+            var amount = Pricing.FutureDiscountCredit(original, discount, previous);
             if (reviewedAmount <= 0 || reviewedAmount != amount) throw new ValidationException($"Review the calculated remaining credit: {amount:0.00} EUR.");
             Move(facts, operation, MovementKind.PurchaseCredit, amount, clock.Today, lineId, discount: discountId);
             await AllocateCredit(facts, operation, clock.Today, ct);
