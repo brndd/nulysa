@@ -116,6 +116,29 @@ public sealed class BillingTests : MembershipTest
         Assert.Equal(LineState.Fulfilled, line.State); Assert.Equal(new Balances(0, 0, 0), view.Balances);
     }
 
+    [Theory]
+    [InlineData(0, 300)]
+    [InlineData(10, 1550)]
+    [Trait("Acceptance", "ADJ")]
+    public async Task Delayed_initial_service_payment_keeps_approved_discounts_across_rollover_and_future_free_coverage(int freeDays, int expectedCents)
+    {
+        On(6, 1); var board = await Board(); await using var app = CommandsApp(); var id = await Admit(app, board);
+        var initial = await View(app, board, id); var account = initial.AccountId; var reference = initial.Invoices[0].Reference;
+        await Pay(app, reference, 10); var service = await Service(app, board, free: freeDays);
+        On(6, 20); await Run(app, sp => sp.GetRequiredService<BillingCommands>().Subscribe(board, account, service, 1, false, Guid.NewGuid()));
+        await using var db = Context(); var fee = await db.Fees.SingleAsync(x => x.ServiceDefinitionId == service);
+        On(6, 21); await Run(app, sp => sp.GetRequiredService<BillingCommands>().AddDiscount(board, account, fee.Id,
+            new(2026, 6, 21), new(2026, 8, 1), DiscountKind.Percentage, 50, Guid.NewGuid(), "Approved service discount"));
+        On(7, 2); await Scan(app, account); await Pay(app, reference, 50, new(2026, 6, 25));
+        var view = await View(app, board, id);
+        var line = Assert.Single(view.Invoices.SelectMany(x => x.Lines), x => x.Line.Benefit == Benefit.Service).Line;
+        Assert.Equal(LineState.Fulfilled, line.State); Assert.Equal(expectedCents / 100m, line.Amount);
+        Assert.Equal(new DateOnly(2026, 6, freeDays == 0 ? 25 : 30), line.StartsOn);
+        Assert.Equal(new DateOnly(2026, 6, 25), line.EffectiveOn);
+        Assert.Contains(await db.LineAdjustments.AsNoTracking().ToListAsync(), x => x.InvoiceLineId == line.Id);
+        Assert.Equal(0m, (await Run(app, sp => sp.GetRequiredService<BillingQueries>().Reconcile(board))).Difference);
+    }
+
     [Fact]
     [Trait("Acceptance", "SVC")]
     public async Task Free_days_are_once_only_and_independent_from_payment_window_and_stopping_preserves_coverage()

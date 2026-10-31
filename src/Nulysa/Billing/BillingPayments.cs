@@ -197,7 +197,14 @@ public sealed partial class BillingCommands
         var held = facts.Held(line);
         if (line.Purpose == PurchasePurpose.Resumption || (line.Purpose == PurchasePurpose.Initial && line.Benefit == Benefit.Service))
         {
-            var segments = JsonSerializer.Deserialize<List<PriceSegment>>(effective < line.StartsOn ? line.OriginalPricingJson : line.PricingJson)!;
+            var pricing = line.PricingJson;
+            if (effective < line.StartsOn && line.StartsOn > line.OriginalStartsOn)
+            {
+                var quotedOn = effective > line.OriginalStartsOn ? effective : line.OriginalStartsOn;
+                pricing = await db.LineAdjustments.Where(x => x.InvoiceLineId == line.Id && x.OldStart <= quotedOn && quotedOn < x.OldEnd)
+                    .OrderByDescending(x => x.Id).Select(x => x.PricingJson).FirstOrDefaultAsync(ct) ?? line.OriginalPricingJson;
+            }
+            var segments = JsonSerializer.Deserialize<List<PriceSegment>>(pricing)!;
             var quote = Pricing.Slice(segments, effective, facts.Periods(line.Benefit, line.ServiceDefinitionId));
             if (quote.Segments.Count == 0 || (line.Purpose == PurchasePurpose.Resumption && effective < line.OriginalStartsOn))
             {
