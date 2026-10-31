@@ -5,7 +5,6 @@
   Keycloak: `docker compose -f compose.yaml -f compose.keycloak.yaml up -d`, plus Playwright
   Chromium. Wait for containers to be ready; see [README checks](README.md#checks) for setup.
 - When writing tests, consider their runtime. Very slow tests should not be enabled by default.
-  The test suite with slow tests excluded should be able to finish in less than 60 seconds.
 - Keep slow tests to the "full" test suite.
 - Add or update tests for the code you change.
 - Prefer running the limited test suite during development. Only run the full test suite when
