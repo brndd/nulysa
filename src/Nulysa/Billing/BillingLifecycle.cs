@@ -77,7 +77,7 @@ public sealed partial class BillingCommands
                 var graceDays = item.MembershipId is not null
                     ? Settings.MembershipRenewalGraceDays
                     : facts.Services.Single(x => x.Id == fee.ServiceDefinitionId).RenewalGraceDays;
-                var renewalExpiresOn = nextStart.AddDays(Math.Max(1, graceDays));
+                var renewalExpiresOn = BillingCalendar.ExclusiveExpiry(nextStart, graceDays);
                 var shouldStopCatchUp = quote.Amount > 0 && (!membershipIsActive || renewalExpiresOn <= clock.Today);
                 if (shouldStopCatchUp)
                     break;

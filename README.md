@@ -138,9 +138,10 @@ already running (restore/build included):
 | Standard | 27 | 18.7s | 25.4s |
 | Full | 41 | 115.3s | 117.2s |
 
-The S2 Release suites pass **109/109 standard tests in 59 seconds** and **129/129 full
-tests in 3m 13s**, with no skips. The standard suite remains below the 60-second
-budget. See [S2 evidence](docs/billing.md#acceptance-evidence) for billing,
+The S2 release run passed **109/109 standard tests in 59 seconds** and **129/129 full
+tests in 3m 13s**, with no skips. The current assembly has **136 standard** and
+**156 full** test cases; there is no fixed standard-suite time budget. See
+[S2 evidence](docs/billing.md#acceptance-evidence) for billing,
 browser, migration and container coverage; [S1 evidence](docs/membership.md#evidence)
 records its earlier baseline.
 

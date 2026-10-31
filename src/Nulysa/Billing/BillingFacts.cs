@@ -108,13 +108,19 @@ internal sealed class BillingFacts
             .OrderByDescending(x => x.ExpiresOn)
             .FirstOrDefault();
         if (graceLine is not null)
-            return new(true, "Active during grace", graceLine.ExpiresOn) { IsRenewalGrace = true };
+        {
+            var description = graceDays == 0 && graceLine.Purpose is PurchasePurpose.Renewal or PurchasePurpose.Alignment
+                ? "Due today" : "Active during grace";
+            return new(true, description, graceLine.ExpiresOn) { IsRenewalGrace = true };
+        }
 
         var previousPeriod = coverage
             .Where(x => x.Benefit == Benefit.Membership && x.EndsOn <= on)
             .OrderByDescending(x => x.EndsOn)
             .FirstOrDefault();
-        var renewalExpiresOn = previousPeriod?.EndsOn.AddDays(Math.Max(1, graceDays));
+        var renewalExpiresOn = previousPeriod is { } previous
+            ? BillingCalendar.ExclusiveExpiry(previous.EndsOn, graceDays)
+            : (DateOnly?)null;
         var withinRenewalGrace = previousPeriod is not null
             && on < renewalExpiresOn
             && renewing;
@@ -123,7 +129,10 @@ internal sealed class BillingFacts
             && x.StartsOn == previousPeriod.EndsOn
             && x.State is LineState.Cancelled or LineState.Expired);
         if (withinRenewalGrace && !renewalWasCancelled)
-            return new(true, "Active during grace", renewalExpiresOn) { IsRenewalGrace = true };
+        {
+            var description = graceDays == 0 ? "Due today" : "Active during grace";
+            return new(true, description, renewalExpiresOn) { IsRenewalGrace = true };
+        }
 
         var inactiveSince = lines
             .Where(x => x.Benefit == Benefit.Membership && x.Purpose != PurchasePurpose.Resumption && x.ExpiresOn <= on && x.State != LineState.Fulfilled)
@@ -148,9 +157,10 @@ internal sealed class BillingFacts
         if (coveredPeriod != default)
             return new(true, enrollment.RenewalStoppedAt is null ? "Covered" : "Renewal stopped — covered", coveredPeriod.End);
 
+        var service = Services.Single(x => x.Id == enrollment.ServiceDefinitionId);
         var graceEnd = ServiceGraceEnd(enrollment, on);
         if (graceEnd > on)
-            return new(true, "Renewal grace", graceEnd);
+            return new(true, service.RenewalGraceDays == 0 ? "Due today" : "Renewal grace", graceEnd);
         return new(false, "Awaiting payment — no current coverage", null);
     }
 
@@ -173,6 +183,8 @@ internal sealed class BillingFacts
             .Where(x => x.Benefit == Benefit.Service && x.ServiceDefinitionId == enrollment.ServiceDefinitionId && x.StartsOn <= on)
             .OrderByDescending(x => x.EndsOn)
             .FirstOrDefault();
-        return lastCoverage?.EndsOn.AddDays(Math.Max(1, Services.Single(x => x.Id == enrollment.ServiceDefinitionId).RenewalGraceDays));
+        return lastCoverage is { } coverage
+            ? BillingCalendar.ExclusiveExpiry(coverage.EndsOn, Services.Single(x => x.Id == enrollment.ServiceDefinitionId).RenewalGraceDays)
+            : null;
     }
 }

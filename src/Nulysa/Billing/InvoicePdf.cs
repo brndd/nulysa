@@ -13,6 +13,25 @@ public sealed class InvoicePdf(AppDbContext db, IOptions<BillingOptions> options
 {
     public const string TypstVersion = "0.15.0";
 
+    public static void VerifyRenderer(string path)
+    {
+        using var process = Process.Start(new ProcessStartInfo(path)
+        {
+            ArgumentList = { "--version" },
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false
+        }) ?? throw new InvalidOperationException("Could not start Typst.");
+        var output = process.StandardOutput.ReadToEndAsync();
+        if (!process.WaitForExit(TimeSpan.FromSeconds(5)))
+        {
+            process.Kill(entireProcessTree: true);
+            throw new InvalidOperationException("The invoice renderer did not report its version in time.");
+        }
+        if (process.ExitCode != 0 || !output.Result.StartsWith("typst " + TypstVersion + " ", StringComparison.Ordinal))
+            throw new InvalidOperationException("The invoice renderer must be Typst " + TypstVersion + ".");
+    }
+
     public async Task<byte[]> ForMember(ClaimsPrincipal actor, long invoiceId, CancellationToken ct = default)
     {
         var invoice = await db.Invoices.AsNoTracking().SingleOrDefaultAsync(x => x.Id == invoiceId, ct)

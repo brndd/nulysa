@@ -26,7 +26,8 @@ public sealed record Reconciliation(decimal Receipts, decimal BillingCredit, dec
 public sealed record FinancialClaim(long AccountId, string? Name, string? Email, decimal BillingCredit, decimal PurchaseBalance);
 public sealed record BillingView(long AccountId, long? UserId, string DepositReference, bool EmailInvoices, Balances Balances, Standing Membership,
     List<InvoiceView> Invoices, List<RecurringItem> Items, List<BillingGroup> Groups, List<SubscriptionView> Subscriptions,
-    List<MoneyMovement> Movements, List<Coverage> Coverage, List<Discount> Discounts, List<BillingOperation> History, List<Forecast> Forecasts);
+    List<MoneyMovement> Movements, List<Coverage> Coverage, List<Discount> Discounts, List<BillingOperation> History, List<Forecast> Forecasts,
+    List<ServiceDefinition> Services);
 
 public sealed class BillingQueries(AppDbContext db, AssociationClock clock, IOptions<BillingOptions> options)
 {
@@ -88,7 +89,7 @@ public sealed class BillingQueries(AppDbContext db, AssociationClock clock, IOpt
             .ToListAsync(ct);
         return new(account.Id, account.UserId, account.PurchaseDepositReference, account.EmailInvoices, facts.Balances, membership, invoices,
             facts.Items.Where(x => x.EndedAt is null).ToList(), facts.Groups, subscriptions,
-            facts.Movements.OrderByDescending(x => x.Id).Take(100).ToList(), facts.Coverage, facts.Discounts, operations, forecasts);
+            facts.Movements.OrderByDescending(x => x.Id).Take(100).ToList(), facts.Coverage, facts.Discounts, operations, forecasts, facts.Services);
     }
 
     internal static InvoiceView View(BillingFacts facts, Invoice invoice)

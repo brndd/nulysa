@@ -49,6 +49,17 @@ public sealed class ConfigurationTests : DatabaseTest
     }
 
     [Fact]
+    public async Task Invoice_renderer_must_report_the_pinned_version()
+    {
+        var path = Path.Combine(DirectoryPath, "wrong-typst");
+        await File.WriteAllTextAsync(path, "#!/bin/sh\necho 'typst 0.14.0'\n");
+        if (!OperatingSystem.IsWindows())
+            File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+
+        Assert.Throws<InvalidOperationException>(() => InvoicePdf.VerifyRenderer(path));
+    }
+
+    [Fact]
     public async Task Membership_and_mail_options_reject_invalid_retention_fallback_URL_and_missing_sender()
     {
         Settings["Membership:DefaultLanguage"] = "sv";

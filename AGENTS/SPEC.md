@@ -226,7 +226,7 @@ These are conceptual distinctions, not database tables or a settled data model.
   requests while membership continues. Keep the member-services page convenient
   to reach; storage, access-control tools and other members-only areas may be
   restricted during inactivity. For renewals, reaching the membership charge's due
-  date alone does not make membership inactive; its initial grace instead ends at
+  date alone does not make membership inactive; its initial grace instead ends after
   its own due boundary, not another line's earlier invoice-visible date.
 - Progression through overdue status and inactivity is automatic. Invoice lead
   time and grace-period timing must be configurable, not fixed to the illustrative
@@ -508,14 +508,14 @@ and [the right to erasure](https://tietosuoja.fi/en/right-to-erasure).
 4. Send a welcome message containing an initial set-password link and an initial
    membership invoice using the configured default membership period. The first
    period starts at approval, not payment.
-5. Membership is "active but overdue" during an initial grace period ending on
+5. Membership is "active but overdue" during an initial grace period ending after
    the initial membership charge's due boundary, for example two weeks after
    approval/invoicing. A different line's earlier public invoice date does not
    shorten this grace.
    This initial grace can be configured separately from renewal-invoice grace.
-6. If the initial membership line is still unpaid at its own due boundary, immediately make
-   membership inactive and pause membership billing. Do not add renewal grace
-   after initial grace. Any subsequent termination remains a manual action under
+6. If the initial membership line is still unpaid after its own due boundary (at the
+   start of the following day), immediately make membership inactive and pause
+   membership billing. Do not add renewal grace after initial grace. Any subsequent termination remains a manual action under
    the normal termination/deletion workflow.
 
 Payment during initial grace settles the period that began at approval; it does
@@ -733,7 +733,7 @@ pending applicant: no portal login access
 application --rejection--> rejection email, then applicant data permanently deleted
 new member: welcome with set-password link + initial invoice
 new member: first period starts at approval
-new member: active during initial grace until membership charge's own due boundary
+new member: active during initial grace through membership charge's own due boundary
 initial grace --unpaid after initial due date--> inactive member (no renewal grace)
 
 member --recurring invoice overdue--> active member in grace period

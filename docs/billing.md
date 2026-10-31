@@ -188,8 +188,9 @@ coverage restoration, and price unquoted days through local-date discount withdr
 Browser retries for blank/nonexistent financial accounts retain the intended
 invoice, purpose and operation key without moving money on validation errors.
 
-The final Release runs passed **109/109 standard tests in 59 seconds** and **129/129
+The final S2 Release runs passed **109/109 standard tests in 59 seconds** and **129/129
 full tests in 3m 13s**, including Chromium/Keycloak and real workers, with no skips.
+The suite has since grown; see the README for current case counts.
 Release compilation, formatting, migration-model consistency, launcher/script
 checks and the production-mode container smoke (including pinned Typst) also passed.
 

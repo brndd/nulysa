@@ -42,6 +42,8 @@ public sealed class BillingTests : MembershipTest
         var service = await Service(app, board);
         await Run(app, sp => sp.GetRequiredService<BillingCommands>().ConfigureService(board, service,
             new("door", "Door", false, 0, 7, 10, "door", Retired: true)));
+        await Run(app, sp => sp.GetRequiredService<BillingCommands>().ConfigureService(board, service,
+            new("door", "Door", false, 0, 7, 10, "door")));
         var services = await Run(app, sp => sp.GetRequiredService<BillingQueries>().Services(Actor(id)));
 
         Assert.DoesNotContain(services, x => x.Id == service);
@@ -209,7 +211,9 @@ public sealed class BillingTests : MembershipTest
         var due = await View(app, board, id);
 
         Assert.True(due.Membership.Active);
+        Assert.Equal("Due today", due.Membership.Description);
         Assert.All(due.Subscriptions, x => Assert.True(x.Standing.Active));
+        Assert.All(due.Subscriptions, x => Assert.Equal("Due today", x.Standing.Description));
         await Scan(app, view.AccountId);
         view = await View(app, board, id);
         var renewals = view.Invoices.SelectMany(x => x.Lines).Where(x => x.Line.Purpose == PurchasePurpose.Renewal).ToList();
@@ -223,6 +227,32 @@ public sealed class BillingTests : MembershipTest
         Assert.All(view.Invoices.SelectMany(x => x.Lines), x => Assert.Equal(LineState.Fulfilled, x.Line.State));
         Assert.Contains(view.Coverage, x => x.StartsOn == new DateOnly(2026, 7, 1) && x.EndsOn == new DateOnly(2026, 8, 1));
         Assert.Equal(new Balances(0, 0, 0), view.Balances);
+    }
+
+    [Fact]
+    [Trait("Acceptance", "DATE")]
+    public async Task Zero_grace_renewals_reject_a_payment_after_the_due_date()
+    {
+        On(6, 1);
+        Settings["Billing:MembershipRenewalGraceDays"] = "0";
+        Settings["Billing:AutomaticMembershipReactivation"] = "false";
+        var board = await Board();
+        await using var app = CommandsApp();
+        var id = await Admit(app, board);
+        var view = await View(app, board, id);
+        await Pay(app, view.Invoices[0].Reference, 10);
+        On(6, 20);
+        await Scan(app, view.AccountId);
+        var renewalInvoice = (await View(app, board, id)).Invoices.Single(x => x.Invoice.ClosedAt is null);
+        On(7, 2);
+        await Scan(app, view.AccountId);
+        await Pay(app, renewalInvoice.Reference, 10, new(2026, 7, 2));
+        view = await View(app, board, id);
+        var renewal = Assert.Single(view.Invoices.SelectMany(x => x.Lines), x => x.Line.Purpose == PurchasePurpose.Renewal);
+
+        Assert.Equal(LineState.Expired, renewal.Line.State);
+        Assert.Equal(10m, view.Balances.BillingCredit);
+        Assert.False(view.Membership.Active);
     }
 
     [Fact]
@@ -978,8 +1008,11 @@ public sealed class BillingTests : MembershipTest
         }
         await db.SaveChangesAsync();
         // Already-inclusive requests must not gain another day on upgrade.
-        await Run(app, sp => sp.GetRequiredService<BillingCommands>().OneOff(board, view.AccountId, Guid.NewGuid(),
-            "Inclusive workshop", "workshop", 5m, new(2026, 6, 20)));
+        var inclusiveId = (await Run(app, sp => sp.GetRequiredService<BillingCommands>().OneOff(board, view.AccountId, Guid.NewGuid(),
+            "Inclusive workshop", "workshop", 5m, new(2026, 6, 20))))!.Value;
+        var inclusiveLine = await db.InvoiceLines.SingleAsync(x => x.InvoiceId == inclusiveId);
+        inclusiveLine.ExpiresOn = new DateOnly(2026, 6, 27);
+        await db.SaveChangesAsync();
         db.ChangeTracker.Clear();
         var before = await db.InvoiceLines.AsNoTracking().ToListAsync();
 
@@ -998,6 +1031,10 @@ public sealed class BillingTests : MembershipTest
             Assert.Equal(line.EndsOn, after[line.Id].EndsOn);
             Assert.Equal(line.Amount, after[line.Id].Amount);
         }
+        var extended = after[invoices[LineState.Open]].ExpiresOn;
+        await db.Database.MigrateAsync("20261031185213_BillingMovementEffectiveIndex");
+        var downgraded = await db.InvoiceLines.AsNoTracking().SingleAsync(x => x.InvoiceId == invoices[LineState.Open]);
+        Assert.Equal(extended, downgraded.ExpiresOn);
         On(6, 20);
         var payable = (await View(app, board, id)).Invoices.Single(x => x.Invoice.Id == invoices[LineState.Open]);
         await Pay(app, payable.Reference, payable.Remaining);
@@ -1080,7 +1117,8 @@ public sealed class BillingTests : MembershipTest
     {
         On(6, 1);
         var board = await Board();
-        await using var app = CommandsApp();
+        var transport = new RecordingMail();
+        await using var app = CommandsApp(transport);
         var id = await Admit(app, board);
         var view = await View(app, board, id);
         await Pay(app, view.Invoices[0].Reference, 10);
@@ -1098,6 +1136,32 @@ public sealed class BillingTests : MembershipTest
         Assert.True(view.Membership.Active);
         Assert.True(view.Membership.IsRenewalGrace);
         Assert.NotNull(Assert.Single(view.Invoices.SelectMany(x => x.Lines), x => x.Line.State == LineState.Open).Line.GraceNotifiedAt);
+        await using var db = Context();
+        var delivery = await db.Deliveries.SingleAsync(x => x.UserId == id && x.Kind == MailKind.MembershipGrace);
+        await Run(app, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(delivery.Id));
+
+        Assert.Single(transport.Sent);
+        Assert.Contains("lisäaika", transport.Sent[0].Subject, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    [Trait("Acceptance", "MAIL")]
+    public async Task Expired_membership_sends_an_inactive_notice()
+    {
+        On(6, 1);
+        var board = await Board();
+        var transport = new RecordingMail();
+        await using var app = CommandsApp(transport);
+        var id = await Admit(app, board);
+        var view = await View(app, board, id);
+        On(6, 16);
+        await Scan(app, view.AccountId);
+        await using var db = Context();
+        var delivery = await db.Deliveries.SingleAsync(x => x.UserId == id && x.Kind == MailKind.MembershipInactive);
+        await Run(app, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(delivery.Id));
+
+        Assert.Single(transport.Sent);
+        Assert.Contains("keskeytetty", transport.Sent[0].Subject, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

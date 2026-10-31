@@ -188,7 +188,7 @@ public sealed partial class BillingCommands(AppDbContext db, AssociationClock cl
             OriginalEndsOn = billingPeriod.End,
             ChargeDueOn = chargeDueOn,
             // The due date itself must stay payable, even without renewal grace.
-            ExpiresOn = expires > chargeDueOn ? expires : chargeDueOn.AddDays(1),
+            ExpiresOn = expires > chargeDueOn ? expires : BillingCalendar.ExclusiveExpiry(chargeDueOn, 0),
             Amount = quote.Amount,
             PricingJson = pricingJson,
             OriginalPricingJson = pricingJson

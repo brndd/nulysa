@@ -98,7 +98,7 @@
     }
     <h2>Forecasts — not issued invoices</h2>
     <ul>@foreach (var forecast in view.Forecasts) { <li>@forecast.Description · @forecast.Start–@forecast.End · @Money(forecast.Amount) EUR · @forecast.Months months</li> }</ul>
-    <h2>Coverage</h2><ul>@foreach (var coverage in view.Coverage.OrderByDescending(x => x.StartsOn)) { <li>@coverage.Benefit @(services.SingleOrDefault(x => x.Id == coverage.ServiceDefinitionId)?.Name) · @coverage.StartsOn–@coverage.EndsOn · @coverage.Source</li> }</ul>
+    <h2>Coverage</h2><ul>@foreach (var coverage in view.Coverage.OrderByDescending(x => x.StartsOn)) { <li>@coverage.Benefit @(view.Services.SingleOrDefault(x => x.Id == coverage.ServiceDefinitionId)?.Name) · @coverage.StartsOn–@coverage.EndsOn · @coverage.Source</li> }</ul>
     <h2>Money history</h2><table><thead><tr><th>Event</th><th>Effective date</th><th>Amount EUR</th><th>Source / purchase</th></tr></thead><tbody>
     @foreach (var move in view.Movements) { <tr><td>#@move.Id @move.Kind</td><td>@move.EffectiveOn</td><td>@Money(move.Amount)</td><td>Receipt #@move.ReceiptId · line #@move.InvoiceLineId</td></tr> }
     </tbody></table>

@@ -33,6 +33,10 @@ public static class BillingCalendar
         return new(start, end);
     }
 
+    // A due date is payable through that day; the first non-payable day is at least the next day.
+    public static DateOnly ExclusiveExpiry(DateOnly due, int graceDays)
+        => due.AddDays(Math.Max(1, graceDays));
+
     public static List<Period> Uncovered(Period period, IEnumerable<Period> coverage)
     {
         var gaps = new List<Period>();

@@ -38,6 +38,7 @@ public sealed class MembershipFormTests : MembershipTest
         var html = await member.GetStringAsync("billing");
 
         Assert.Contains("<h3>Retired door</h3>", html);
+        Assert.Contains("Service Retired door", html);
         Assert.Contains("Stop renewal; keep remaining covered time", html);
         Assert.DoesNotContain($"subscribe-{service}", html);
         Assert.DoesNotContain("Remove immediately", html);

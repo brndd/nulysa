@@ -31,6 +31,17 @@ public sealed class BillingCalendarTests
         Assert.Equal(new Period(new(year, 7, 12), new(year, 9, 12)), BillingCalendar.Bridge(new(year, 3, 12), 3, new(year, 7, 12), true));
     }
 
+    [Theory]
+    [InlineData(0, 1)]
+    [InlineData(1, 1)]
+    [InlineData(7, 7)]
+    public void Due_dates_are_inclusive_and_expiry_is_never_the_same_day(int graceDays, int expectedOffset)
+    {
+        var due = new DateOnly(2026, 6, 20);
+
+        Assert.Equal(due.AddDays(expectedOffset), BillingCalendar.ExclusiveExpiry(due, graceDays));
+    }
+
     [Fact]
     public void Actual_days_discount_splits_final_rounding_and_short_bridges_are_independent()
     {
