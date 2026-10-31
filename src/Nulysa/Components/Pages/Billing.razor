@@ -50,27 +50,31 @@
     {
         <section>
             <h3>Invoice #@invoice.Invoice.Id — @(invoice.Invoice.ClosedAt is null ? "Open" : "Closed")</h3>
-            <p><a href="@($"/billing/invoices/{invoice.Invoice.Id}/pdf")">Download current PDF</a> · Reference: @invoice.Reference @if (invoice.Invoice.DueOn is { } due) { <span>· Due @due</span> }</p>
+            <p><a href="@($"/billing/invoices/{invoice.Invoice.Id}/pdf")">Download current PDF</a> · Reference: @invoice.Reference @if (invoice.Invoice.DueOn is { } due) { <span>· Pay by @due</span> }</p>
             <table><caption>Invoice #@invoice.Invoice.Id funding</caption><thead><tr><th>Purchase / period</th><th>Status</th><th>Charge EUR</th><th>Held EUR</th><th>Remaining EUR</th></tr></thead><tbody>
             @foreach (var row in invoice.Lines) { <tr><td>#@row.Line.Id @row.Line.Description · @row.Line.StartsOn–@row.Line.EndsOn</td><td>@row.Line.State</td><td>@Money(row.Line.Amount)</td><td>@Money(row.Held)</td><td>@Money(row.Remaining)</td></tr> }
             </tbody></table><p>Completed: @Money(invoice.Paid) EUR · Held: @Money(invoice.Held) EUR · Remaining: <strong>@Money(invoice.Remaining) EUR</strong></p>
         </section>
     }
     <h2>Services</h2>
+    @foreach (var subscription in view.Subscriptions)
+    {
+        <section><h3>@subscription.Name</h3>
+            <p>@subscription.Standing.Description · until @subscription.Standing.Until</p>
+            <EditForm Model="Action" method="post" FormName="@($"stop-{subscription.Enrollment.ServiceDefinitionId}")" OnSubmit="Submit">
+                <input type="hidden" name="Action.Key" value="@Action!.Key" /><input type="hidden" name="Action.Id" value="@subscription.Enrollment.Id" />
+                <button name="Action.Name" value="stop">Stop renewal; keep remaining covered time</button>
+                @if (board) { <button name="Action.Name" value="remove">Remove immediately</button> }
+            </EditForm>
+        </section>
+    }
     @foreach (var service in services)
     {
-        var subscription = view.Subscriptions.SingleOrDefault(x => x.Enrollment.ServiceDefinitionId == service.Id);
+        var isSubscribed = view.Subscriptions.Any(x => x.Enrollment.ServiceDefinitionId == service.Id);
+        if (isSubscribed) { continue; }
+
         <section><h3>@service.Name</h3>
-            @if (subscription is not null)
-            {
-                <p>@subscription.Standing.Description · until @subscription.Standing.Until</p>
-                <EditForm Model="Action" method="post" FormName="@($"stop-{service.Id}")" OnSubmit="Submit">
-                    <input type="hidden" name="Action.Key" value="@Action!.Key" /><input type="hidden" name="Action.Id" value="@subscription.Enrollment.Id" />
-                    <button name="Action.Name" value="stop">Stop renewal; keep remaining covered time</button>
-                    @if (board) { <button name="Action.Name" value="remove">Remove immediately</button> }
-                </EditForm>
-            }
-            else if (service.SelfSubscriptionAllowed || board)
+            @if (service.SelfSubscriptionAllowed || board)
             {
                 <EditForm Model="Action" method="post" FormName="@($"subscribe-{service.Id}")" OnSubmit="Submit">
                     <input type="hidden" name="Action.Key" value="@Action!.Key" /><input type="hidden" name="Action.Id" value="@service.Id" />

@@ -871,6 +871,8 @@ namespace Nulysa.Data.Migrations
 
                     b.HasIndex("DiscountId");
 
+                    b.HasIndex("EffectiveOn");
+
                     b.HasIndex("InvoiceLineId");
 
                     b.HasIndex("OperationId");

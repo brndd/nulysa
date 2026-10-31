@@ -16,8 +16,6 @@ public sealed class MailDispatcher(AppDbContext db, MailRenderer renderer, IMail
         Guid? rejectedApplication;
         await using (var tx = await db.Database.BeginTransactionAsync(ct))
         {
-            // One persisted provider-wide dispatch rate, shared by every worker instance.
-            await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(72134503)", ct);
             var delivery = await Lock(id, ct);
             if (delivery is null)
                 return;
@@ -31,7 +29,24 @@ public sealed class MailDispatcher(AppDbContext db, MailRenderer renderer, IMail
             if (delivery.State != DeliveryState.Pending)
                 return;
 
-            message = await renderer.Render(delivery, ct);
+            try
+            {
+                message = await renderer.Render(delivery, ct);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception error)
+            {
+                // A broken template or renderer must not stay Pending and retry forever.
+                logger.LogWarning("Mail render failed for delivery {DeliveryId} ({ErrorType}); recording review.",
+                    id, error.GetType().Name);
+                delivery.State = DeliveryState.Review;
+                await db.SaveChangesAsync(ct);
+                await tx.CommitAsync(ct);
+                return;
+            }
             if (message is null)
             {
                 delivery.State = DeliveryState.Cancelled;
@@ -40,6 +55,8 @@ public sealed class MailDispatcher(AppDbContext db, MailRenderer renderer, IMail
                 return;
             }
 
+            // One persisted dispatch rate, shared by every worker and every process.
+            await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(72134503)", ct);
             var window = await db.MailRateWindows.SingleOrDefaultAsync(ct);
             if (window is null)
             {

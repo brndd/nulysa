@@ -30,7 +30,8 @@
     <p><InputCheckbox id="self-subscribe" @bind-Value="Service.SelfSubscribe" /> <label for="self-subscribe">Members may subscribe and resubscribe themselves</label></p>
     <p><label for="free-days">Initial free calendar days</label> <InputNumber id="free-days" @bind-Value="Service.FreeDays" /></p>
     <p><label for="grace-days">Renewal grace calendar days (zero allowed)</label> <InputNumber id="grace-days" @bind-Value="Service.GraceDays" /></p>
-    <p><label for="priority">Funding order after membership (lower first)</label> <InputNumber id="priority" @bind-Value="Service.Priority" /></p><button>Save service definition</button>
+    <p><label for="priority">Funding order after membership (lower first)</label> <InputNumber id="priority" @bind-Value="Service.Priority" /></p>
+    <p><InputCheckbox id="service-retired" @bind-Value="Service.Retired" /> <label for="service-retired">Retired (hidden from members and new subscriptions)</label></p><button>Save service definition</button>
 </EditForm>
 
 @code {
@@ -40,11 +41,12 @@
         public long? Id { get; set; } [Required, StringLength(80)] public string Code { get; set; } = ""; [Required, StringLength(200)] public string Name { get; set; } = "";
         [Required, StringLength(80)] public string Category { get; set; } = ""; public bool SelfSubscribe { get; set; } [Range(0, 365)] public int FreeDays { get; set; } = 14;
         [Range(0, 365)] public int GraceDays { get; set; } = 7; [Range(0, int.MaxValue)] public int Priority { get; set; } = 100;
+        public bool Retired { get; set; }
     }
     [SupplyParameterFromForm(FormName = "price")] public PriceInput? Price { get; set; }
     [SupplyParameterFromForm(FormName = "service-definition")] public ServiceForm? Service { get; set; }
     private ClaimsPrincipal actor = null!; private List<FeeDefinition> fees = []; private List<FeePrice> prices = []; private string? error;
     protected override async Task OnInitializedAsync() { Price ??= new(); Service ??= new(); actor = (await Authentication.GetAuthenticationStateAsync()).User; fees = await Queries.Fees(actor); prices = await Queries.Prices(actor); }
     private async Task SavePrice() { try { await Commands.SetPrice(actor, Price!.FeeId, Price.EffectiveOn, Price.Amount); Navigation.NavigateTo(Navigation.Uri); } catch (ValidationException ex) { error = ex.Message; } }
-    private async Task SaveService() { try { await Commands.ConfigureService(actor, Service!.Id, new(Service.Code, Service.Name, Service.SelfSubscribe, Service.FreeDays, Service.GraceDays, Service.Priority, Service.Category)); Navigation.NavigateTo(Navigation.Uri); } catch (ValidationException ex) { error = ex.Message; } }
+    private async Task SaveService() { try { await Commands.ConfigureService(actor, Service!.Id, new(Service.Code, Service.Name, Service.SelfSubscribe, Service.FreeDays, Service.GraceDays, Service.Priority, Service.Category, Service.Retired)); Navigation.NavigateTo(Navigation.Uri); } catch (ValidationException ex) { error = ex.Message; } }
 }

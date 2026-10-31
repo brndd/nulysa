@@ -2,6 +2,8 @@ using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.DependencyInjection;
 using Nulysa.Billing;
 using Nulysa.Communications;
@@ -26,6 +28,25 @@ public sealed class BillingTests : MembershipTest
         var fee = await db.Fees.SingleAsync(x => x.ServiceDefinitionId == id);
         await Run(app, sp => sp.GetRequiredService<BillingCommands>().SetPrice(board, fee.Id, new(2000, 1, 1), price));
         return id;
+    }
+
+    [Fact]
+    [Trait("Acceptance", "SVC")]
+    public async Task Retired_services_are_hidden_and_cannot_be_subscribed()
+    {
+        On(6, 1);
+        var board = await Board();
+        await using var app = CommandsApp();
+        var id = await Admit(app, board);
+        var view = await View(app, board, id);
+        var service = await Service(app, board);
+        await Run(app, sp => sp.GetRequiredService<BillingCommands>().ConfigureService(board, service,
+            new("door", "Door", false, 0, 7, 10, "door", Retired: true)));
+        var services = await Run(app, sp => sp.GetRequiredService<BillingQueries>().Services(Actor(id)));
+
+        Assert.DoesNotContain(services, x => x.Id == service);
+        await Assert.ThrowsAsync<ValidationException>(() => Run(app, sp => sp.GetRequiredService<BillingCommands>()
+            .Subscribe(board, view.AccountId, service, 1, false, Guid.NewGuid())));
     }
 
     [Fact]
@@ -69,6 +90,139 @@ public sealed class BillingTests : MembershipTest
         Assert.Equal(15m, await db.Receipts.Where(x => x.State == ReceiptState.Posted).SumAsync(x => x.Amount));
         Assert.Equal(10m, await db.MoneyMovements.Where(x => x.Kind == MovementKind.LinePurchase).SumAsync(x => x.Amount));
         Assert.Equal(5m, await db.MoneyMovements.Where(x => x.Kind == MovementKind.LineToBilling).SumAsync(x => x.Amount));
+    }
+
+    [Theory]
+    [InlineData(false, false, false)]
+    [InlineData(false, false, true)]
+    [InlineData(false, true, false)]
+    [InlineData(true, false, false)]
+    [InlineData(true, false, true)]
+    [InlineData(true, true, false)]
+    [Trait("Acceptance", "DATE")]
+    public async Task Initial_and_return_membership_due_dates_are_inclusive_including_delayed_imports(bool returning, bool late, bool delayed)
+    {
+        On(6, 1);
+        Settings["Billing:AutomaticMembershipReactivation"] = "false";
+        var board = await Board();
+        await using var app = CommandsApp();
+        var id = await Admit(app, board);
+        var view = await View(app, board, id);
+        if (returning)
+        {
+            On(6, 20);
+            await Scan(app, view.AccountId);
+            await Run(app, sp => sp.GetRequiredService<BillingCommands>().ResumeMembership(board, view.AccountId, Guid.NewGuid()));
+            view = await View(app, board, id);
+        }
+        var invoice = Assert.Single(view.Invoices, x => x.Invoice.ClosedAt is null);
+        var original = Assert.Single(invoice.Lines).Line;
+        var receivedOn = original.ChargeDueOn.AddDays(late ? 1 : 0);
+        var importedOn = receivedOn.AddDays(delayed ? 1 : 0);
+        Clock.Now = new DateTimeOffset(importedOn.ToDateTime(new TimeOnly(10, 0)), TimeSpan.Zero);
+
+        await Scan(app, view.AccountId);
+        var receipt = await Pay(app, invoice.Reference, 10, receivedOn);
+        view = await View(app, board, id);
+        var settled = view.Invoices.SelectMany(x => x.Lines).Single(x => x.Line.Id == original.Id).Line;
+        await using var db = Context();
+
+        Assert.Equal(original.ChargeDueOn.AddDays(1), settled.ExpiresOn);
+        Assert.Equal(late ? LineState.Expired : LineState.Fulfilled, settled.State);
+        Assert.Equal(ReceiptState.Posted, (await db.Receipts.SingleAsync(x => x.Id == receipt)).State);
+        Assert.Equal(late ? 10m : 10m - settled.Amount, view.Balances.BillingCredit);
+        Assert.Equal(0m, view.Balances.Held);
+        if (!late)
+        {
+            Assert.Equal(returning ? receivedOn : new DateOnly(2026, 6, 1), settled.StartsOn);
+            Assert.Contains(view.Coverage, x => x.InvoiceLineId == original.Id && x.StartsOn == settled.StartsOn && x.EndsOn == settled.EndsOn);
+        }
+        Assert.Equal(0m, (await Run(app, sp => sp.GetRequiredService<BillingQueries>().Reconcile(board))).Difference);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [Trait("Acceptance", "DATE")]
+    public async Task Initial_service_due_date_accepts_timely_receipts_but_not_the_following_day(bool late, bool delayed)
+    {
+        On(6, 1);
+        var board = await Board();
+        await using var app = CommandsApp();
+        var id = await Admit(app, board);
+        var view = await View(app, board, id);
+        await Pay(app, view.Invoices[0].Reference, 10);
+        var service = await Service(app, board);
+        await Run(app, sp => sp.GetRequiredService<BillingCommands>().Subscribe(board, view.AccountId, service, 1, false, Guid.NewGuid()));
+        view = await View(app, board, id);
+        var invoice = Assert.Single(view.Invoices, x => x.Invoice.ClosedAt is null);
+        var original = Assert.Single(invoice.Lines).Line;
+        var receivedOn = original.ChargeDueOn.AddDays(late ? 1 : 0);
+        var importedOn = receivedOn.AddDays(delayed ? 1 : 0);
+        Clock.Now = new DateTimeOffset(importedOn.ToDateTime(new TimeOnly(10, 0)), TimeSpan.Zero);
+
+        await Scan(app, view.AccountId);
+        await Pay(app, invoice.Reference, 30, receivedOn);
+        view = await View(app, board, id);
+        var settled = view.Invoices.SelectMany(x => x.Lines).Single(x => x.Line.Id == original.Id).Line;
+
+        Assert.Equal(original.ChargeDueOn.AddDays(1), settled.ExpiresOn);
+        Assert.Equal(late ? LineState.Expired : LineState.Fulfilled, settled.State);
+        Assert.Equal(late ? 30m : 30m - settled.Amount, view.Balances.BillingCredit);
+        Assert.Equal(0m, view.Balances.Held);
+        if (!late)
+        {
+            Assert.True(Assert.Single(view.Subscriptions).Standing.Active);
+            Assert.Contains(view.Coverage, x => x.InvoiceLineId == original.Id && x.StartsOn == receivedOn && x.EndsOn == new DateOnly(2026, 7, 1));
+        }
+        Assert.Equal(0m, (await Run(app, sp => sp.GetRequiredService<BillingQueries>().Reconcile(board))).Difference);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    [Trait("Acceptance", "DATE")]
+    public async Task Zero_grace_renewals_accept_due_day_payment_even_when_the_worker_missed_invoice_preparation(bool service, bool prepared)
+    {
+        On(6, 1);
+        Settings["Billing:MembershipRenewalGraceDays"] = "0";
+        var board = await Board();
+        await using var app = CommandsApp();
+        var id = await Admit(app, board);
+        var view = await View(app, board, id);
+        if (service)
+        {
+            var serviceId = await Service(app, board, grace: 0);
+            await Run(app, sp => sp.GetRequiredService<BillingCommands>().Subscribe(board, view.AccountId, serviceId, 1, false, Guid.NewGuid()));
+        }
+        var amount = service ? 40m : 10m;
+        await Pay(app, view.Invoices[0].Reference, amount);
+        if (prepared)
+        {
+            On(6, 20);
+            await Scan(app, view.AccountId);
+        }
+        On(7, 1);
+        var due = await View(app, board, id);
+
+        Assert.True(due.Membership.Active);
+        Assert.All(due.Subscriptions, x => Assert.True(x.Standing.Active));
+        await Scan(app, view.AccountId);
+        view = await View(app, board, id);
+        var renewals = view.Invoices.SelectMany(x => x.Lines).Where(x => x.Line.Purpose == PurchasePurpose.Renewal).ToList();
+
+        Assert.Equal(service ? 2 : 1, renewals.Count);
+        Assert.All(renewals, x => Assert.Equal(new DateOnly(2026, 7, 2), x.Line.ExpiresOn));
+        Assert.All(renewals, x => Assert.Null(x.Line.GraceNotifiedAt));
+        await Pay(app, view.Invoices.Single(x => x.Invoice.ClosedAt is null).Reference, amount);
+        view = await View(app, board, id);
+
+        Assert.All(view.Invoices.SelectMany(x => x.Lines), x => Assert.Equal(LineState.Fulfilled, x.Line.State));
+        Assert.Contains(view.Coverage, x => x.StartsOn == new DateOnly(2026, 7, 1) && x.EndsOn == new DateOnly(2026, 8, 1));
+        Assert.Equal(new Balances(0, 0, 0), view.Balances);
     }
 
     [Fact]
@@ -343,8 +497,8 @@ public sealed class BillingTests : MembershipTest
 
         Assert.Equal(new DateOnly(2026, 3, 30), serviceLine.StartsOn);
         Assert.Equal(new DateOnly(2026, 5, 1), serviceLine.EndsOn);
-        Assert.Equal(new DateOnly(2026, 3, 24), serviceLine.ExpiresOn);
-        On(3, 24);
+        Assert.Equal(new DateOnly(2026, 3, 25), serviceLine.ExpiresOn);
+        On(3, 25);
         await Scan(app, account);
         view = await View(app, board, id);
 
@@ -524,6 +678,46 @@ public sealed class BillingTests : MembershipTest
     }
 
     [Fact]
+    [Trait("Acceptance", "JOB")]
+    public async Task Billing_due_work_isolates_a_broken_account_and_processes_later_accounts()
+    {
+        On(6, 1);
+        var board = await Board();
+        await using var app = CommandsApp();
+        var broken = await Admit(app, board, "broken@example.test");
+        var good = await Admit(app, board, "good@example.test");
+        var brokenView = await View(app, board, broken);
+        var goodView = await View(app, board, good);
+        await Pay(app, goodView.Invoices[0].Reference, 10);
+        await using (var db = Context())
+        {
+            var operation = new BillingOperation { Id = Guid.NewGuid(), BillingAccountId = brokenView.AccountId, Kind = "test-corruption", OccurredAt = Clock.Now };
+            db.BillingOperations.Add(operation);
+            db.MoneyMovements.Add(new()
+            {
+                BillingAccountId = brokenView.AccountId,
+                OperationId = operation.Id,
+                Kind = MovementKind.BillingToPurchase,
+                Amount = 1m,
+                EffectiveOn = new DateOnly(2026, 6, 1)
+            });
+            await db.SaveChangesAsync();
+        }
+        On(6, 20);
+        await using var scope = app.Services.CreateAsyncScope();
+        var job = ActivatorUtilities.CreateInstance<BillingDueWorkJob>(scope.ServiceProvider);
+
+        await Assert.ThrowsAsync<AggregateException>(() => job.Execute(null!).AsTask());
+        await using var check = Context();
+        var renewal = await (from line in check.InvoiceLines
+                             join invoice in check.Invoices on line.InvoiceId equals invoice.Id
+                             where invoice.BillingAccountId == goodView.AccountId && line.StartsOn == new DateOnly(2026, 7, 1)
+                             select line).AnyAsync();
+
+        Assert.True(renewal);
+    }
+
+    [Fact]
     [Trait("Acceptance", "ERASE")]
     public async Task Pending_deletion_receipts_stay_in_review_after_restoration_and_erasure_preserves_the_unspent_claim()
     {
@@ -554,8 +748,13 @@ public sealed class BillingTests : MembershipTest
         Assert.Equal("New Member", retained.ClaimName);
         Assert.Equal(Email, retained.ClaimEmail);
         var financial = await Run(app, sp => sp.GetRequiredService<BillingQueries>().Account(board, account));
+        var claims = await Run(app, sp => sp.GetRequiredService<BillingQueries>().Claims(board));
+        var claim = Assert.Single(claims);
 
         Assert.Equal(new Balances(5, 20, 0), financial.Balances);
+        Assert.Equal(account, claim.AccountId);
+        Assert.Equal(5m, claim.BillingCredit);
+        Assert.Equal(20m, claim.PurchaseBalance);
         Assert.Empty(await db.RecurringItems.ToListAsync());
         Assert.Empty(await db.ServiceEnrollments.ToListAsync());
         var rejoined = await Admit(app, board);
@@ -713,6 +912,102 @@ public sealed class BillingTests : MembershipTest
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Run(app, sp => sp.GetRequiredService<BillingQueries>().Review(Actor(id))));
     }
 
+    [Fact]
+    [Trait("Acceptance", "BILL")]
+    public async Task One_off_due_date_is_inclusive_and_the_following_day_is_late()
+    {
+        On(6, 1);
+        var board = await Board();
+        await using var app = CommandsApp();
+        var id = await Admit(app, board);
+        var view = await View(app, board, id);
+        var firstId = await Run(app, sp => sp.GetRequiredService<BillingCommands>().OneOff(board, view.AccountId, Guid.NewGuid(),
+            "Workshop", "workshop", 12.50m, new(2026, 6, 20)));
+        var secondId = await Run(app, sp => sp.GetRequiredService<BillingCommands>().OneOff(board, view.AccountId, Guid.NewGuid(),
+            "Repair", "repair", 12.50m, new(2026, 6, 20)));
+        var oneOffs = (await View(app, board, id)).Invoices;
+        var first = oneOffs.Single(x => x.Invoice.Id == firstId);
+        var second = oneOffs.Single(x => x.Invoice.Id == secondId);
+        On(6, 20);
+        await Pay(app, first.Reference, 12.50m, new(2026, 6, 20));
+        On(6, 21);
+        await Pay(app, second.Reference, 12.50m, new(2026, 6, 21));
+        view = await View(app, board, id);
+
+        Assert.Equal(LineState.Fulfilled, view.Invoices.Single(x => x.Invoice.Id == firstId).Lines.Single().Line.State);
+        Assert.Equal(LineState.Expired, view.Invoices.Single(x => x.Invoice.Id == secondId).Lines.Single().Line.State);
+        Assert.Equal(12.50m, view.Balances.BillingCredit);
+        Assert.Equal(0m, view.Balances.Held);
+    }
+
+    [Fact]
+    [Trait("Acceptance", "DATE")]
+    public async Task Upgrade_extends_only_open_exclusive_deadlines_and_preserves_closed_purchases()
+    {
+        On(6, 1);
+        var board = await Board();
+        await using var app = CommandsApp();
+        var id = await Admit(app, board);
+        var view = await View(app, board, id);
+        await using var db = Context();
+        await db.GetService<IMigrator>().MigrateAsync("20261031185213_BillingMovementEffectiveIndex");
+        var invoices = new Dictionary<LineState, long>();
+        foreach (var state in Enum.GetValues<LineState>())
+        {
+            var invoiceId = (await Run(app, sp => sp.GetRequiredService<BillingCommands>().OneOff(board, view.AccountId,
+                Guid.NewGuid(), "Workshop", "workshop", 12.50m, new(2026, 6, 20))))!.Value;
+            invoices.Add(state, invoiceId);
+            if (state == LineState.Fulfilled)
+            {
+                var invoice = (await View(app, board, id)).Invoices.Single(x => x.Invoice.Id == invoiceId);
+                await Pay(app, invoice.Reference, 12.50m);
+            }
+            if (state == LineState.Cancelled)
+                await Run(app, sp => sp.GetRequiredService<BillingCommands>().CancelInvoice(board, view.AccountId, invoiceId,
+                    Guid.NewGuid(), "Cancelled workshop"));
+        }
+        var legacy = await db.InvoiceLines.ToListAsync();
+        foreach (var line in legacy)
+        {
+            line.ExpiresOn = line.ChargeDueOn;
+            if (line.InvoiceId == invoices[LineState.Expired])
+            {
+                line.State = LineState.Expired;
+                (await db.Invoices.SingleAsync(x => x.Id == line.InvoiceId)).ClosedAt = Clock.Now;
+            }
+        }
+        await db.SaveChangesAsync();
+        // Already-inclusive requests must not gain another day on upgrade.
+        await Run(app, sp => sp.GetRequiredService<BillingCommands>().OneOff(board, view.AccountId, Guid.NewGuid(),
+            "Inclusive workshop", "workshop", 5m, new(2026, 6, 20)));
+        db.ChangeTracker.Clear();
+        var before = await db.InvoiceLines.AsNoTracking().ToListAsync();
+
+        await db.Database.MigrateAsync();
+        await db.Database.MigrateAsync();
+        var after = await db.InvoiceLines.AsNoTracking().ToDictionaryAsync(x => x.Id);
+
+        foreach (var line in before)
+        {
+            var expectedExpiry = line.State == LineState.Open && line.ExpiresOn <= line.ChargeDueOn
+                ? line.ChargeDueOn.AddDays(1) : line.ExpiresOn;
+            Assert.Equal(expectedExpiry, after[line.Id].ExpiresOn);
+            Assert.Equal(line.State, after[line.Id].State);
+            Assert.Equal(line.ChargeDueOn, after[line.Id].ChargeDueOn);
+            Assert.Equal(line.StartsOn, after[line.Id].StartsOn);
+            Assert.Equal(line.EndsOn, after[line.Id].EndsOn);
+            Assert.Equal(line.Amount, after[line.Id].Amount);
+        }
+        On(6, 20);
+        var payable = (await View(app, board, id)).Invoices.Single(x => x.Invoice.Id == invoices[LineState.Open]);
+        await Pay(app, payable.Reference, payable.Remaining);
+        var settled = (await View(app, board, id)).Invoices.Single(x => x.Invoice.Id == payable.Invoice.Id);
+
+        Assert.Equal(LineState.Fulfilled, Assert.Single(settled.Lines).Line.State);
+        Assert.Equal(12.50m, settled.Paid);
+        Assert.Equal(0m, (await Run(app, sp => sp.GetRequiredService<BillingQueries>().Reconcile(board))).Difference);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -777,6 +1072,32 @@ public sealed class BillingTests : MembershipTest
         Assert.Equal(0m, reconciliation.Difference);
         Assert.Empty(reconciliation.InvalidLines);
         Assert.Empty(reconciliation.InvalidReceipts);
+    }
+
+    [Fact]
+    [Trait("Acceptance", "BILL")]
+    public async Task Renewal_grace_is_a_typed_state_not_a_display_string()
+    {
+        On(6, 1);
+        var board = await Board();
+        await using var app = CommandsApp();
+        var id = await Admit(app, board);
+        var view = await View(app, board, id);
+        await Pay(app, view.Invoices[0].Reference, 10);
+        On(6, 20);
+        await Scan(app, view.AccountId);
+        On(7, 1);
+        await Scan(app, view.AccountId);
+        view = await View(app, board, id);
+
+        Assert.All(view.Invoices.SelectMany(x => x.Lines), x => Assert.Null(x.Line.GraceNotifiedAt));
+        On(7, 2);
+        await Scan(app, view.AccountId);
+        view = await View(app, board, id);
+
+        Assert.True(view.Membership.Active);
+        Assert.True(view.Membership.IsRenewalGrace);
+        Assert.NotNull(Assert.Single(view.Invoices.SelectMany(x => x.Lines), x => x.Line.State == LineState.Open).Line.GraceNotifiedAt);
     }
 
     [Fact]
@@ -922,6 +1243,29 @@ public sealed class BillingTests : MembershipTest
     }
 
     [Fact]
+    [Trait("Acceptance", "MAIL")]
+    public async Task Invoice_render_failure_moves_the_delivery_to_review_instead_of_retrying()
+    {
+        Settings["Billing:Iban"] = "FI2112345600000785";
+        var templates = Path.Combine(DirectoryPath, "broken-invoice");
+        Directory.CreateDirectory(templates);
+        await File.WriteAllTextAsync(Path.Combine(templates, "lasku.typ"), "#panic(\"broken template\")");
+        Settings["Billing:TemplateDirectory"] = templates;
+        On(6, 1);
+        var board = await Board();
+        var transport = new RecordingMail();
+        await using var app = CommandsApp(transport);
+        var id = await Admit(app, board);
+        await using var db = Context();
+        var delivery = await db.Deliveries.SingleAsync(x => x.UserId == id && x.Kind == MailKind.Invoice);
+        await Run(app, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(delivery.Id));
+        await Run(app, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(delivery.Id));
+
+        Assert.Empty(transport.Sent);
+        Assert.Equal(DeliveryState.Review, (await db.Deliveries.AsNoTracking().SingleAsync(x => x.Id == delivery.Id)).State);
+    }
+
+    [Fact]
     public async Task Typst_renders_generic_barcode_invoice_and_mail_checks_revision_preference_and_ownership()
     {
         Settings["Billing:Iban"] = "FI2112345600000785";
@@ -941,6 +1285,7 @@ public sealed class BillingTests : MembershipTest
         Assert.StartsWith("%PDF-", System.Text.Encoding.ASCII.GetString(pdf[..8]));
         Assert.True(pdf.Length > 1000);
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Run(app, sp => sp.GetRequiredService<InvoicePdf>().ForMember(Actor(other), invoice)));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => Run(app, sp => sp.GetRequiredService<InvoicePdf>().ForMember(Actor(id), long.MaxValue)));
         await using var db = Context();
         var delivery = await db.Deliveries.SingleAsync(x => x.InvoiceId == invoice && x.Kind == MailKind.Invoice);
         await Run(app, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(delivery.Id));
@@ -1109,7 +1454,8 @@ public sealed class BillingTests : MembershipTest
         var line = Assert.Single(invoice.Lines).Line;
 
         Assert.Equal(LineState.Expired, line.State);
-        Assert.Equal(new DateOnly(2026, 6, 15), line.ExpiresOn);
+        Assert.Equal(new DateOnly(2026, 6, 15), line.ChargeDueOn);
+        Assert.Equal(new DateOnly(2026, 6, 16), line.ExpiresOn);
         Assert.NotNull(invoice.Invoice.ClosedAt);
         Assert.DoesNotContain(await db.Deliveries.ToListAsync(), x => x.Kind == MailKind.Invoice);
     }

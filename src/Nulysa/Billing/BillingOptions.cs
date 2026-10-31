@@ -19,6 +19,19 @@ public sealed class BillingOptions
     public string TypstPath { get; set; } = "typst";
     public string? TemplateDirectory { get; set; }
 
+    public static bool TemplatesExist(string? configured)
+        => Directory.Exists(configured ?? Path.Combine(AppContext.BaseDirectory, "Billing", "Templates"));
+
+    public static bool TypstAvailable(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+            return false;
+        if (Path.IsPathRooted(path) || path.Contains(Path.DirectorySeparatorChar) || path.Contains(Path.AltDirectorySeparatorChar))
+            return File.Exists(path);
+        var directories = (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries);
+        return directories.Any(directory => File.Exists(Path.Combine(directory, path)));
+    }
+
     public static bool ValidIban(string value)
     {
         var iban = PaymentReference.Normalize(value);

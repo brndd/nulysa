@@ -547,7 +547,7 @@ record exists before approval.
   handling retains the intended day as specified in phase 2, including using
   February's last available day in leap and non-leap years.
 - Send the invoice ahead of its due date, for example two weeks beforehand.
-- If the membership line is unpaid when due, its overdue grace begins, for example
+- If the membership line is unpaid after its due date, its overdue grace begins, for example
   one week. Membership remains active throughout this grace period despite the
   invoice being overdue.
 - Notify the member when the grace period begins and when it ends.
@@ -565,7 +565,7 @@ bringing forward membership's grace or expiry.
 | Event | Illustrative timing | Notice and membership effect |
 | --- | --- | --- |
 | Invoice sent | Due date minus 14 days | Invoice/payment notice. |
-| Invoice becomes overdue; grace begins | Due date | Grace-start notice; membership remains active. |
+| Invoice becomes overdue; grace begins | Day after due date | Grace-start notice; membership remains active. |
 | Grace ends | Due date plus 7 days | Grace-end notice; membership becomes inactive and membership billing pauses. |
 | Membership terminated by administrator | Manual decision, not a timer | Mark account for deletion and send final warning; no separate retained terminated state. |
 
@@ -734,7 +734,7 @@ application --rejection--> rejection email, then applicant data permanently dele
 new member: welcome with set-password link + initial invoice
 new member: first period starts at approval
 new member: active during initial grace until membership charge's own due boundary
-initial grace --unpaid at initial due date--> inactive member (no renewal grace)
+initial grace --unpaid after initial due date--> inactive member (no renewal grace)
 
 member --recurring invoice overdue--> active member in grace period
 active member in grace period --unpaid at grace expiry--> inactive member
@@ -784,14 +784,14 @@ is no persistent terminated account state between membership and deletion.
   invoice's earlier public date for another charge does not shorten that grace.
 - If approved on 1 June and paying on 10 June during initial grace, the first
   monthly paid period covers 1 June to 1 July; payment does not shift it.
-- If the membership line remains unpaid at its due date, membership becomes inactive and
+- If the membership line remains unpaid after its due date, membership becomes inactive and
   billing pauses immediately, without an additional renewal grace period.
 - Any later overdue restrictions or termination follow separately specified
   rules; unpaid status does not undo the fact that approval established membership.
 
 ### Acceptance example: renewal overdue but still active during grace
 
-- Given an unpaid recurring membership invoice reaching its due date,
+- Given an unpaid recurring membership invoice past its due date,
 - when the grace period begins,
 - the member receives a grace-start notice and remains active during that period.
 - Being overdue alone must not prematurely apply the inactive-membership state.
@@ -1228,6 +1228,10 @@ as unanswered policy or erase financial events to update a bill.
 
 **Confirmed distinction**
 
+- Payment due dates are inclusive for all charges. A bank receipt booked on the
+  due date may settle the original request, even if imported later. Exclusive
+  expiry cannot precede the following day, including zero-renewal-grace charges.
+  Longer renewal-grace cutoffs are unchanged; coverage period ends remain exclusive.
 - A charge's own due/renewal boundary governs nonpayment grace or inactivity under
   its applicable membership/service rules. One invoice-visible due date summarises
   the earliest relevant unfinished-charge date; it is not an invoice-wide lifecycle

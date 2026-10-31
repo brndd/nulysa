@@ -17,7 +17,8 @@ WebAssembly client or global interactive circuit.
   [policy examples](AGENTS/POLICY_REVIEW.md), [remaining work](AGENTS/OPEN_QUESTIONS.md).
 - [Foundation evidence and limits](docs/foundations.md),
   [S1 membership/mail](docs/membership.md), [S2 billing/configuration](docs/billing.md),
-  [operations runbook](docs/operations.md), [OIDC configuration](docs/oidc-reference.md).
+  [operations runbook](docs/operations.md), [OIDC configuration](docs/oidc-reference.md),
+  [performance follow-ups](docs/performance-followups.md).
 
 ## Host development
 

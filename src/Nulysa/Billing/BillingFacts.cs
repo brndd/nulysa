@@ -7,7 +7,10 @@ using Nulysa.Services;
 namespace Nulysa.Billing;
 
 public sealed record Balances(decimal BillingCredit, decimal PurchaseBalance, decimal Held);
-public sealed record Standing(bool Active, string Description, DateOnly? Until, DateOnly? InactiveSince = null);
+public sealed record Standing(bool Active, string Description, DateOnly? Until, DateOnly? InactiveSince = null)
+{
+    public bool IsRenewalGrace { get; init; }
+}
 
 // One locked account's facts. Amounts are derived from the journal, never stored counters.
 internal sealed class BillingFacts
@@ -53,18 +56,23 @@ internal sealed class BillingFacts
     }
 
     public Balances Balances => new(
-        Movements.Sum(x => x.Kind switch
-        {
-            MovementKind.ReceiptToBilling or MovementKind.LineToBilling or MovementKind.PurchaseToBilling or MovementKind.PurchaseCredit => x.Amount,
-            MovementKind.BillingToLine or MovementKind.BillingToPurchase or MovementKind.BillingRefund or MovementKind.BillingReceiptReversal => -x.Amount,
-            _ => 0
-        }),
-        Movements.Sum(x => x.Kind switch
-        {
-            MovementKind.ReceiptToPurchase or MovementKind.BillingToPurchase => x.Amount,
-            MovementKind.PurchaseToBilling or MovementKind.PurchaseRefund or MovementKind.PurchaseReceiptReversal => -x.Amount,
-            _ => 0
-        }), Lines.Sum(Held));
+        Movements.Sum(x => BillingBalanceDelta(x.Kind) * x.Amount),
+        Movements.Sum(x => PurchaseBalanceDelta(x.Kind) * x.Amount),
+        Lines.Sum(Held));
+
+    internal static decimal BillingBalanceDelta(MovementKind kind) => kind switch
+    {
+        MovementKind.ReceiptToBilling or MovementKind.LineToBilling or MovementKind.PurchaseToBilling or MovementKind.PurchaseCredit => 1,
+        MovementKind.BillingToLine or MovementKind.BillingToPurchase or MovementKind.BillingRefund or MovementKind.BillingReceiptReversal => -1,
+        _ => 0
+    };
+
+    internal static decimal PurchaseBalanceDelta(MovementKind kind) => kind switch
+    {
+        MovementKind.ReceiptToPurchase or MovementKind.BillingToPurchase => 1,
+        MovementKind.PurchaseToBilling or MovementKind.PurchaseRefund or MovementKind.PurchaseReceiptReversal => -1,
+        _ => 0
+    };
 
     public decimal Held(InvoiceLine line) => Movements
         .Where(x => x.InvoiceLineId == line.Id)
@@ -100,26 +108,27 @@ internal sealed class BillingFacts
             .OrderByDescending(x => x.ExpiresOn)
             .FirstOrDefault();
         if (graceLine is not null)
-            return new(true, "Active during grace", graceLine.ExpiresOn);
+            return new(true, "Active during grace", graceLine.ExpiresOn) { IsRenewalGrace = true };
 
         var previousPeriod = coverage
             .Where(x => x.Benefit == Benefit.Membership && x.EndsOn <= on)
             .OrderByDescending(x => x.EndsOn)
             .FirstOrDefault();
+        var renewalExpiresOn = previousPeriod?.EndsOn.AddDays(Math.Max(1, graceDays));
         var withinRenewalGrace = previousPeriod is not null
-            && on < previousPeriod.EndsOn.AddDays(graceDays)
+            && on < renewalExpiresOn
             && renewing;
         var renewalWasCancelled = previousPeriod is not null && lines.Any(x =>
             x.Benefit == Benefit.Membership
             && x.StartsOn == previousPeriod.EndsOn
             && x.State is LineState.Cancelled or LineState.Expired);
         if (withinRenewalGrace && !renewalWasCancelled)
-            return new(true, "Active during grace", previousPeriod!.EndsOn.AddDays(graceDays));
+            return new(true, "Active during grace", renewalExpiresOn) { IsRenewalGrace = true };
 
         var inactiveSince = lines
             .Where(x => x.Benefit == Benefit.Membership && x.Purpose != PurchasePurpose.Resumption && x.ExpiresOn <= on && x.State != LineState.Fulfilled)
             .Select(x => (DateOnly?)x.ExpiresOn)
-            .Append(previousPeriod?.EndsOn.AddDays(graceDays))
+            .Append(renewalExpiresOn)
             .Where(x => x <= on)
             .Max();
         return new(false, "Inactive — membership continues; billing paused", null, inactiveSince);
@@ -164,6 +173,6 @@ internal sealed class BillingFacts
             .Where(x => x.Benefit == Benefit.Service && x.ServiceDefinitionId == enrollment.ServiceDefinitionId && x.StartsOn <= on)
             .OrderByDescending(x => x.EndsOn)
             .FirstOrDefault();
-        return lastCoverage?.EndsOn.AddDays(Services.Single(x => x.Id == enrollment.ServiceDefinitionId).RenewalGraceDays);
+        return lastCoverage?.EndsOn.AddDays(Math.Max(1, Services.Single(x => x.Id == enrollment.ServiceDefinitionId).RenewalGraceDays));
     }
 }

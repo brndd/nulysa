@@ -3,7 +3,16 @@
 S2 extends the S0/S1 application, not a second billing system. Approval now creates
 the actual initial membership invoice and queues its PDF alongside welcome mail.
 Standing derives from dated coverage and per-charge grace, not an unpaid-invoice
-flag. Requests expire without debt. Dates are start-inclusive/end-exclusive.
+flag. Requests expire without debt. Coverage periods are start-inclusive/end-exclusive.
+Payment due dates are inclusive: a receipt booked on the due date can fund the
+original request, including initial membership, returns, services and one-offs.
+Expiry is an exclusive cutoff, no earlier than the following day; any longer
+renewal grace keeps its existing cutoff. Overdue notices begin after the due date.
+
+The `InclusiveBillingDueDates` migration extends only open requests whose old
+expiry was on or before their due date. Already-inclusive windows and completed,
+cancelled or expired purchases stay unchanged. Downgrading does not shorten the
+extended windows. Stop old workers before this release's migration.
 
 ## Local walkthrough
 
@@ -35,6 +44,8 @@ approval**; a missing price rolls back approval, including its mail intents.
 3. Use `/admin/members/{user-id}/billing` to add an admin-only service. The unchecked
    free-days exception is an explicit, retry-safe grant for a returning subscriber.
    Stopping renewal preserves purchased/granted time; immediate removal is separate.
+   Retirement prevents new subscriptions, but existing subscriptions remain visible
+   with stop-renewal/member and immediate-removal/administrator controls.
 4. At `/admin/payments`, manually import a **synthetic** confirmed bank transaction
    with its stable source/account/transaction ID and actual booked date. Use the
    invoice's recurring-group reference, not the purchase-deposit reference. Partial

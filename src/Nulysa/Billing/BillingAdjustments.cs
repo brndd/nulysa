@@ -7,7 +7,7 @@ using Nulysa.Services;
 
 namespace Nulysa.Billing;
 
-public sealed record ServiceInput(string Code, string Name, bool SelfSubscriptionAllowed, int InitialFreeDays, int RenewalGraceDays, int Priority, string Category);
+public sealed record ServiceInput(string Code, string Name, bool SelfSubscriptionAllowed, int InitialFreeDays, int RenewalGraceDays, int Priority, string Category, bool Retired = false);
 
 public sealed partial class BillingCommands
 {
@@ -41,7 +41,8 @@ public sealed partial class BillingCommands
                 OriginalStartsOn = clock.Today,
                 OriginalEndsOn = dueOn,
                 ChargeDueOn = dueOn,
-                ExpiresOn = dueOn
+                // Due dates are inclusive; the request expires at the start of the next day.
+                ExpiresOn = dueOn.AddDays(1)
             };
             facts.Lines.Add(line);
             db.InvoiceLines.Add(line);
@@ -210,6 +211,7 @@ public sealed partial class BillingCommands
         service.InitialFreeDays = input.InitialFreeDays;
         service.RenewalGraceDays = input.RenewalGraceDays;
         service.Priority = input.Priority;
+        service.Retired = input.Retired;
         await db.SaveChangesAsync(ct);
 
         var fee = await db.Fees.SingleOrDefaultAsync(x => x.ServiceDefinitionId == service.Id, ct);

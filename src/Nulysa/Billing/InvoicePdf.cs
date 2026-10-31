@@ -15,7 +15,8 @@ public sealed class InvoicePdf(AppDbContext db, IOptions<BillingOptions> options
 
     public async Task<byte[]> ForMember(ClaimsPrincipal actor, long invoiceId, CancellationToken ct = default)
     {
-        var invoice = await db.Invoices.AsNoTracking().SingleAsync(x => x.Id == invoiceId, ct);
+        var invoice = await db.Invoices.AsNoTracking().SingleOrDefaultAsync(x => x.Id == invoiceId, ct)
+            ?? throw new KeyNotFoundException("Invoice not found.");
         var account = await db.BillingAccounts.AsNoTracking().SingleAsync(x => x.Id == invoice.BillingAccountId, ct);
         await Authority.RequireOwnerOrAdministrator(db, actor, account.UserId ?? 0, ct);
         return await Render(invoiceId, null, ct) ?? throw new InvalidOperationException("Invoice changed during rendering; reload and try again.");

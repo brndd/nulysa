@@ -143,6 +143,7 @@ public static class BillingMapping
             e.HasOne<InvoiceLine>().WithMany().HasForeignKey(x => x.InvoiceLineId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne<Discount>().WithMany().HasForeignKey(x => x.DiscountId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne<MoneyMovement>().WithOne().HasForeignKey<MoneyMovement>(x => x.ReversesMovementId).OnDelete(DeleteBehavior.Restrict);
+            e.HasIndex(x => x.EffectiveOn);
             e.Property(x => x.Amount).HasPrecision(18, 2);
             e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(30);
             e.ToTable(t =>

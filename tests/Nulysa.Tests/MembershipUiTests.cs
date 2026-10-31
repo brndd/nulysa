@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Playwright;
+using Nulysa.Billing;
 using Nulysa.Communications;
 using Nulysa.Membership;
 
@@ -11,6 +12,59 @@ namespace Nulysa.Tests;
 [Trait("Group", "Membership")]
 public sealed class MembershipFormTests : MembershipTest
 {
+    [Fact]
+    public async Task Retired_subscriptions_keep_member_stop_and_administrator_removal_controls()
+    {
+        var board = await Board();
+        await using var commands = CommandsApp();
+        var id = await Admit(commands, board);
+        var view = (await Run(commands, sp => sp.GetRequiredService<BillingQueries>().Member(board, id)))!;
+        var service = await Run(commands, sp => sp.GetRequiredService<BillingCommands>().ConfigureService(board, null,
+            new("door", "Retired door", true, 0, 7, 10, "door")));
+        await using var db = Context();
+        var fee = await db.Fees.SingleAsync(x => x.ServiceDefinitionId == service);
+        await Run(commands, sp => sp.GetRequiredService<BillingCommands>().SetPrice(board, fee.Id, new(2000, 1, 1), 30));
+        var enrollment = await Run(commands, sp => sp.GetRequiredService<BillingCommands>().Subscribe(Actor(id), view.AccountId, service, 1, false, Guid.NewGuid()));
+        await Run(commands, sp => sp.GetRequiredService<BillingCommands>().Import(new("test", "association", "paid", 40, "EUR",
+            DateOnly.FromDateTime(Clock.Now.DateTime), view.Invoices[0].Reference)));
+        await Run(commands, sp => sp.GetRequiredService<BillingCommands>().ConfigureService(board, service,
+            new("door", "Retired door", true, 0, 7, 10, "door", Retired: true)));
+        var token = await PasswordToken(commands, id);
+        await Run(commands, sp => sp.GetRequiredService<Nulysa.Accounts.AccountCommands>().SetPassword(id, token, Password));
+        await using var app = await StartProvider();
+        using var member = Client();
+        await Login(member);
+
+        var html = await member.GetStringAsync("billing");
+
+        Assert.Contains("<h3>Retired door</h3>", html);
+        Assert.Contains("Stop renewal; keep remaining covered time", html);
+        Assert.DoesNotContain($"subscribe-{service}", html);
+        Assert.DoesNotContain("Remove immediately", html);
+        using var administrator = Client();
+        await Login(administrator, "board@example.test");
+        var adminHtml = await administrator.GetStringAsync($"admin/members/{id}/billing");
+
+        Assert.Contains("Remove immediately", adminHtml);
+        var antiforgery = Regex.Match(html, "<input(?=[^>]*name=\"__RequestVerificationToken\")(?=[^>]*value=\"([^\"]+)\")[^>]*>");
+        var response = await member.PostAsync("billing", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["_handler"] = $"stop-{service}",
+            ["__RequestVerificationToken"] = WebUtility.HtmlDecode(antiforgery.Groups[1].Value),
+            ["Action.Key"] = Guid.NewGuid().ToString(),
+            ["Action.Id"] = enrollment!.Value.ToString(),
+            ["Action.Name"] = "stop"
+        }));
+        var stopped = await db.ServiceEnrollments.AsNoTracking().SingleAsync(x => x.Id == enrollment);
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.NotNull(stopped.FirstPaidOn);
+        Assert.NotNull(stopped.RenewalStoppedAt);
+        Assert.Null(stopped.EndedAt);
+        Assert.Contains((await Run(commands, sp => sp.GetRequiredService<BillingQueries>().Member(board, id)))!.Coverage,
+            x => x.ServiceDefinitionId == service && x.Source == CoverageSource.Purchase);
+    }
+
     [Fact]
     public async Task Public_and_member_mutations_require_antiforgery_and_private_admin_routes_are_not_a_directory()
     {

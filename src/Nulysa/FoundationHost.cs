@@ -69,7 +69,8 @@ public static class FoundationHost
             try
             { return Results.File(await pdf.ForMember(context.User, id, context.RequestAborted), "application/pdf", $"invoice-{id}.pdf"); }
             catch (UnauthorizedAccessException) { return Results.Forbid(); }
-        }).RequireAuthorization();
+            catch (KeyNotFoundException) { return Results.NotFound(); }
+        }).RequireAuthorization().RequireRateLimiting("invoice-pdf");
         app.MapGet("/admin/payments/export", async (DateOnly start, DateOnly end, HttpContext context, BillingQueries queries) =>
         {
             if (end <= start)
@@ -139,7 +140,9 @@ public static class FoundationHost
             .Validate(x => x.AllowedIntervals.Length > 0 && x.AllowedIntervals.All(i => i is >= 1 and <= 120) && x.AllowedIntervals.Contains(x.DefaultIntervalMonths) &&
                 x.InvoiceLeadDays is >= 0 and <= 365 && x.InitialMembershipGraceDays is >= 1 and <= 365 &&
                 x.MembershipRenewalGraceDays is >= 0 and <= 365 && x.ServicePaymentWindowDays is >= 1 and <= 365 &&
-                (x.TemplateDirectory is null || Path.IsPathFullyQualified(x.TemplateDirectory)), "Invalid billing timing/template settings.")
+                (x.TemplateDirectory is null || Path.IsPathFullyQualified(x.TemplateDirectory)) &&
+                BillingOptions.TemplatesExist(x.TemplateDirectory) && BillingOptions.TypstAvailable(x.TypstPath),
+                "Invalid billing timing/template/Typst settings.")
             .Validate(x => (development && x.Iban.Length == 0) || BillingOptions.ValidIban(x.Iban), "Billing:Iban must be a checksum-valid payment destination.").ValidateOnStart();
         builder.Services.AddScoped<MailQueue>();
         builder.Services.AddScoped<MailRenderer>();
@@ -219,6 +222,9 @@ public static class FoundationHost
                 options.AddPolicy("verification", context => RateLimitPartition.GetFixedWindowLimiter(
                     context.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ => new FixedWindowRateLimiterOptions
                     { PermitLimit = 20, Window = TimeSpan.FromMinutes(10), QueueLimit = 0 }));
+                options.AddPolicy("invoice-pdf", context => RateLimitPartition.GetFixedWindowLimiter(
+                    context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                    _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
             });
         }
         var oidc = builder.Services.AddOpenIddict().AddCore(options => options.UseEntityFrameworkCore().UseDbContext<AppDbContext>());

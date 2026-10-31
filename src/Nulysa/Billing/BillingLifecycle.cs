@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.Extensions.Logging;
 using Nulysa.Accounts;
 using Nulysa.Communications;
 using Nulysa.Operations;
@@ -76,13 +77,14 @@ public sealed partial class BillingCommands
                 var graceDays = item.MembershipId is not null
                     ? Settings.MembershipRenewalGraceDays
                     : facts.Services.Single(x => x.Id == fee.ServiceDefinitionId).RenewalGraceDays;
-                var shouldStopCatchUp = quote.Amount > 0 && (!membershipIsActive || nextStart.AddDays(graceDays) <= clock.Today);
+                var renewalExpiresOn = nextStart.AddDays(Math.Max(1, graceDays));
+                var shouldStopCatchUp = quote.Amount > 0 && (!membershipIsActive || renewalExpiresOn <= clock.Today);
                 if (shouldStopCatchUp)
                     break;
 
                 var isPeriodStart = BillingCalendar.Containing(group.Anchor, group.IntervalMonths, nextStart).Start == nextStart;
                 var purpose = isPeriodStart ? PurchasePurpose.Renewal : PurchasePurpose.Alignment;
-                await Issue(facts, operation, item, nextStart, purpose, nextStart.AddDays(graceDays), ct);
+                await Issue(facts, operation, item, nextStart, purpose, renewalExpiresOn, ct);
             }
         }
 
@@ -125,7 +127,7 @@ public sealed partial class BillingCommands
 
             var needsGraceNotice = line.Benefit == Benefit.Membership
                 && line.Purpose is not (PurchasePurpose.Initial or PurchasePurpose.Resumption)
-                && clock.Today >= line.ChargeDueOn
+                && clock.Today > line.ChargeDueOn
                 && line.GraceNotifiedAt is null;
             if (needsGraceNotice)
             {
@@ -346,11 +348,13 @@ public sealed partial class BillingCommands
 }
 
 [DisallowConcurrentExecution]
-public sealed class BillingDueWorkJob(IServiceScopeFactory scopes, TimeProvider time, Nulysa.Data.AppDbContext db, Nulysa.Integrations.BankFeed bank) : IJob
+public sealed class BillingDueWorkJob(IServiceScopeFactory scopes, TimeProvider time, Nulysa.Data.AppDbContext db,
+    Nulysa.Integrations.BankFeed bank, ILogger<BillingDueWorkJob> logger) : IJob
 {
     public async ValueTask Execute(IJobExecutionContext context, CancellationToken cancellationToken = default)
     {
         long after = 0;
+        var failures = new List<Exception>();
         while (true)
         {
             var accounts = await db.BillingAccounts.AsNoTracking().Where(x => x.UserId != null && x.Id > after).OrderBy(x => x.Id).Select(x => x.Id).Take(50).ToListAsync(cancellationToken);
@@ -358,12 +362,27 @@ public sealed class BillingDueWorkJob(IServiceScopeFactory scopes, TimeProvider 
                 break;
             foreach (var id in accounts)
             {
-                await using var scope = scopes.CreateAsyncScope();
-                await scope.ServiceProvider.GetRequiredService<BillingCommands>().Scan(id, cancellationToken);
+                try
+                {
+                    await using var scope = scopes.CreateAsyncScope();
+                    await scope.ServiceProvider.GetRequiredService<BillingCommands>().Scan(id, cancellationToken);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception error)
+                {
+                    // One broken account must not stop due work for every account after it.
+                    logger.LogError(error, "Billing due work failed for account {AccountId}.", id);
+                    failures.Add(error);
+                }
             }
             after = accounts[^1];
         }
         await bank.CheckStale(cancellationToken);
         await Observations.Record(db, "billing-due-work", time.GetUtcNow(), cancellationToken);
+        if (failures.Count > 0)
+            throw new AggregateException("Billing due work failed for one or more accounts; the rest were processed.", failures);
     }
 }

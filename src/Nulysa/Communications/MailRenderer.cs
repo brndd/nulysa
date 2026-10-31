@@ -73,7 +73,7 @@ public sealed class MailRenderer(AppDbContext db, UserManager<User> users, Membe
                 var standing = (await BillingFacts.Load(db, account.Id, ct, billingOptions.Value.MembershipRenewalGraceDays)).Membership(clock.Today);
                 if (delivery.Kind == MailKind.MembershipInactive && standing.Active)
                     return null;
-                if (delivery.Kind == MailKind.MembershipGrace && (!standing.Active || standing.Description != "Active during grace"))
+                if (delivery.Kind == MailKind.MembershipGrace && (!standing.Active || !standing.IsRenewalGrace))
                     return null;
 
                 subject = delivery.Kind == MailKind.MembershipInactive ? (fi ? "Jäsenpalvelut keskeytetty" : "Membership benefits paused") : (fi ? "Jäsenmaksun lisäaika" : "Membership payment grace");

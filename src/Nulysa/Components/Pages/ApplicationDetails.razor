@@ -22,7 +22,7 @@ else
         <dt>Message</dt><dd style="white-space: pre-wrap">@application.Message</dd>
     </dl>
     @if (application.DateOfBirth > Clock.Today.AddYears(-18)) { <p><strong>Under 18: handle any parental consent outside this portal. Do not upload consent records.</strong></p> }
-    <p>Approval grants membership and login before payment. Initial billing is recorded but cannot issue an invoice until S2.</p>
+    <p>Approval grants membership and login before payment. The initial membership invoice is created with approval and is payable from the member's billing page.</p>
     @if (error is not null) { <p role="alert">@error</p> }
     <EditForm Model="Input" method="post" FormName="decision" OnValidSubmit="Decide">
         <DataAnnotationsValidator /><ValidationSummary />

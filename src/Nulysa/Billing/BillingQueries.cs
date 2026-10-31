@@ -102,13 +102,6 @@ public sealed class BillingQueries(AppDbContext db, AssociationClock clock, IOpt
         return new(invoice, reference, lines);
     }
 
-    public async Task<InvoiceView> Invoice(ClaimsPrincipal actor, long id, CancellationToken ct = default)
-    {
-        var invoice = await db.Invoices.AsNoTracking().SingleAsync(x => x.Id == id, ct);
-        var view = await Account(actor, invoice.BillingAccountId, ct);
-        return view.Invoices.Single(x => x.Invoice.Id == id);
-    }
-
     public async Task<List<ServiceDefinition>> Services(ClaimsPrincipal actor, CancellationToken ct = default)
     {
         await Authority.RequireOwnerOrAdministrator(db, actor, Authority.Id(actor), ct);
@@ -143,13 +136,27 @@ public sealed class BillingQueries(AppDbContext db, AssociationClock clock, IOpt
     {
         await Authority.RequireAdministrator(db, actor, ct);
         var accounts = await db.BillingAccounts.AsNoTracking().Where(x => x.UserId == null && x.ClaimEmail != null).ToListAsync(ct);
-        var claims = new List<FinancialClaim>();
-        foreach (var account in accounts)
+        if (accounts.Count == 0)
+            return [];
+
+        var ids = accounts.Select(x => x.Id).ToList();
+        var rows = await db.MoneyMovements.AsNoTracking()
+            .Where(x => ids.Contains(x.BillingAccountId))
+            .GroupBy(x => new { x.BillingAccountId, x.Kind })
+            .Select(x => new { x.Key.BillingAccountId, x.Key.Kind, Amount = x.Sum(m => m.Amount) })
+            .ToListAsync(ct);
+        var balances = rows.GroupBy(x => x.BillingAccountId)
+            .ToDictionary(
+                group => group.Key,
+                group => new Balances(
+                    group.Sum(x => BillingFacts.BillingBalanceDelta(x.Kind) * x.Amount),
+                    group.Sum(x => BillingFacts.PurchaseBalanceDelta(x.Kind) * x.Amount),
+                    0));
+        return accounts.Select(account =>
         {
-            var facts = await BillingFacts.Load(db, account.Id, ct);
-            claims.Add(new(account.Id, account.ClaimName, account.ClaimEmail, facts.Balances.BillingCredit, facts.Balances.PurchaseBalance));
-        }
-        return claims;
+            var balance = balances.GetValueOrDefault(account.Id);
+            return new FinancialClaim(account.Id, account.ClaimName, account.ClaimEmail, balance?.BillingCredit ?? 0, balance?.PurchaseBalance ?? 0);
+        }).ToList();
     }
 
     public async Task<Reconciliation> Reconcile(ClaimsPrincipal actor, CancellationToken ct = default)

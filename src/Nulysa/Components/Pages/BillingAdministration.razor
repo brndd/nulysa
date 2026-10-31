@@ -28,7 +28,7 @@
         <p><label for="description">Description</label> <InputText id="description" @bind-Value="OneOff.Description" required /></p>
         <p><label for="category">Category</label> <InputText id="category" @bind-Value="OneOff.Category" required /></p>
         <p><label for="amount">Amount EUR</label> <InputNumber id="amount" @bind-Value="OneOff.Amount" step="0.01" /></p>
-        <p><label for="due">Final payment date</label> <InputDate id="due" @bind-Value="OneOff.DueOn" /></p><button>Issue one-off request</button>
+        <p><label for="due">Due date (payment may arrive on this date)</label> <InputDate id="due" @bind-Value="OneOff.DueOn" /></p><button>Issue one-off request</button>
     </EditForm>
     <h2>Discount or coverage adjustment</h2>
     <p>Future discounts reprice unfinished purchases. Completed purchases retain their original facts; use a reviewed future-discount credit. A whole-month grant extends current coverage and releases holds for now-covered days.</p>

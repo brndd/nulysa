@@ -37,6 +37,18 @@ public sealed class ConfigurationTests : DatabaseTest
     }
 
     [Fact]
+    public async Task Billing_rejects_a_missing_template_directory_or_renderer()
+    {
+        Settings["Billing:TemplateDirectory"] = Path.Combine(DirectoryPath, "missing-invoice-templates");
+        await using (var app = Build("commands"))
+            Assert.Throws<OptionsValidationException>(() => app.Services.GetRequiredService<IOptions<BillingOptions>>().Value);
+        Settings.Remove("Billing:TemplateDirectory");
+        Settings["Billing:TypstPath"] = Path.Combine(DirectoryPath, "missing-typst");
+        await using (var app = Build("commands"))
+            Assert.Throws<OptionsValidationException>(() => app.Services.GetRequiredService<IOptions<BillingOptions>>().Value);
+    }
+
+    [Fact]
     public async Task Membership_and_mail_options_reject_invalid_retention_fallback_URL_and_missing_sender()
     {
         Settings["Membership:DefaultLanguage"] = "sv";
