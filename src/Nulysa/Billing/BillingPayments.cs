@@ -63,14 +63,14 @@ public sealed partial class BillingCommands
     }
 
     public async Task AssignReceipt(ClaimsPrincipal actor, long receiptId, long accountId, long? groupId, bool purchaseDeposit,
-        Guid operation, string reason, CancellationToken ct = default)
+        Guid operation, string reason, CancellationToken ct = default, long? invoiceId = null)
     {
         Reason(reason);
-        await Match(receiptId, actor, accountId, groupId, purchaseDeposit, operation, reason, ct);
+        await Match(receiptId, actor, accountId, groupId, purchaseDeposit, operation, reason, ct, invoiceId);
     }
 
     private async Task Match(long receiptId, ClaimsPrincipal? actor = null, long? manualAccount = null, long? manualGroup = null,
-        bool manualDeposit = false, Guid operationKey = default, string reason = "Reference matching", CancellationToken ct = default)
+        bool manualDeposit = false, Guid operationKey = default, string reason = "Reference matching", CancellationToken ct = default, long? manualInvoice = null)
     {
         var source = await db.Receipts.AsNoTracking().SingleAsync(x => x.Id == receiptId, ct);
         if (actor is null && source.State != ReceiptState.New) return;
@@ -87,10 +87,13 @@ public sealed partial class BillingCommands
         var receipt = await db.Receipts.FromSqlInterpolated($"SELECT * FROM \"Receipts\" WHERE \"Id\" = {receiptId} FOR UPDATE").SingleAsync(ct);
         if (actor is not null) await Authority.RequireAdministrator(db, actor, ct);
         if (actor is null && receipt.State != ReceiptState.New) return;
+        var toDeposit = actor is null ? deposit is not null : manualDeposit;
+        var groupId = actor is null ? group?.Id : manualGroup;
+        var invoiceId = actor is null ? oneOff?.Id : manualInvoice;
+        object input = invoiceId is null ? new { receiptId, accountId, groupId, toDeposit } : new { receiptId, accountId, groupId, toDeposit, invoiceId };
         if (receipt.State == ReceiptState.Posted)
         {
-            if (actor is not null && (facts is null || await Operation(facts, operationKey, "receipt",
-                new { receiptId, accountId, groupId = manualGroup, toDeposit = manualDeposit }, Authority.Id(actor), reason, ct) is not null))
+            if (actor is not null && (facts is null || await Operation(facts, operationKey, "receipt", input, Authority.Id(actor), reason, ct) is not null))
                 throw new ValidationException("This receipt is posted. Reverse an eligible unspent allocation before reassignment.");
             return;
         }
@@ -101,8 +104,8 @@ public sealed partial class BillingCommands
             receipt.ReviewReason = facts?.User is { PendingDeletionAt: not null } ? "Account pending deletion — manual repair required after restoration" : "Unknown reference, unavailable account, outgoing transaction or unsupported currency";
             await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return;
         }
-        var toDeposit = actor is null ? deposit is not null : manualDeposit;
-        var groupId = actor is null ? group?.Id : manualGroup;
+        if (invoiceId is not null && (groupId is not null || toDeposit || !facts.Invoices.Any(x => x.Id == invoiceId && x.BillingGroupId is null)))
+            throw new ValidationException("Select a one-off invoice belonging to this account, without a group or deposit destination.");
         if (groupId is not null && !facts.Groups.Any(x => x.Id == groupId)) throw new ValidationException("The selected group belongs to another account.");
         if (toDeposit && (!Settings.PurchaseBalanceEnabled || groupId is not null))
         {
@@ -110,13 +113,13 @@ public sealed partial class BillingCommands
             receipt.State = ReceiptState.Review; receipt.ReviewReason = "Purchase balance is disabled";
             await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); return;
         }
-        var operation = await Operation(facts, actor is null ? Guid.NewGuid() : operationKey, "receipt", new { receiptId, accountId, groupId, toDeposit }, actor is null ? null : Authority.Id(actor), reason, ct);
+        var operation = await Operation(facts, actor is null ? Guid.NewGuid() : operationKey, "receipt", input, actor is null ? null : Authority.Id(actor), reason, ct);
         if (operation is null) return;
         operation.ResultId = receiptId;
         if (!toDeposit)
         {
             var candidates = facts.Lines.Where(x => x.State == LineState.Expired && receipt.ReceivedOn < x.ExpiresOn &&
-                (groupId is not null ? facts.Invoices.Single(i => i.Id == x.InvoiceId).BillingGroupId == groupId : x.InvoiceId == oneOff?.Id)).ToList();
+                (groupId is not null ? facts.Invoices.Single(i => i.Id == x.InvoiceId).BillingGroupId == groupId : x.InvoiceId == invoiceId)).ToList();
             if (candidates.Any(x => !CanRecover(facts, x)))
             {
                 receipt.State = ReceiptState.Review; receipt.ReviewReason = "Timely delayed receipt conflicts with later allocation or explicit lifecycle changes";
@@ -124,7 +127,7 @@ public sealed partial class BillingCommands
             }
             foreach (var line in candidates) Recover(facts, operation, line);
             var timely = facts.Lines.Where(x => x.State == LineState.Open && receipt.ReceivedOn < x.ExpiresOn &&
-                (groupId is not null ? facts.Invoices.Single(i => i.Id == x.InvoiceId).BillingGroupId == groupId : x.InvoiceId == oneOff?.Id)).Select(x => x.Id).ToHashSet();
+                (groupId is not null ? facts.Invoices.Single(i => i.Id == x.InvoiceId).BillingGroupId == groupId : x.InvoiceId == invoiceId)).Select(x => x.Id).ToHashSet();
             await Expire(facts, operation, scheduler, ct, timely);
             if (groupId is not null && Settings.AutomaticMembershipReactivation && !facts.Membership(receipt.ReceivedOn).Active &&
                 !facts.Lines.Any(x => x.Benefit == Benefit.Membership && x.State == LineState.Open))
@@ -139,7 +142,7 @@ public sealed partial class BillingCommands
         else
         {
             var remaining = receipt.Amount;
-            var invoices = facts.Invoices.Where(x => groupId is not null ? x.BillingGroupId == groupId : actor is null && oneOff is not null ? x.Id == oneOff.Id : false).ToList();
+            var invoices = facts.Invoices.Where(x => groupId is not null ? x.BillingGroupId == groupId : x.Id == invoiceId).ToList();
             foreach (var line in OrderedLines(facts, invoices))
             {
                 if (remaining == 0) break;

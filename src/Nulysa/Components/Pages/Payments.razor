@@ -22,9 +22,16 @@
 <EditForm Model="Review" method="post" FormName="receipt-review" OnValidSubmit="ReviewReceipt"><DataAnnotationsValidator /><ValidationSummary />
     <input type="hidden" name="Review.Key" value="@Review!.Key" />
     <p><label for="receipt-id">Receipt ID</label> <InputNumber id="receipt-id" @bind-Value="Review.Id" /></p>
-    <p><label for="review-purpose">Disposition / purpose</label> <InputSelect id="review-purpose" @bind-Value="Review.Purpose"><option value="ignore">Read / ignore without allocation</option><option value="billing">Member billing credit</option><option value="group">Recurring group</option><option value="deposit">Purchase balance deposit</option></InputSelect></p>
+    <p><label for="review-purpose">Disposition / purpose</label> <InputSelect id="review-purpose" @bind-Value="Review.Purpose">
+        <option value="ignore" selected="@(Review.Purpose == "ignore")">Read / ignore without allocation</option>
+        <option value="billing" selected="@(Review.Purpose == "billing")">Member billing credit</option>
+        <option value="group" selected="@(Review.Purpose == "group")">Recurring group</option>
+        <option value="invoice" selected="@(Review.Purpose == "invoice")">One-off invoice</option>
+        <option value="deposit" selected="@(Review.Purpose == "deposit")">Purchase balance deposit</option>
+    </InputSelect></p>
     <p><label for="account-id">Financial account ID (see member's payments page)</label> <InputNumber id="account-id" @bind-Value="Review.AccountId" /></p>
     <p><label for="group-id">Group ID (group assignment only)</label> <InputNumber id="group-id" @bind-Value="Review.GroupId" /></p>
+    <p><label for="review-invoice-id">Invoice ID (one-off assignment only)</label> <InputNumber id="review-invoice-id" @bind-Value="Review.InvoiceId" /></p>
     <p><label for="review-reason">Reason</label> <InputTextArea id="review-reason" @bind-Value="Review.Reason" required maxlength="1000" /></p>
     <button>Save reviewed disposition</button>
 </EditForm>
@@ -54,7 +61,7 @@
 <ul>@foreach (var claim in claims) { <li><a href="@($"/admin/billing/{claim.AccountId}")">Account #@claim.AccountId</a> · @claim.Name · @claim.Email · billing @claim.BillingCredit EUR · purchase @claim.PurchaseBalance EUR</li> }</ul>
 
 @code {
-    public sealed class ReviewInput { public Guid Key { get; set; } = Guid.NewGuid(); public long Id { get; set; } public string Purpose { get; set; } = "ignore"; public long AccountId { get; set; } public long? GroupId { get; set; } [Required, StringLength(1000)] public string Reason { get; set; } = ""; }
+    public sealed class ReviewInput { public Guid Key { get; set; } = Guid.NewGuid(); public long Id { get; set; } public string Purpose { get; set; } = "ignore"; public long AccountId { get; set; } public long? GroupId { get; set; } public long? InvoiceId { get; set; } [Required, StringLength(1000)] public string Reason { get; set; } = ""; }
     public sealed class ImportInput { [Required, StringLength(40)] public string Source { get; set; } = "bank"; [Required, StringLength(200)] public string SourceAccount { get; set; } = ""; [Required, StringLength(200)] public string ExternalId { get; set; } = ""; public decimal Amount { get; set; } public string Currency { get; set; } = "EUR"; public DateOnly ReceivedOn { get; set; } public string Reference { get; set; } = ""; public string Message { get; set; } = ""; public string Counterparty { get; set; } = ""; }
     [SupplyParameterFromForm(FormName = "receipt-review")] public ReviewInput? Review { get; set; }
     [SupplyParameterFromForm(FormName = "manual-receipt")] public ImportInput? Import { get; set; }
@@ -62,8 +69,9 @@
     protected override async Task OnInitializedAsync() { Review ??= new(); Import ??= new() { ReceivedOn = Clock.Today }; actor = (await Authentication.GetAuthenticationStateAsync()).User; receipts = await Queries.Review(actor); statuses = await Queries.BankStatus(actor); claims = await Queries.Claims(actor); reconciliation = await Queries.Reconcile(actor); }
     private Task ReviewReceipt() => Handle(async () =>
     {
+        if (Review!.Purpose == "invoice" && Review.InvoiceId is null) throw new ValidationException("Choose a one-off invoice ID.");
         if (Review!.Purpose == "ignore") await Commands.IgnoreReceipt(actor, Review.Id, Review.Reason);
-        else if (Review.Purpose is "billing" or "group" or "deposit") await Commands.AssignReceipt(actor, Review.Id, Review.AccountId, Review.Purpose == "group" ? Review.GroupId : null, Review.Purpose == "deposit", Review.Key, Review.Reason);
+        else if (Review.Purpose is "billing" or "group" or "invoice" or "deposit") await Commands.AssignReceipt(actor, Review.Id, Review.AccountId, Review.Purpose == "group" ? Review.GroupId : null, Review.Purpose == "deposit", Review.Key, Review.Reason, invoiceId: Review.Purpose == "invoice" ? Review.InvoiceId : null);
         else throw new ValidationException("Choose a payment purpose.");
     });
     private Task ImportReceipt() => Handle(async () => await Commands.ImportManual(actor, new(Import!.Source, Import.SourceAccount, Import.ExternalId, Import.Amount, Import.Currency, Import.ReceivedOn, Import.Reference, Import.Message, Import.Counterparty)));

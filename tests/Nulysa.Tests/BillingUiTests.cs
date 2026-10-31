@@ -97,6 +97,23 @@ public sealed class BillingBrowserTests : MembershipTest
         var download = await page.RunAndWaitForDownloadAsync(() => page.GetByRole(AriaRole.Link, new() { Name = "Download current PDF" }).First.ClickAsync());
         var path = Path.Combine(DirectoryPath, "browser-invoice.pdf"); await download.SaveAsAsync(path);
         Assert.StartsWith("%PDF-", System.Text.Encoding.ASCII.GetString((await File.ReadAllBytesAsync(path))[..8]));
+        var workshop = await db.Invoices.AsNoTracking().SingleAsync(x => x.OneOffReference != null);
+        await Import("workshop", "unknown-workshop-reference", "5");
+        var workshopReceipt = await db.Receipts.AsNoTracking().SingleAsync(x => x.ExternalId == "workshop");
+        await admin.GetByLabel("Receipt ID", new() { Exact = true }).FillAsync(workshopReceipt.Id.ToString());
+        await admin.GetByLabel("Disposition / purpose").SelectOptionAsync("invoice");
+        await admin.GetByLabel("Financial account ID").FillAsync(view.AccountId.ToString());
+        await admin.GetByLabel("Reason", new() { Exact = true }).FillAsync("Verified workshop payment");
+        await admin.GetByRole(AriaRole.Button, new() { Name = "Save reviewed disposition" }).ClickAsync();
+        await Assertions.Expect(admin.GetByRole(AriaRole.Alert)).ToContainTextAsync("Choose a one-off invoice ID");
+        await Assertions.Expect(admin.GetByLabel("Disposition / purpose")).ToHaveValueAsync("invoice");
+        await admin.GetByLabel("Invoice ID (one-off assignment only)").FillAsync(workshop.Id.ToString());
+        await admin.GetByRole(AriaRole.Button, new() { Name = "Save reviewed disposition" }).ClickAsync();
+        await Assertions.Expect(admin.GetByLabel("Receipt ID", new() { Exact = true })).ToHaveValueAsync("0");
+        Assert.Equal(ReceiptState.Posted, (await db.Receipts.AsNoTracking().SingleAsync(x => x.Id == workshopReceipt.Id)).State);
+        await Assertions.Expect(admin.GetByRole(AriaRole.Row).Filter(new() { HasText = "unknown-workshop-reference" })).ToHaveCountAsync(0);
+        await page.GotoAsync(root + "billing");
+        await Assertions.Expect(page.GetByRole(AriaRole.Row).Filter(new() { HasText = "Workshop" })).ToContainTextAsync("Fulfilled");
         await page.GotoAsync(root + "admin/payments");
         await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Access denied", Exact = true })).ToBeVisibleAsync();
         foreach (var export in new[] { "export", "receipts-export" })

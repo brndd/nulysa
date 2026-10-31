@@ -41,8 +41,10 @@ approval**; a missing price rolls back approval, including its mail intents.
    funding stays held; each fully funded line completes independently. Reimports
    cannot duplicate cash or overwrite source facts.
 5. Unknown references go to review. Assign the member's financial account and
-   billing/group/deposit purpose explicitly, or ignore the item. Names and amounts
-   never guess ownership. Ignoring retains the source fact and survives reimport.
+   billing/group/one-off invoice/deposit purpose explicitly, or ignore the item.
+   One-off assignment requires its invoice ID as well as the financial account.
+   Names and amounts never guess ownership. Ignoring retains the source fact and
+   survives reimport.
 6. `/admin/billing/{account-id}` issues one-off requests and handles reasoned,
    confirmed discounts, whole-month grants, reviewed future-discount credits,
    cancellations, unspent-receipt reversals and completed external refunds.
@@ -162,12 +164,16 @@ MobilePay is not supported by this release; browser returns are never payment pr
 and the full-only `BillingBrowserTests` cover the billing acceptance groups. The
 browser journey exercises actual SSR forms for service/price configuration,
 subscription, invoice preference, partial and unmatched bank payments, explicit
-assignment, deposits/transfers, stop renewal, interval selection, one-off PDFs and
-administrator route denial. Typst is exercised, not mocked, including a custom
-template with an association-local date assertion.
+assignment (including one-off invoices), deposits/transfers, stop renewal, interval
+selection, one-off PDFs and administrator route denial. Typst is exercised, not
+mocked, including a custom template with an association-local date assertion.
 
-The final Release runs passed **92/92 standard tests in 52 seconds** and **112/112
-full tests in 3m 3s**, including Chromium/Keycloak and real workers, with no skips.
+Review regressions cover receipts predating return quotes, adjusted pricing across
+rollover/free coverage, renewal billing after restoration, date-scoped discount
+credits and reviewed one-off payments, including ownership and retry checks.
+
+The final Release runs passed **102/102 standard tests in 58 seconds** and **122/122
+full tests in 3m 14s**, including Chromium/Keycloak and real workers, with no skips.
 Release compilation, formatting, migration-model consistency, launcher/script
 checks and the production-mode container smoke (including pinned Typst) also passed.
 

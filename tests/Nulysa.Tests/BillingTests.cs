@@ -330,6 +330,42 @@ public sealed class BillingTests : MembershipTest
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Run(app, sp => sp.GetRequiredService<BillingQueries>().Review(Actor(id))));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    [Trait("Acceptance", "BILL")]
+    public async Task Reviewed_receipt_targets_a_one_off_invoice_before_recurring_bills_with_ownership_and_retry_checks(bool delayed)
+    {
+        On(6, 1); var board = await Board(); await using var app = CommandsApp(); var id = await Admit(app, board);
+        var view = await View(app, board, id); var other = await Admit(app, board, "other@example.test"); var otherView = await View(app, board, other);
+        var invoiceId = await Run(app, sp => sp.GetRequiredService<BillingCommands>().OneOff(board, view.AccountId, Guid.NewGuid(), "Workshop", "workshop", 12.50m, new(2026, 6, 20)));
+        var receipt = await Pay(app, "missing-reference", 12.50m, new(2026, 6, 1), "workshop");
+        if (delayed) { On(6, 21); await Scan(app, view.AccountId); }
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Run(app, sp => sp.GetRequiredService<BillingCommands>()
+            .AssignReceipt(Actor(id), receipt, view.AccountId, null, false, Guid.NewGuid(), "Not administrator", invoiceId: invoiceId)));
+        await Assert.ThrowsAsync<ValidationException>(() => Run(app, sp => sp.GetRequiredService<BillingCommands>()
+            .AssignReceipt(board, receipt, otherView.AccountId, null, false, Guid.NewGuid(), "Wrong account", invoiceId: invoiceId)));
+        await Assert.ThrowsAsync<ValidationException>(() => Run(app, sp => sp.GetRequiredService<BillingCommands>()
+            .AssignReceipt(board, receipt, view.AccountId, view.Groups.Single().Id, false, Guid.NewGuid(), "Conflicting purpose", invoiceId: invoiceId)));
+        await Assert.ThrowsAsync<ValidationException>(() => Run(app, sp => sp.GetRequiredService<BillingCommands>()
+            .AssignReceipt(board, receipt, view.AccountId, null, false, Guid.NewGuid(), "Not a one-off", invoiceId: view.Invoices[0].Invoice.Id)));
+        await using var db = Context(); Assert.Equal(ReceiptState.Review, (await db.Receipts.AsNoTracking().SingleAsync()).State);
+        Assert.Empty(await db.MoneyMovements.ToListAsync());
+        var key = Guid.NewGuid();
+        async Task Assign(long? target) => await Run(app, sp => sp.GetRequiredService<BillingCommands>()
+            .AssignReceipt(board, receipt, view.AccountId, null, false, key, "Verified workshop payment", invoiceId: target));
+        await Assign(invoiceId); await Assign(invoiceId);
+        await Assert.ThrowsAsync<ValidationException>(() => Assign(null));
+        Assert.Equal(receipt, await Pay(app, "missing-reference", 12.50m, new(2026, 6, 1), "workshop"));
+        var after = await View(app, board, id);
+        Assert.Equal(12.50m, after.Invoices.Single(x => x.Invoice.Id == invoiceId).Paid);
+        Assert.Equal(0m, after.Invoices.Single(x => x.Invoice.Id == view.Invoices[0].Invoice.Id).Paid);
+        Assert.Equal(new Balances(0, 0, 0), after.Balances); Assert.Empty(after.Coverage);
+        Assert.Equal("missing-reference", (await db.Receipts.AsNoTracking().SingleAsync()).Reference);
+        var reconciliation = await Run(app, sp => sp.GetRequiredService<BillingQueries>().Reconcile(board));
+        Assert.Equal(0m, reconciliation.Difference); Assert.Empty(reconciliation.InvalidLines); Assert.Empty(reconciliation.InvalidReceipts);
+    }
+
     [Fact]
     [Trait("Acceptance", "SVC")]
     public async Task Membership_lapse_does_not_freeze_paid_services_and_service_expiry_works_without_a_renewal_invoice()
