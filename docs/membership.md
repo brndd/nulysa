@@ -36,17 +36,16 @@ search members, edit details, show ID-only approval/lifecycle audit, and expose
 pending deletions/mail failures. Members have `/profile` and `/resign`, not a directory.
 Board and superuser policies both check live assignments, not old cookie roles.
 
-## Billing boundary — must be completed in S2
+## Billing handover — completed in S2
 
 Approval atomically creates Identity/member/approval records, an association-local
 joining anchor, a stable `BillingAccount`, an `InitialMembershipRequest`, and queued
-welcome mail. **The request is not an invoice, coverage, grace or payment standing.**
-Pages and welcome mail state that billing is pending S2. No successful placeholder
-invoice method or invented paid-through field exists. S2 must consume this request
-through the reviewed billing path, issue/deliver the real initial invoice, supply
-standing/grace, and extend deletion to close unfinished charges/release holds while
-preserving claims. S1 cannot receive/spend money. Restoration does not reopen the
-cancelled initial request or invent new grace/coverage.
+welcome mail. [S2](billing.md) now consumes that handover in the same transaction,
+issues the real initial invoice and queues its PDF. Standing uses actual coverage
+and charge-specific grace. Deletion closes unfinished charges/releases holds while
+preserving unspent claims. Existing S1 requests are consumed by due work after the
+upgrade; configure a price effective on their original anchor before starting it.
+Cancelled requests are not resurrected. Restoration does not invent grace/coverage.
 
 ## Mail configuration and failure handling
 
@@ -120,8 +119,8 @@ not retain rejected personal data indefinitely while attempting delivery.
 Before production, validate retention/lawful bases for historical IDs and audit reasons,
 and extend the erasure runbook to the mail provider, Keycloak, exports/logs, encrypted backups and
 restore-time deletion replay. Local erasure does not purge external mailboxes/backups.
-Password-guessing protection, production provider/translation validation, S2 billing
-and the later delivery/cutover gates remain mandatory.
+Password-guessing protection, production provider/translation validation and the
+later delivery/cutover gates remain mandatory.
 
 ## Evidence
 

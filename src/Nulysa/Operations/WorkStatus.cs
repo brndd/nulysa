@@ -17,7 +17,7 @@ public static class WorkStatus
         foreach (var name in Schedules.Names)
         {
             var observation = await db.Observations.AsNoTracking().SingleOrDefaultAsync(x => x.Name == name, ct);
-            var maxAge = name switch { "heartbeat" or "membership-due-work" => TimeSpan.FromMinutes(3), "final-deletion" => TimeSpan.FromDays(15), _ => TimeSpan.FromHours(26) };
+            var maxAge = name switch { "heartbeat" or "membership-due-work" or "billing-due-work" => TimeSpan.FromMinutes(3), "final-deletion" => TimeSpan.FromDays(15), _ => TimeSpan.FromHours(26) };
             if (observation is null && name != "final-deletion") issues.Add($"missing_{name}");
             else if (observation is not null && now - observation.LastSeen > maxAge) issues.Add($"stale_{name}");
             var key = new TriggerKey(name, Schedules.Group);

@@ -1,0 +1,50 @@
+@page "/admin/billing-configuration"
+@attribute [Authorize(Policy = "Administrator")]
+@using System.ComponentModel.DataAnnotations
+@using System.Security.Claims
+@using Nulysa.Billing
+@inject BillingQueries Queries
+@inject BillingCommands Commands
+@inject AuthenticationStateProvider Authentication
+@inject NavigationManager Navigation
+
+<PageTitle>Fees and services</PageTitle><h1>Fees and services</h1>
+<p>Configure the membership price before approving applicants. Prices are EUR per month, without a tax engine. Issued lines keep their quoted prices.</p>
+@if (error is not null) { <p role="alert">@error</p> }
+<table><caption>Dated fee prices</caption><thead><tr><th>Fee</th><th>Category</th><th>Price history</th></tr></thead><tbody>
+@foreach (var fee in fees) { <tr><td>#@fee.Id @fee.Name</td><td>@fee.Category</td><td>@foreach (var price in prices.Where(x => x.FeeDefinitionId == fee.Id)) { <div>@price.EffectiveOn: @price.MonthlyAmount.ToString("0.00") EUR/month</div> }</td></tr> }
+</tbody></table>
+<h2>Add a dated price</h2>
+<EditForm Model="Price" method="post" FormName="price" OnValidSubmit="SavePrice"><DataAnnotationsValidator /><ValidationSummary />
+    <p><label for="fee">Fee</label> <InputSelect id="fee" @bind-Value="Price!.FeeId">@foreach (var fee in fees) { <option value="@fee.Id">@fee.Name</option> }</InputSelect></p>
+    <p><label for="price-date">Effective from</label> <InputDate id="price-date" @bind-Value="Price.EffectiveOn" /></p>
+    <p><label for="price">Monthly EUR</label> <InputNumber id="price" @bind-Value="Price.Amount" step="0.01" /></p><button>Add price</button>
+</EditForm>
+<h2>Create or update a service</h2>
+<p>Leave the ID empty to create a service. Its code is permanent. A returning subscriber gets free days only when an administrator explicitly selects that grant.</p>
+<EditForm Model="Service" method="post" FormName="service-definition" OnValidSubmit="SaveService"><DataAnnotationsValidator /><ValidationSummary />
+    <p><label for="service-id">Existing service ID (optional)</label> <InputNumber id="service-id" @bind-Value="Service!.Id" /></p>
+    <p><label for="service-code">Stable code</label> <InputText id="service-code" @bind-Value="Service.Code" required maxlength="80" /></p>
+    <p><label for="service-name">Name</label> <InputText id="service-name" @bind-Value="Service.Name" required maxlength="200" /></p>
+    <p><label for="category">Accounting category</label> <InputText id="category" @bind-Value="Service.Category" required maxlength="80" /></p>
+    <p><InputCheckbox id="self-subscribe" @bind-Value="Service.SelfSubscribe" /> <label for="self-subscribe">Members may subscribe and resubscribe themselves</label></p>
+    <p><label for="free-days">Initial free calendar days</label> <InputNumber id="free-days" @bind-Value="Service.FreeDays" /></p>
+    <p><label for="grace-days">Renewal grace calendar days (zero allowed)</label> <InputNumber id="grace-days" @bind-Value="Service.GraceDays" /></p>
+    <p><label for="priority">Funding order after membership (lower first)</label> <InputNumber id="priority" @bind-Value="Service.Priority" /></p><button>Save service definition</button>
+</EditForm>
+
+@code {
+    public sealed class PriceInput { public long FeeId { get; set; } = 1; public DateOnly EffectiveOn { get; set; } = new(2000, 1, 1); [Range(typeof(decimal), "0", "999999999")] public decimal Amount { get; set; } }
+    public sealed class ServiceForm
+    {
+        public long? Id { get; set; } [Required, StringLength(80)] public string Code { get; set; } = ""; [Required, StringLength(200)] public string Name { get; set; } = "";
+        [Required, StringLength(80)] public string Category { get; set; } = ""; public bool SelfSubscribe { get; set; } [Range(0, 365)] public int FreeDays { get; set; } = 14;
+        [Range(0, 365)] public int GraceDays { get; set; } = 7; [Range(0, int.MaxValue)] public int Priority { get; set; } = 100;
+    }
+    [SupplyParameterFromForm(FormName = "price")] public PriceInput? Price { get; set; }
+    [SupplyParameterFromForm(FormName = "service-definition")] public ServiceForm? Service { get; set; }
+    private ClaimsPrincipal actor = null!; private List<FeeDefinition> fees = []; private List<FeePrice> prices = []; private string? error;
+    protected override async Task OnInitializedAsync() { Price ??= new(); Service ??= new(); actor = (await Authentication.GetAuthenticationStateAsync()).User; fees = await Queries.Fees(actor); prices = await Queries.Prices(actor); }
+    private async Task SavePrice() { try { await Commands.SetPrice(actor, Price!.FeeId, Price.EffectiveOn, Price.Amount); Navigation.NavigateTo(Navigation.Uri); } catch (ValidationException ex) { error = ex.Message; } }
+    private async Task SaveService() { try { await Commands.ConfigureService(actor, Service!.Id, new(Service.Code, Service.Name, Service.SelfSubscribe, Service.FreeDays, Service.GraceDays, Service.Priority, Service.Category)); Navigation.NavigateTo(Navigation.Uri); } catch (ValidationException ex) { error = ex.Message; } }
+}

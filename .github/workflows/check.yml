@@ -10,7 +10,7 @@ jobs:
       DataProtection__Path: /tmp/opencode/nulysa-ci-keys
     steps:
       - uses: actions/checkout@v4
-      - run: bash -n scripts/dev.sh && python3 scripts/test_dev.py
+      - run: bash -n scripts/dev.sh scripts/install-typst.sh scripts/container-smoke.sh && python3 scripts/test_dev.py
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
@@ -24,6 +24,7 @@ jobs:
           exit 1
       - run: dotnet tool restore
       - run: dotnet restore --locked-mode
+      - run: bash scripts/install-typst.sh "$HOME/.local/bin" && echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - run: dotnet format --verify-no-changes --no-restore
       - run: dotnet build --no-restore -c Release
       - run: dotnet ef migrations has-pending-model-changes --project src/Nulysa --no-build --configuration Release

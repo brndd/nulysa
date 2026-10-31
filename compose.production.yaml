@@ -15,6 +15,11 @@ x-application: &application
     Mail__Password: ${NULYSA_SMTP_PASSWORD:-}
     Mail__EnableSsl: ${NULYSA_SMTP_SSL:-true}
     Mail__FromEmail: ${NULYSA_MAIL_FROM:?Supply the verified sender email}
+    Billing__Iban: ${NULYSA_IBAN:?Supply the association payment IBAN}
+    Billing__Bic: ${NULYSA_BIC:-}
+    Billing__Bank: ${NULYSA_BANK_NAME:-}
+    Billing__BusinessId: ${NULYSA_BUSINESS_ID:-}
+    Billing__ContactEmail: ${NULYSA_BILLING_EMAIL:-}
     ReverseProxy__KnownProxy: ${NULYSA_PROXY:?Supply the single trusted proxy IP}
     Oidc__Enabled: ${NULYSA_OIDC_ENABLED:-false}
     Oidc__Issuer: ${NULYSA_ISSUER:-}

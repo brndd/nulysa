@@ -17,7 +17,7 @@
 @if (details is not null)
 {
     <p>Member #@details.Id · Joined @details.JoinedOn · Login email: @details.Email</p>
-    <p>Payment standing and invoices are not available until the S2 billing integration.</p>
+    <p><a href="@(Id is null ? "/billing" : $"/admin/members/{details.Id}/billing")">Payment standing, invoices, coverage and services</a></p>
     @if (error is not null) { <p role="alert">@error</p> }
     @if (details.PendingDeletionAt is null)
     {

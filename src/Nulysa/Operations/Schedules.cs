@@ -1,3 +1,5 @@
+using Nulysa.Billing;
+using Nulysa.Integrations;
 using Nulysa.Membership;
 using Quartz;
 
@@ -6,7 +8,7 @@ namespace Nulysa.Operations;
 public static class Schedules
 {
     public const string Group = "maintenance";
-    public static readonly string[] Names = ["heartbeat", "authentication-cleanup", "membership-due-work", "final-deletion"];
+    public static readonly string[] Names = ["heartbeat", "authentication-cleanup", "membership-due-work", "billing-due-work", "bank-sync", "final-deletion"];
 
     public static async Task Install(IScheduler scheduler, TimeProvider clock, TimeZoneInfo zone, CancellationToken ct = default)
     {
@@ -25,6 +27,13 @@ public static class Schedules
             .StartAt(clock.GetUtcNow()).WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromMinutes(1)).RepeatForever()
                 .WithMisfireInstruction(SimpleTriggerMisfireInstruction.FireNow)).Build();
         await InstallOne(scheduler, JobBuilder.Create<MembershipDueWorkJob>().WithIdentity("membership-due-work", Group).RequestRecovery().Build(), due, ct);
+        var billing = TriggerBuilder.Create<BillingDueWorkJob>().WithIdentity("billing-due-work", Group).ForJob("billing-due-work", Group)
+            .StartAt(clock.GetUtcNow()).WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromMinutes(1)).RepeatForever()
+                .WithMisfireInstruction(SimpleTriggerMisfireInstruction.FireNow)).Build();
+        await InstallOne(scheduler, JobBuilder.Create<BillingDueWorkJob>().WithIdentity("billing-due-work", Group).RequestRecovery().Build(), billing, ct);
+        var bank = TriggerBuilder.Create<BankSyncJob>().WithIdentity("bank-sync", Group).ForJob("bank-sync", Group).StartAt(clock.GetUtcNow())
+            .WithCronSchedule("0 0 0 * * ?", x => x.InTimeZone(zone).WithMisfireInstruction(CronTriggerMisfireInstruction.FireAndProceed)).Build();
+        await InstallOne(scheduler, JobBuilder.Create<BankSyncJob>().WithIdentity("bank-sync", Group).RequestRecovery().Build(), bank, ct);
         var tomorrow = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(clock.GetUtcNow(), zone).DateTime).AddDays(1);
         var deletion = Fortnightly<FinalDeletionJob>(tomorrow, zone).GetTriggerBuilder()
             .WithIdentity("final-deletion", Group).ForJob("final-deletion", Group).Build();

@@ -98,7 +98,7 @@ public sealed class ScheduleTests : DatabaseTest
         await Schedules.Install(Scheduler, TimeProvider.System, TimeZoneInfo.FindSystemTimeZoneById("Europe/Helsinki"));
         // A missed daily wakeup is coalesced by Quartz, not replayed once per missed day.
         await using var db = Context();
-        await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE qrtz_triggers SET next_fire_time = {DateTimeOffset.UtcNow.AddDays(-3).UtcTicks} WHERE trigger_name = 'authentication-cleanup'");
+        await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE qrtz_triggers SET next_fire_time = {DateTimeOffset.UtcNow.AddDays(-3).UtcTicks} WHERE trigger_name IN ('authentication-cleanup', 'bank-sync')");
         var worker = StartWorker();
         await Until(async () => await db.Observations.CountAsync() == Schedules.Names.Length - 1, seconds: 45);
         await Until(async () => await db.Database.SqlQuery<int>($"SELECT count(*)::integer AS \"Value\" FROM qrtz_execution_history WHERE job_name = 'authentication-cleanup'").SingleAsync() == 1);

@@ -3,6 +3,9 @@
     <UserSecretsId>nulysa-local-development</UserSecretsId>
   </PropertyGroup>
   <ItemGroup>
+    <Content Include="Billing/Templates/**/*.typ" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
     <!-- Keep Blazor assets identical across the host and container SDK patch versions. -->
     <PackageReference Include="Microsoft.AspNetCore.App.Internal.Assets" Version="10.0.14" PrivateAssets="all" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.14" />

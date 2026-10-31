@@ -210,7 +210,7 @@ public sealed class MailTests : MembershipTest
         await using var app = CommandsApp(transport);
         var id = await Admit(app, board);
         await using var db = Context();
-        var welcome = await db.Deliveries.Where(x => x.UserId == id).Select(x => x.Id).SingleAsync();
+        var welcome = await db.Deliveries.Where(x => x.UserId == id && x.Kind == MailKind.Welcome).Select(x => x.Id).SingleAsync();
         await db.Deliveries.Where(x => x.Id == welcome).ExecuteUpdateAsync(x => x.SetProperty(d => d.State, DeliveryState.Sending).SetProperty(d => d.StartedAt, Clock.Now));
         await Run(app, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(welcome));
         Assert.Empty(transport.Sent);

@@ -12,17 +12,17 @@ public sealed class MailQueue(AppDbContext db, TimeProvider clock)
 
     // Caller owns the outer EF transaction AND Quartz enlistment scope.
     public async Task Add(IScheduler scheduler, Guid id, MailKind kind, long? userId = null, Guid? applicationId = null,
-        Guid version = default, CancellationToken ct = default)
+        Guid version = default, CancellationToken ct = default, long? invoiceId = null, int? invoiceRevision = null)
     {
         if (db.Database.CurrentTransaction is null) throw new InvalidOperationException("Mail scheduling requires a command transaction.");
         var existing = await db.Deliveries.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct);
         if (existing is not null)
         {
-            if (existing.Kind != kind || existing.UserId != userId || existing.ApplicationId != applicationId || existing.Version != version)
+            if (existing.Kind != kind || existing.UserId != userId || existing.ApplicationId != applicationId || existing.Version != version || existing.InvoiceId != invoiceId || existing.InvoiceRevision != invoiceRevision)
                 throw new ValidationException("This delivery key was already used for another action.");
             return;
         }
-        db.Deliveries.Add(new() { Id = id, Kind = kind, UserId = userId, ApplicationId = applicationId, Version = version, CreatedAt = clock.GetUtcNow() });
+        db.Deliveries.Add(new() { Id = id, Kind = kind, UserId = userId, ApplicationId = applicationId, Version = version, CreatedAt = clock.GetUtcNow(), InvoiceId = invoiceId, InvoiceRevision = invoiceRevision });
         await db.SaveChangesAsync(ct);
         var job = JobBuilder.Create<MailDeliveryJob>().WithIdentity(JobKey(id)).RequestRecovery()
             .UsingJobData("delivery_id", id.ToString("D"))

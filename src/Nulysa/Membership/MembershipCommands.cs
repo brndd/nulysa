@@ -16,7 +16,7 @@ namespace Nulysa.Membership;
 
 public sealed class MembershipCommands(AppDbContext db, UserManager<User> users, ISchedulerFactory schedulers, MailQueue mail,
     AssociationClock clock, IOptions<MembershipOptions> options, IDataProtectionProvider protection,
-    IOpenIddictTokenManager tokens, IOpenIddictAuthorizationManager authorizations)
+    IOpenIddictTokenManager tokens, IOpenIddictAuthorizationManager authorizations, BillingCommands billing)
 {
     public string VerificationToken(MembershipApplication application)
         => protection.CreateProtector("membership-verification-v1").Protect(application.Id + ":" + application.VerificationVersion);
@@ -135,7 +135,7 @@ public sealed class MembershipCommands(AppDbContext db, UserManager<User> users,
         var account = new BillingAccount { UserId = user.Id, CreatedAt = approvedAt };
         db.BillingAccounts.Add(account);
         await db.SaveChangesAsync(ct);
-        db.InitialMembershipRequests.Add(new() { BillingAccountId = account.Id, Anchor = joinedOn, RequestedAt = approvedAt });
+        await billing.Initialize(account, joinedOn, approvedAt, scheduler, ct);
         db.Applications.Remove(application);
         await mail.Add(scheduler, applicationId, MailKind.Welcome, user.Id, ct: ct);
         await tx.CommitAsync(ct);
@@ -182,6 +182,7 @@ public sealed class MembershipCommands(AppDbContext db, UserManager<User> users,
         await tokens.RevokeBySubjectAsync(user.OidcSubject, ct);
         await authorizations.RevokeBySubjectAsync(user.OidcSubject, ct);
         var accountId = await db.BillingAccounts.Where(x => x.UserId == id).Select(x => x.Id).SingleAsync(ct);
+        await billing.CancelForDeletion(accountId, operation, Authority.Id(actor), reason, scheduler, ct);
         await db.InitialMembershipRequests.Where(x => x.BillingAccountId == accountId && x.CancelledAt == null)
             .ExecuteUpdateAsync(x => x.SetProperty(r => r.CancelledAt, clock.Now), ct);
         Record(operation, actor, id, "begin-deletion", reason);
@@ -225,6 +226,8 @@ public sealed class MembershipCommands(AppDbContext db, UserManager<User> users,
         db.Deliveries.RemoveRange(await db.Deliveries.Where(x => x.UserId == id).ToListAsync(ct));
         await foreach (var token in tokens.FindBySubjectAsync(user.OidcSubject, ct)) await tokens.DeleteAsync(token, ct);
         await foreach (var authorization in authorizations.FindBySubjectAsync(user.OidcSubject, ct)) await authorizations.DeleteAsync(authorization, ct);
+        var accountId = await db.BillingAccounts.Where(x => x.UserId == id).Select(x => x.Id).SingleAsync(ct);
+        await billing.ErasePersonalRecords(accountId, ct);
         Check(await users.DeleteAsync(user));
         await tx.CommitAsync(ct);
         return true;

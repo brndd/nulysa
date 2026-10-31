@@ -39,6 +39,9 @@ else if (report is not null)
     <h3>Latest essential mail deliveries (up to 50)</h3>
     <p>Provider acceptance is not inbox delivery. Review/failed sends require investigation, not arbitrary job replay. Recipient addresses and token-bearing bodies are not retained here.</p>
     <ul>@foreach (var delivery in report.Deliveries) { <li>@delivery.Id — @delivery.Kind — @delivery.State — attempts @delivery.Attempts — @Timestamp(delivery.CreatedAt) — provider @(delivery.ProviderId ?? "unknown")</li> }</ul>
+    <h3>Billing diagnostics</h3>
+    <p>Open invoices: @report.Billing.OpenInvoices · receipts requiring review: @report.Billing.ReviewReceipts</p>
+    <ul>@foreach (var operation in report.Billing.RecentOperations) { <li>@operation.Id · account #@operation.BillingAccountId · @operation.Kind · result #@operation.ResultId · @Timestamp(operation.OccurredAt)</li> }</ul>
 }
 
 @code {

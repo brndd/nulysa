@@ -1,0 +1,144 @@
+@page "/billing"
+@page "/services"
+@page "/admin/members/{UserId:long}/billing"
+@attribute [Authorize]
+@using System.ComponentModel.DataAnnotations
+@using System.Security.Claims
+@using Nulysa.Accounts
+@using Nulysa.Billing
+@using Nulysa.Services
+@inject BillingQueries Queries
+@inject BillingCommands Commands
+@inject AuthenticationStateProvider Authentication
+@inject NavigationManager Navigation
+@inject Microsoft.Extensions.Options.IOptions<BillingOptions> Options
+
+<PageTitle>Payments and services</PageTitle>
+<h1>Payments and services</h1>
+@if (error is not null) { <p role="alert">@error</p> }
+@if (view is not null)
+{
+    <p>Member #@view.UserId · Financial account #@view.AccountId</p>
+    <p><strong>@view.Membership.Description</strong> @if (view.Membership.Until is { } until) { <span>until @until</span> }</p>
+    <p>Unpaid requests expire; they are not debt. Period end dates are exclusive.</p>
+    <dl><dt>Available billing credit</dt><dd>@Money(view.Balances.BillingCredit) EUR — automatically used for recurring bills</dd>
+        <dt>Available purchase balance</dt><dd>@Money(view.Balances.PurchaseBalance) EUR</dd><dt>Held for unfinished purchases</dt><dd>@Money(view.Balances.Held) EUR</dd></dl>
+    @if (!view.Membership.Active)
+    {
+        <EditForm Model="Action" method="post" FormName="billing-action" OnSubmit="Submit">
+            <input type="hidden" name="Action.Key" value="@Action!.Key" /><button name="Action.Name" value="resume">Request membership return period</button>
+        </EditForm>
+        @if (!Options.Value.AutomaticMembershipReactivation) { <p>An administrator must approve the return request.</p> }
+    }
+    @if (Options.Value.PurchaseBalanceEnabled)
+    {
+        <p>Deliberate purchase deposit reference: <strong>@view.DepositReference</strong>. Deposits become available only after bank confirmation; they do not buy services automatically.</p>
+        <EditForm Model="Transfer" method="post" FormName="transfer" OnValidSubmit="TransferFunds">
+            <DataAnnotationsValidator /><ValidationSummary /><input type="hidden" name="Transfer.Key" value="@Transfer!.Key" />
+            <p><label for="transfer-amount">Amount (EUR)</label> <InputNumber id="transfer-amount" @bind-Value="Transfer.Amount" step="0.01" /></p>
+            <p><InputCheckbox id="transfer-direction" @bind-Value="Transfer.ToPurchase" /> <label for="transfer-direction">Move billing credit to purchase balance (unchecked: purchase balance to billing credit)</label></p>
+            <p>Moving money into billing credit immediately funds valid recurring bills. Held or spent money cannot be transferred back.</p>
+            <button>Transfer available funds</button>
+        </EditForm>
+    }
+    <EditForm Model="Preference" method="post" FormName="invoice-preference" OnSubmit="SavePreference">
+        <input type="hidden" name="Preference.Key" value="@Preference!.Key" />
+        <InputCheckbox id="email-invoices" @bind-Value="Preference.Enabled" /> <label for="email-invoices">Email invoice PDFs</label> <button>Save preference</button>
+    </EditForm>
+    <h2>Issued payment requests</h2>
+    @foreach (var invoice in view.Invoices)
+    {
+        <section>
+            <h3>Invoice #@invoice.Invoice.Id — @(invoice.Invoice.ClosedAt is null ? "Open" : "Closed")</h3>
+            <p><a href="@($"/billing/invoices/{invoice.Invoice.Id}/pdf")">Download current PDF</a> · Reference: @invoice.Reference @if (invoice.Invoice.DueOn is { } due) { <span>· Due @due</span> }</p>
+            <table><caption>Invoice #@invoice.Invoice.Id funding</caption><thead><tr><th>Purchase / period</th><th>Status</th><th>Charge EUR</th><th>Held EUR</th><th>Remaining EUR</th></tr></thead><tbody>
+            @foreach (var row in invoice.Lines) { <tr><td>#@row.Line.Id @row.Line.Description · @row.Line.StartsOn–@row.Line.EndsOn</td><td>@row.Line.State</td><td>@Money(row.Line.Amount)</td><td>@Money(row.Held)</td><td>@Money(row.Remaining)</td></tr> }
+            </tbody></table><p>Completed: @Money(invoice.Paid) EUR · Held: @Money(invoice.Held) EUR · Remaining: <strong>@Money(invoice.Remaining) EUR</strong></p>
+        </section>
+    }
+    <h2>Services</h2>
+    @foreach (var service in services)
+    {
+        var subscription = view.Subscriptions.SingleOrDefault(x => x.Enrollment.ServiceDefinitionId == service.Id);
+        <section><h3>@service.Name</h3>
+            @if (subscription is not null)
+            {
+                <p>@subscription.Standing.Description · until @subscription.Standing.Until</p>
+                <EditForm Model="Action" method="post" FormName="@($"stop-{service.Id}")" OnSubmit="Submit">
+                    <input type="hidden" name="Action.Key" value="@Action!.Key" /><input type="hidden" name="Action.Id" value="@subscription.Enrollment.Id" />
+                    <button name="Action.Name" value="stop">Stop renewal; keep remaining covered time</button>
+                    @if (board) { <button name="Action.Name" value="remove">Remove immediately</button> }
+                </EditForm>
+            }
+            else if (service.SelfSubscriptionAllowed || board)
+            {
+                <EditForm Model="Action" method="post" FormName="@($"subscribe-{service.Id}")" OnSubmit="Submit">
+                    <input type="hidden" name="Action.Key" value="@Action!.Key" /><input type="hidden" name="Action.Id" value="@service.Id" />
+                    <label for="@($"interval-{service.Id}")">Billing months</label> <select id="@($"interval-{service.Id}")" name="Action.Months">@foreach (var months in Options.Value.AllowedIntervals) { <option value="@months">@months</option> }</select>
+                    @if (board) { <p><input id="@($"grant-{service.Id}")" type="checkbox" name="Action.Grant" value="true" /> <label for="@($"grant-{service.Id}")">Grant configured free days (@service.InitialFreeDays) to a returning subscriber</label></p> }
+                    <button name="Action.Name" value="subscribe">Subscribe</button>
+                </EditForm>
+            }
+            else { <p>Not subscribed. An administrator must add this service.</p> }
+        </section>
+    }
+    <h2>Billing intervals</h2><p>Changes affect the next unissued invoice. Issued requests and their references stay valid.</p>
+    @foreach (var item in view.Items)
+    {
+        <EditForm Model="Action" method="post" FormName="@($"interval-{item.Id}")" OnSubmit="Submit">
+            <input type="hidden" name="Action.Key" value="@Action!.Key" /><input type="hidden" name="Action.Id" value="@item.Id" />
+            <label for="@($"item-{item.Id}")">@(item.MembershipId is not null ? "Membership" : view.Subscriptions.Single(x => x.Enrollment.Id == item.ServiceEnrollmentId).Name) (currently @view.Groups.Single(x => x.Id == item.BillingGroupId).IntervalMonths months)</label>
+            <select id="@($"item-{item.Id}")" name="Action.Months">@foreach (var months in Options.Value.AllowedIntervals) { <option value="@months">@months</option> }</select>
+            <button name="Action.Name" value="interval">Change next unissued period</button>
+        </EditForm>
+    }
+    <h2>Forecasts — not issued invoices</h2>
+    <ul>@foreach (var forecast in view.Forecasts) { <li>@forecast.Description · @forecast.Start–@forecast.End · @Money(forecast.Amount) EUR · @forecast.Months months</li> }</ul>
+    <h2>Coverage</h2><ul>@foreach (var coverage in view.Coverage.OrderByDescending(x => x.StartsOn)) { <li>@coverage.Benefit @(services.SingleOrDefault(x => x.Id == coverage.ServiceDefinitionId)?.Name) · @coverage.StartsOn–@coverage.EndsOn · @coverage.Source</li> }</ul>
+    <h2>Money history</h2><table><thead><tr><th>Event</th><th>Effective date</th><th>Amount EUR</th><th>Source / purchase</th></tr></thead><tbody>
+    @foreach (var move in view.Movements) { <tr><td>#@move.Id @move.Kind</td><td>@move.EffectiveOn</td><td>@Money(move.Amount)</td><td>Receipt #@move.ReceiptId · line #@move.InvoiceLineId</td></tr> }
+    </tbody></table>
+    @if (board) { <p><a href="@($"/admin/billing/{view.AccountId}")">Financial adjustments and one-off invoices</a></p> }
+}
+else { <p>No billing account is available.</p> }
+
+@code {
+    public sealed class ActionInput { public Guid Key { get; set; } = Guid.NewGuid(); public string Name { get; set; } = ""; public long Id { get; set; } public int Months { get; set; } = 1; public bool Grant { get; set; } }
+    public sealed class TransferInput { public Guid Key { get; set; } = Guid.NewGuid(); [Range(typeof(decimal), "0.01", "999999999")] public decimal Amount { get; set; } public bool ToPurchase { get; set; } }
+    public sealed class PreferenceInput { public Guid Key { get; set; } = Guid.NewGuid(); public bool Enabled { get; set; } }
+    [Parameter] public long? UserId { get; set; }
+    [SupplyParameterFromForm] public ActionInput? Action { get; set; }
+    [SupplyParameterFromForm(FormName = "transfer")] public TransferInput? Transfer { get; set; }
+    [SupplyParameterFromForm(FormName = "invoice-preference")] public PreferenceInput? Preference { get; set; }
+    [CascadingParameter] private HttpContext HttpContext { get; set; } = null!;
+    private ClaimsPrincipal actor = null!; private BillingView? view; private List<ServiceDefinition> services = []; private bool board; private string? error;
+    protected override async Task OnInitializedAsync()
+    {
+        actor = (await Authentication.GetAuthenticationStateAsync()).User;
+        try { view = await Queries.Member(actor, UserId ?? Authority.Id(actor)); services = await Queries.Services(actor); }
+        catch (UnauthorizedAccessException) { HttpContext.Response.StatusCode = 403; return; }
+        board = HttpContext.User.IsInRole("Administrator");
+        Action ??= new(); Transfer ??= new(); Preference ??= new() { Enabled = view?.EmailInvoices ?? true };
+    }
+    private static string Money(decimal amount) => amount.ToString("0.00");
+    private async Task Submit() => await Handle(async () =>
+    {
+        switch (Action!.Name)
+        {
+            case "subscribe": await Commands.Subscribe(actor, view!.AccountId, Action.Id, Action.Months, Action.Grant, Action.Key); break;
+            case "stop": case "remove": await Commands.StopService(actor, view!.AccountId, Action.Id, Action.Name == "remove", Action.Key, "Requested through service settings"); break;
+            case "interval": await Commands.ChangeInterval(actor, view!.AccountId, Action.Id, Action.Months, Action.Key); break;
+            case "resume": await Commands.ResumeMembership(actor, view!.AccountId, Action.Key); break;
+            default: throw new ValidationException("Choose a billing action.");
+        }
+    });
+    private Task TransferFunds() => Handle(() => Commands.Transfer(actor, view!.AccountId, Transfer!.Key, Transfer.Amount, Transfer.ToPurchase));
+    private Task SavePreference() => Handle(() => Commands.SetEmailInvoices(actor, view!.AccountId, Preference!.Enabled, Preference.Key));
+    private async Task Handle(Func<Task> action)
+    {
+        if (view is null) return;
+        try { await action(); Navigation.NavigateTo(Navigation.Uri); }
+        catch (ValidationException ex) { error = ex.Message; }
+        catch (UnauthorizedAccessException) { error = "This action requires administrator authority."; }
+    }
+}

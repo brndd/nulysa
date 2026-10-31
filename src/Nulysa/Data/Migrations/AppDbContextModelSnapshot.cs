@@ -283,19 +283,301 @@ namespace Nulysa.Data.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
+                    b.Property<string>("ClaimEmail")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("ClaimName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("EmailInvoices")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("PurchaseDepositReference")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
 
                     b.Property<long?>("UserId")
                         .HasColumnType("bigint");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("PurchaseDepositReference")
+                        .IsUnique();
+
                     b.HasIndex("UserId")
                         .IsUnique()
                         .HasFilter("\"UserId\" IS NOT NULL");
 
                     b.ToTable("BillingAccounts");
+                });
+
+            modelBuilder.Entity("Nulysa.Billing.BillingGroup", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateOnly>("Anchor")
+                        .HasColumnType("date");
+
+                    b.Property<long>("BillingAccountId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("IntervalMonths")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("PaymentReference")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PaymentReference")
+                        .IsUnique();
+
+                    b.HasIndex("BillingAccountId", "IntervalMonths")
+                        .IsUnique();
+
+                    b.ToTable("BillingGroups", t =>
+                        {
+                            t.HasCheckConstraint("CK_Group_Interval", "\"IntervalMonths\" BETWEEN 1 AND 120");
+                        });
+                });
+
+            modelBuilder.Entity("Nulysa.Billing.BillingOperation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<long?>("ActorId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("BillingAccountId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("InputHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<long?>("ResultId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BillingAccountId");
+
+                    b.ToTable("BillingOperations");
+                });
+
+            modelBuilder.Entity("Nulysa.Billing.Coverage", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Benefit")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<long>("BillingAccountId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateOnly>("EndsOn")
+                        .HasColumnType("date");
+
+                    b.Property<long?>("InvoiceLineId")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("OperationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Origin")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<long?>("ServiceDefinitionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<DateOnly>("StartsOn")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InvoiceLineId");
+
+                    b.HasIndex("OperationId");
+
+                    b.HasIndex("Origin")
+                        .IsUnique();
+
+                    b.HasIndex("ServiceDefinitionId");
+
+                    b.HasIndex("BillingAccountId", "ServiceDefinitionId")
+                        .IsUnique()
+                        .HasFilter("\"Source\" = 'InitialFree'");
+
+                    b.ToTable("Coverage", t =>
+                        {
+                            t.HasCheckConstraint("CK_Coverage_Benefit", "\"Benefit\" IN ('Membership','Service') AND (\"Benefit\" = 'Service') = (\"ServiceDefinitionId\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_Coverage_Period", "\"StartsOn\" < \"EndsOn\"");
+
+                            t.HasCheckConstraint("CK_Coverage_Source", "(\"Source\" = 'Purchase') = (\"InvoiceLineId\" IS NOT NULL)");
+                        });
+                });
+
+            modelBuilder.Entity("Nulysa.Billing.Discount", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BillingAccountId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateOnly>("EndsOn")
+                        .HasColumnType("date");
+
+                    b.Property<long>("FeeDefinitionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<Guid>("OperationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly>("StartsOn")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("Value")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateTimeOffset?>("WithdrawnAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BillingAccountId");
+
+                    b.HasIndex("FeeDefinitionId");
+
+                    b.HasIndex("OperationId");
+
+                    b.ToTable("Discounts", t =>
+                        {
+                            t.HasCheckConstraint("CK_Discount", "\"StartsOn\" < \"EndsOn\" AND \"Value\" >= 0 AND (\"Kind\" <> 'Percentage' OR \"Value\" <= 100)");
+                        });
+                });
+
+            modelBuilder.Entity("Nulysa.Billing.FeeDefinition", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<bool>("Retired")
+                        .HasColumnType("boolean");
+
+                    b.Property<long?>("ServiceDefinitionId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ServiceDefinitionId")
+                        .IsUnique();
+
+                    NpgsqlIndexBuilderExtensions.AreNullsDistinct(b.HasIndex("ServiceDefinitionId"), false);
+
+                    b.ToTable("Fees");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1L,
+                            Category = "membership",
+                            Name = "Membership",
+                            Retired = false
+                        });
+                });
+
+            modelBuilder.Entity("Nulysa.Billing.FeePrice", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<DateOnly>("EffectiveOn")
+                        .HasColumnType("date");
+
+                    b.Property<long>("FeeDefinitionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<decimal>("MonthlyAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FeeDefinitionId", "EffectiveOn")
+                        .IsUnique();
+
+                    b.ToTable("FeePrices", t =>
+                        {
+                            t.HasCheckConstraint("CK_Price_Amount", "\"MonthlyAmount\" >= 0");
+                        });
                 });
 
             modelBuilder.Entity("Nulysa.Billing.InitialMembershipRequest", b =>
@@ -309,14 +591,433 @@ namespace Nulysa.Data.Migrations
                     b.Property<DateTimeOffset?>("CancelledAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<long?>("InvoiceId")
+                        .HasColumnType("bigint");
+
                     b.Property<DateTimeOffset>("RequestedAt")
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("BillingAccountId");
 
+                    b.HasIndex("InvoiceId");
+
                     b.ToTable("InitialMembershipRequests", t =>
                         {
                             t.HasCheckConstraint("CK_InitialRequest_Cancellation", "\"CancelledAt\" IS NULL OR \"CancelledAt\" >= \"RequestedAt\"");
+                        });
+                });
+
+            modelBuilder.Entity("Nulysa.Billing.Invoice", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BillingAccountId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("BillingGroupId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("ClosedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly?>("DueOn")
+                        .HasColumnType("date");
+
+                    b.Property<DateTimeOffset>("IssuedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("NotifiedRevision")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("OneOffReference")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<int>("Revision")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BillingAccountId");
+
+                    b.HasIndex("BillingGroupId")
+                        .IsUnique()
+                        .HasFilter("\"ClosedAt\" IS NULL AND \"BillingGroupId\" IS NOT NULL");
+
+                    b.HasIndex("OneOffReference")
+                        .IsUnique();
+
+                    b.ToTable("Invoices", t =>
+                        {
+                            t.HasCheckConstraint("CK_Invoice_Routing", "(\"BillingGroupId\" IS NULL) <> (\"OneOffReference\" IS NULL)");
+                        });
+                });
+
+            modelBuilder.Entity("Nulysa.Billing.InvoiceLine", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<string>("Benefit")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<DateOnly>("ChargeDueOn")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<DateOnly?>("EffectiveOn")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly>("EndsOn")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly>("ExpiresOn")
+                        .HasColumnType("date");
+
+                    b.Property<DateTimeOffset?>("ExpiryNotifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long?>("FeeDefinitionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("FulfilledAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("GraceNotifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("InvoiceId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateOnly?>("LastFundingOn")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly>("OriginalEndsOn")
+                        .HasColumnType("date");
+
+                    b.Property<string>("OriginalPricingJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateOnly>("OriginalStartsOn")
+                        .HasColumnType("date");
+
+                    b.Property<string>("PricingJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("PurchaseKey")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<long?>("RecurringItemId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("ServiceDefinitionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("ServiceEnrollmentId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateOnly>("StartsOn")
+                        .HasColumnType("date");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FeeDefinitionId");
+
+                    b.HasIndex("InvoiceId");
+
+                    b.HasIndex("PurchaseKey")
+                        .IsUnique();
+
+                    b.HasIndex("RecurringItemId");
+
+                    b.HasIndex("ServiceDefinitionId");
+
+                    b.HasIndex("ServiceEnrollmentId");
+
+                    b.ToTable("InvoiceLines", t =>
+                        {
+                            t.HasCheckConstraint("CK_Line_Benefit", "(\"Benefit\" = 'Service') = (\"ServiceDefinitionId\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_Line_Fulfilment", "(\"State\" = 'Fulfilled') = (\"FulfilledAt\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_Line_PricePeriod", "\"Amount\" >= 0 AND \"StartsOn\" < \"EndsOn\" AND \"OriginalStartsOn\" < \"OriginalEndsOn\"");
+                        });
+                });
+
+            modelBuilder.Entity("Nulysa.Billing.LineAdjustment", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("InvoiceLineId")
+                        .HasColumnType("bigint");
+
+                    b.Property<decimal>("NewAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateOnly>("NewEnd")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly>("NewStart")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("OldAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateOnly>("OldEnd")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly>("OldStart")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("OperationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PricingJson")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InvoiceLineId");
+
+                    b.HasIndex("OperationId");
+
+                    b.ToTable("LineAdjustments");
+                });
+
+            modelBuilder.Entity("Nulysa.Billing.MoneyMovement", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<long>("BillingAccountId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("DiscountId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateOnly>("EffectiveOn")
+                        .HasColumnType("date");
+
+                    b.Property<long?>("InvoiceLineId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<Guid>("OperationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long?>("ReceiptId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("ReversesMovementId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BillingAccountId");
+
+                    b.HasIndex("DiscountId");
+
+                    b.HasIndex("InvoiceLineId");
+
+                    b.HasIndex("OperationId");
+
+                    b.HasIndex("ReceiptId");
+
+                    b.HasIndex("ReversesMovementId")
+                        .IsUnique();
+
+                    b.ToTable("MoneyMovements", t =>
+                        {
+                            t.HasCheckConstraint("CK_Movement_Amount", "\"Amount\" > 0");
+
+                            t.HasCheckConstraint("CK_Movement_Discount", "(\"Kind\" = 'PurchaseCredit') = (\"DiscountId\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_Movement_Line", "(\"Kind\" IN ('ReceiptToLine','BillingToLine','LineToBilling','LinePurchase','PurchaseCredit')) = (\"InvoiceLineId\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_Movement_Receipt", "(\"Kind\" IN ('ReceiptToLine','ReceiptToBilling','ReceiptToPurchase','BillingReceiptReversal','PurchaseReceiptReversal')) = (\"ReceiptId\" IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_Movement_Reversal", "(\"Kind\" IN ('BillingReceiptReversal','PurchaseReceiptReversal')) = (\"ReversesMovementId\" IS NOT NULL)");
+                        });
+                });
+
+            modelBuilder.Entity("Nulysa.Billing.Receipt", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<long?>("BillingAccountId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Counterparty")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("character varying(3)");
+
+                    b.Property<string>("ExternalId")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTimeOffset>("ImportedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<DateOnly>("ReceivedOn")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Reference")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("ReviewReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<string>("SourceAccount")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BillingAccountId");
+
+                    b.HasIndex("Source", "SourceAccount", "ExternalId")
+                        .IsUnique();
+
+                    b.ToTable("Receipts", t =>
+                        {
+                            t.HasCheckConstraint("CK_Receipt_Amount", "\"Amount\" <> 0");
+                        });
+                });
+
+            modelBuilder.Entity("Nulysa.Billing.RecurringItem", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BillingGroupId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset?>("EndedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("FeeDefinitionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("MembershipId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateOnly>("NextOn")
+                        .HasColumnType("date");
+
+                    b.Property<long?>("ServiceEnrollmentId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateOnly>("StartsOn")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BillingGroupId");
+
+                    b.HasIndex("FeeDefinitionId");
+
+                    b.HasIndex("MembershipId")
+                        .IsUnique()
+                        .HasFilter("\"EndedAt\" IS NULL AND \"MembershipId\" IS NOT NULL");
+
+                    b.HasIndex("ServiceEnrollmentId")
+                        .IsUnique()
+                        .HasFilter("\"EndedAt\" IS NULL AND \"ServiceEnrollmentId\" IS NOT NULL");
+
+                    b.ToTable("RecurringItems", t =>
+                        {
+                            t.HasCheckConstraint("CK_Item_Owner", "(\"MembershipId\" IS NULL) <> (\"ServiceEnrollmentId\" IS NULL)");
                         });
                 });
 
@@ -337,6 +1038,12 @@ namespace Nulysa.Data.Migrations
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<long?>("InvoiceId")
+                        .HasColumnType("bigint");
+
+                    b.Property<int?>("InvoiceRevision")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Kind")
                         .IsRequired()
@@ -364,6 +1071,8 @@ namespace Nulysa.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ApplicationId");
+
+                    b.HasIndex("InvoiceId");
 
                     b.HasIndex("UserId");
 
@@ -396,6 +1105,31 @@ namespace Nulysa.Data.Migrations
                         {
                             t.HasCheckConstraint("CK_MailRateWindow", "\"Id\" = 1 AND \"Attempts\" >= 0");
                         });
+                });
+
+            modelBuilder.Entity("Nulysa.Integrations.BankSyncState", b =>
+                {
+                    b.Property<string>("Account")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTimeOffset?>("LastAlert")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("LastAttempt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("LastSuccess")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.HasKey("Account");
+
+                    b.ToTable("BankSyncStates");
                 });
 
             modelBuilder.Entity("Nulysa.Membership.Approval", b =>
@@ -587,6 +1321,119 @@ namespace Nulysa.Data.Migrations
                     b.HasKey("Name");
 
                     b.ToTable("Observations");
+                });
+
+            modelBuilder.Entity("Nulysa.Services.ServiceChange", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<Guid>("OperationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long?>("ServiceEnrollmentId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OperationId");
+
+                    b.HasIndex("ServiceEnrollmentId");
+
+                    b.ToTable("ServiceChanges");
+                });
+
+            modelBuilder.Entity("Nulysa.Services.ServiceDefinition", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<int>("InitialFreeDays")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("RenewalGraceDays")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("Retired")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("SelfSubscriptionAllowed")
+                        .HasColumnType("boolean");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("ServiceDefinitions", t =>
+                        {
+                            t.HasCheckConstraint("CK_Service_Durations", "\"InitialFreeDays\" >= 0 AND \"RenewalGraceDays\" >= 0 AND \"Priority\" >= 0");
+                        });
+                });
+
+            modelBuilder.Entity("Nulysa.Services.ServiceEnrollment", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("EndReason")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<DateTimeOffset?>("EndedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly?>("FirstPaidOn")
+                        .HasColumnType("date");
+
+                    b.Property<DateTimeOffset?>("RenewalStoppedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("ServiceDefinitionId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTimeOffset>("StartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ServiceDefinitionId");
+
+                    b.HasIndex("UserId", "ServiceDefinitionId")
+                        .IsUnique()
+                        .HasFilter("\"EndedAt\" IS NULL");
+
+                    b.ToTable("ServiceEnrollments");
                 });
 
             modelBuilder.Entity("OpenIddict.EntityFrameworkCore.Models.OpenIddictEntityFrameworkCoreApplication", b =>
@@ -856,6 +1703,87 @@ namespace Nulysa.Data.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
                 });
 
+            modelBuilder.Entity("Nulysa.Billing.BillingGroup", b =>
+                {
+                    b.HasOne("Nulysa.Billing.BillingAccount", null)
+                        .WithMany()
+                        .HasForeignKey("BillingAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Nulysa.Billing.BillingOperation", b =>
+                {
+                    b.HasOne("Nulysa.Billing.BillingAccount", null)
+                        .WithMany()
+                        .HasForeignKey("BillingAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Nulysa.Billing.Coverage", b =>
+                {
+                    b.HasOne("Nulysa.Billing.BillingAccount", null)
+                        .WithMany()
+                        .HasForeignKey("BillingAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Nulysa.Billing.InvoiceLine", null)
+                        .WithMany()
+                        .HasForeignKey("InvoiceLineId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Nulysa.Billing.BillingOperation", null)
+                        .WithMany()
+                        .HasForeignKey("OperationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Nulysa.Services.ServiceDefinition", null)
+                        .WithMany()
+                        .HasForeignKey("ServiceDefinitionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Nulysa.Billing.Discount", b =>
+                {
+                    b.HasOne("Nulysa.Billing.BillingAccount", null)
+                        .WithMany()
+                        .HasForeignKey("BillingAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Nulysa.Billing.FeeDefinition", null)
+                        .WithMany()
+                        .HasForeignKey("FeeDefinitionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Nulysa.Billing.BillingOperation", null)
+                        .WithMany()
+                        .HasForeignKey("OperationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Nulysa.Billing.FeeDefinition", b =>
+                {
+                    b.HasOne("Nulysa.Services.ServiceDefinition", null)
+                        .WithOne()
+                        .HasForeignKey("Nulysa.Billing.FeeDefinition", "ServiceDefinitionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Nulysa.Billing.FeePrice", b =>
+                {
+                    b.HasOne("Nulysa.Billing.FeeDefinition", null)
+                        .WithMany()
+                        .HasForeignKey("FeeDefinitionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Nulysa.Billing.InitialMembershipRequest", b =>
                 {
                     b.HasOne("Nulysa.Billing.BillingAccount", null)
@@ -863,6 +1791,137 @@ namespace Nulysa.Data.Migrations
                         .HasForeignKey("Nulysa.Billing.InitialMembershipRequest", "BillingAccountId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("Nulysa.Billing.Invoice", null)
+                        .WithMany()
+                        .HasForeignKey("InvoiceId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Nulysa.Billing.Invoice", b =>
+                {
+                    b.HasOne("Nulysa.Billing.BillingAccount", null)
+                        .WithMany()
+                        .HasForeignKey("BillingAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Nulysa.Billing.BillingGroup", null)
+                        .WithMany()
+                        .HasForeignKey("BillingGroupId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Nulysa.Billing.InvoiceLine", b =>
+                {
+                    b.HasOne("Nulysa.Billing.FeeDefinition", null)
+                        .WithMany()
+                        .HasForeignKey("FeeDefinitionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Nulysa.Billing.Invoice", null)
+                        .WithMany()
+                        .HasForeignKey("InvoiceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Nulysa.Billing.RecurringItem", null)
+                        .WithMany()
+                        .HasForeignKey("RecurringItemId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Nulysa.Services.ServiceDefinition", null)
+                        .WithMany()
+                        .HasForeignKey("ServiceDefinitionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Nulysa.Services.ServiceEnrollment", null)
+                        .WithMany()
+                        .HasForeignKey("ServiceEnrollmentId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("Nulysa.Billing.LineAdjustment", b =>
+                {
+                    b.HasOne("Nulysa.Billing.InvoiceLine", null)
+                        .WithMany()
+                        .HasForeignKey("InvoiceLineId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Nulysa.Billing.BillingOperation", null)
+                        .WithMany()
+                        .HasForeignKey("OperationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Nulysa.Billing.MoneyMovement", b =>
+                {
+                    b.HasOne("Nulysa.Billing.BillingAccount", null)
+                        .WithMany()
+                        .HasForeignKey("BillingAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Nulysa.Billing.Discount", null)
+                        .WithMany()
+                        .HasForeignKey("DiscountId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Nulysa.Billing.InvoiceLine", null)
+                        .WithMany()
+                        .HasForeignKey("InvoiceLineId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Nulysa.Billing.BillingOperation", null)
+                        .WithMany()
+                        .HasForeignKey("OperationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Nulysa.Billing.Receipt", null)
+                        .WithMany()
+                        .HasForeignKey("ReceiptId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Nulysa.Billing.MoneyMovement", null)
+                        .WithOne()
+                        .HasForeignKey("Nulysa.Billing.MoneyMovement", "ReversesMovementId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Nulysa.Billing.Receipt", b =>
+                {
+                    b.HasOne("Nulysa.Billing.BillingAccount", null)
+                        .WithMany()
+                        .HasForeignKey("BillingAccountId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Nulysa.Billing.RecurringItem", b =>
+                {
+                    b.HasOne("Nulysa.Billing.BillingGroup", null)
+                        .WithMany()
+                        .HasForeignKey("BillingGroupId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Nulysa.Billing.FeeDefinition", null)
+                        .WithMany()
+                        .HasForeignKey("FeeDefinitionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Nulysa.Membership.Member", null)
+                        .WithMany()
+                        .HasForeignKey("MembershipId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Nulysa.Services.ServiceEnrollment", null)
+                        .WithMany()
+                        .HasForeignKey("ServiceEnrollmentId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("Nulysa.Communications.Delivery", b =>
@@ -871,6 +1930,11 @@ namespace Nulysa.Data.Migrations
                         .WithMany()
                         .HasForeignKey("ApplicationId")
                         .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("Nulysa.Billing.Invoice", null)
+                        .WithMany()
+                        .HasForeignKey("InvoiceId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Nulysa.Accounts.User", null)
                         .WithMany()
@@ -884,6 +1948,35 @@ namespace Nulysa.Data.Migrations
                         .WithOne()
                         .HasForeignKey("Nulysa.Membership.Member", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Nulysa.Services.ServiceChange", b =>
+                {
+                    b.HasOne("Nulysa.Billing.BillingOperation", null)
+                        .WithMany()
+                        .HasForeignKey("OperationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Nulysa.Services.ServiceEnrollment", null)
+                        .WithMany()
+                        .HasForeignKey("ServiceEnrollmentId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("Nulysa.Services.ServiceEnrollment", b =>
+                {
+                    b.HasOne("Nulysa.Services.ServiceDefinition", null)
+                        .WithMany()
+                        .HasForeignKey("ServiceDefinitionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Nulysa.Accounts.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 

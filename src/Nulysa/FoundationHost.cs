@@ -11,9 +11,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Nulysa.Accounts;
+using Nulysa.Billing;
 using Nulysa.Communications;
 using Nulysa.Components;
 using Nulysa.Data;
+using Nulysa.Integrations;
 using Nulysa.Membership;
 using Nulysa.Operations;
 using Quartz;
@@ -60,6 +62,21 @@ public static class FoundationHost
         app.UseAntiforgery();
         app.MapStaticAssets();
         app.MapRazorPages();
+        app.MapGet("/billing/invoices/{id:long}/pdf", async (long id, HttpContext context, InvoicePdf pdf) =>
+        {
+            try { return Results.File(await pdf.ForMember(context.User, id, context.RequestAborted), "application/pdf", $"invoice-{id}.pdf"); }
+            catch (UnauthorizedAccessException) { return Results.Forbid(); }
+        }).RequireAuthorization();
+        app.MapGet("/admin/payments/export", async (DateOnly start, DateOnly end, HttpContext context, BillingQueries queries) =>
+        {
+            if (end <= start) return Results.BadRequest("Choose an end date after the start date.");
+            return Results.File(System.Text.Encoding.UTF8.GetBytes(await queries.Export(context.User, start, end, context.RequestAborted)), "text/csv; charset=utf-8", "ledger.csv");
+        }).RequireAuthorization("Administrator");
+        app.MapGet("/admin/payments/receipts-export", async (DateOnly start, DateOnly end, HttpContext context, BillingQueries queries) =>
+        {
+            if (end <= start) return Results.BadRequest("Choose an end date after the start date.");
+            return Results.File(System.Text.Encoding.UTF8.GetBytes(await queries.ExportReceipts(context.User, start, end, context.RequestAborted)), "text/csv; charset=utf-8", "bank-transactions.csv");
+        }).RequireAuthorization("Administrator");
         app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
         if (builder.Configuration.GetValue<bool>("Oidc:Enabled")) app.MapControllers();
         app.MapGet("/health/live", () => Results.Ok(new { status = "alive" }));
@@ -97,6 +114,19 @@ public static class FoundationHost
         builder.Services.AddScoped<MembershipQueries>();
         builder.Services.AddScoped<AccountCommands>();
         builder.Services.AddScoped<MembershipMaintenance>();
+        builder.Services.AddScoped<BillingCommands>();
+        builder.Services.AddScoped<BillingQueries>();
+        builder.Services.AddScoped<InvoicePdf>();
+        builder.Services.AddHttpClient<BankFeed>(client => { client.BaseAddress = new Uri("https://bankaccountdata.gocardless.com/api/v2/"); client.Timeout = TimeSpan.FromSeconds(30); });
+        builder.Services.AddOptions<BankOptions>().Bind(config.GetSection("Bank"))
+            .Validate(x => x.StaleHours is >= 24 and <= 168 && (!x.Enabled || (x.SecretId.Length > 0 && x.SecretKey.Length > 0 && x.Accounts.Length > 0 && x.Accounts.All(a => Guid.TryParse(a, out _)))),
+                "Enabled bank import requires provider credentials and account IDs.").ValidateOnStart();
+        builder.Services.AddOptions<BillingOptions>().Bind(config.GetSection("Billing"))
+            .Validate(x => x.AllowedIntervals.Length > 0 && x.AllowedIntervals.All(i => i is >= 1 and <= 120) && x.AllowedIntervals.Contains(x.DefaultIntervalMonths) &&
+                x.InvoiceLeadDays is >= 0 and <= 365 && x.InitialMembershipGraceDays is >= 1 and <= 365 &&
+                x.MembershipRenewalGraceDays is >= 0 and <= 365 && x.ServicePaymentWindowDays is >= 1 and <= 365 &&
+                (x.TemplateDirectory is null || Path.IsPathFullyQualified(x.TemplateDirectory)), "Invalid billing timing/template settings.")
+            .Validate(x => (development && x.Iban.Length == 0) || BillingOptions.ValidIban(x.Iban), "Billing:Iban must be a checksum-valid payment destination.").ValidateOnStart();
         builder.Services.AddScoped<MailQueue>();
         builder.Services.AddScoped<MailRenderer>();
         builder.Services.AddScoped<MailDispatcher>();

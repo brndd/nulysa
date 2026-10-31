@@ -1,6 +1,6 @@
 # Application operations
 
-This covers S0/S1, not a production-readiness declaration. Use one release
+This covers S0–S2, not a production-readiness declaration. Use one release
 artifact with `web`, `worker` and explicit maintenance commands. PostgreSQL is the
 only database; do not run against a Django database or production during development.
 
@@ -41,6 +41,10 @@ required values privately; `.env` and `.local/` are ignored by Git.
 - OIDC settings and separate persistent RSA keys: see [OIDC](oidc-reference.md).
 - Essential mail, membership retention/erasure and terms settings:
   see [S1 operations](membership.md#mail-configuration-and-failure-handling).
+- Invoice payee/Typst and GoCardless settings: see [S2 operations](billing.md).
+  Supply the real checksum-valid `Billing__Iban` in Production. Before upgrading S1,
+  configure a membership price effective on existing initial-request anchors;
+  due work will issue those requests without changing their original deadlines.
 - Optional `Association__Name`, `Association__TimeZone` (default Europe/Helsinki),
   `Worker__Concurrency` (default 4, allowed 1–32). All workers share scheduler name
   `Nulysa` and use automatically unique instance IDs. Default cluster check-in is
@@ -70,14 +74,19 @@ atomic with domain writes and can fail or be trimmed. Logs are not a profile arc
 - `maintenance.final-deletion`: next local midnight on first installation, then every
   14 calendar days; preserves its persisted phase across reinstall/restarts and DST.
   Eligibility is rechecked per member, never inferred from a scheduler tick.
-- There are no placeholder billing, bank or storage jobs. Day-of-month `*/14` is
-  not an anchored fortnightly schedule.
+- `maintenance.billing-due-work`: every minute, per-account locked generation,
+  expiry, service removal and bank-staleness alerts; dated standing does not wait
+  for the scan. Zero-price catch-up is bounded to 24 periods per account/run.
+- `maintenance.bank-sync`: association-local midnight, booked GoCardless imports.
+  Disabled feeds return without external calls. Inspect provider status separately
+  from scheduler success. There is no storage job yet.
+  Day-of-month `*/14` is not an anchored fortnightly schedule.
 
 Recoverable jobs request recovery. Graceful shutdown cancels cooperating jobs and
 hands unfinished firings back; the host's shutdown deadline is 20 seconds. Set the
 container/orchestrator stop allowance longer (at least 25 seconds). Uncooperative
-code may outlive cancellation: renderers must eventually run in killable child
-processes. Two ordinary retries are configured after an initial failure; crash loops
+code may outlive cancellation: invoice rendering uses a killable child process with
+a 20-second deadline. Two ordinary retries are configured after an initial failure; crash loops
 are not bounded by this budget. Recovery and stale completions require domain
 transactions/unique keys, not a custom lease/queue framework.
 
@@ -96,6 +105,8 @@ showing scheduler health, schedule state/next execution/last success and the lat
 50 final failure observations. It is a read-only snapshot; reload to refresh.
 S1 also shows the latest 50 delivery IDs, states, attempts and known provider IDs,
 without token-bearing message bodies or recipient profiles.
+S2 adds open-invoice/review-receipt counts and the latest 25 billing operation IDs,
+account IDs, kinds, result IDs and timestamps; no financial repair buttons.
 Unavailable diagnostics are reported as unavailable, not healthy. There are no
 retry/cancel/schedule-edit actions. This is not an added S0 exit gate.
 

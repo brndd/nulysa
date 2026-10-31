@@ -4,8 +4,10 @@ using Microsoft.EntityFrameworkCore;
 using Nulysa.Accounts;
 using Nulysa.Billing;
 using Nulysa.Communications;
+using Nulysa.Integrations;
 using Nulysa.Membership;
 using Nulysa.Operations;
+using Nulysa.Services;
 
 namespace Nulysa.Data;
 
@@ -22,11 +24,29 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<InitialMembershipRequest> InitialMembershipRequests => Set<InitialMembershipRequest>();
     public DbSet<Delivery> Deliveries => Set<Delivery>();
     public DbSet<MailRateWindow> MailRateWindows => Set<MailRateWindow>();
+    public DbSet<FeeDefinition> Fees => Set<FeeDefinition>();
+    public DbSet<FeePrice> FeePrices => Set<FeePrice>();
+    public DbSet<Discount> Discounts => Set<Discount>();
+    public DbSet<BillingGroup> BillingGroups => Set<BillingGroup>();
+    public DbSet<RecurringItem> RecurringItems => Set<RecurringItem>();
+    public DbSet<Invoice> Invoices => Set<Invoice>();
+    public DbSet<InvoiceLine> InvoiceLines => Set<InvoiceLine>();
+    public DbSet<Receipt> Receipts => Set<Receipt>();
+    public DbSet<MoneyMovement> MoneyMovements => Set<MoneyMovement>();
+    public DbSet<Coverage> Coverage => Set<Coverage>();
+    public DbSet<BillingOperation> BillingOperations => Set<BillingOperation>();
+    public DbSet<LineAdjustment> LineAdjustments => Set<LineAdjustment>();
+    public DbSet<ServiceDefinition> ServiceDefinitions => Set<ServiceDefinition>();
+    public DbSet<ServiceEnrollment> ServiceEnrollments => Set<ServiceEnrollment>();
+    public DbSet<ServiceChange> ServiceChanges => Set<ServiceChange>();
+    public DbSet<BankSyncState> BankSyncStates => Set<BankSyncState>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
         builder.UseOpenIddict();
+        BillingMapping.Configure(builder);
+        builder.Entity<BankSyncState>(e => { e.HasKey(x => x.Account); e.Property(x => x.Account).HasMaxLength(200); e.Property(x => x.Status).HasMaxLength(80); });
         builder.Entity<User>(user =>
         {
             user.Property(x => x.Name).HasMaxLength(200);
@@ -93,6 +113,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             entity.Property(x => x.State).HasConversion<string>().HasMaxLength(20);
             entity.Property(x => x.ProviderId).HasMaxLength(200);
             entity.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne<Invoice>().WithMany().HasForeignKey(x => x.InvoiceId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne<MembershipApplication>().WithMany().HasForeignKey(x => x.ApplicationId).OnDelete(DeleteBehavior.SetNull);
             entity.HasIndex(x => new { x.State, x.CreatedAt });
         });

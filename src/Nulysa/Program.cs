@@ -107,6 +107,7 @@ try
                 // Only this Development-only command's scoped manager accepts weak passwords.
                 users.PasswordValidators.Clear();
                 await using var creation = await db.Database.BeginTransactionAsync();
+                using var enlisted = scheduler.EnlistTransaction(creation.GetDbTransaction());
                 var user = new User { Email = email, UserName = Guid.NewGuid().ToString("N"), EmailConfirmed = true, Admitted = true, Name = "Synthetic Member" };
                 var result = await users.CreateAsync(user, password);
                 if (!result.Succeeded) throw new InvalidOperationException("Development user creation failed.");
@@ -115,8 +116,11 @@ try
                 var account = new BillingAccount { UserId = user.Id, CreatedAt = clock.Now };
                 db.BillingAccounts.Add(account);
                 await db.SaveChangesAsync();
-                db.InitialMembershipRequests.Add(new() { BillingAccountId = account.Id, Anchor = clock.Today, RequestedAt = clock.Now });
+                // Explicit synthetic bootstrap data, never a production membership-price default.
+                if (!await db.FeePrices.AnyAsync(x => x.FeeDefinitionId == 1))
+                    db.FeePrices.Add(new() { FeeDefinitionId = 1, EffectiveOn = new DateOnly(2000, 1, 1), MonthlyAmount = app.Configuration.GetValue("DevelopmentUser:MembershipMonthlyPrice", 10m) });
                 await db.SaveChangesAsync();
+                await scope.ServiceProvider.GetRequiredService<BillingCommands>().Initialize(account, clock.Today, clock.Now, scheduler);
                 var roles = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<long>>>();
                 await Superusers.Set(db, users, roles, user.Id, true);
                 await Superusers.Set(db, users, roles, user.Id, true, "Administrator");

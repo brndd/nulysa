@@ -1,9 +1,9 @@
 # Nulysa
 
-ASP.NET Core membership management for Finnish hackerspace associations. **S0 and
-S1 are implemented: foundations, membership workflows and queued essential mail.**
-This is not production-ready: real initial invoices/payment standing remain the S2
-dependency. The Django reference at `~/code/nulysa-py/` is unchanged.
+ASP.NET Core membership management for Finnish hackerspace associations. **S0–S2
+are implemented: foundations, membership/mail, billing and subscriptions.**
+This is not production-ready; later delivery/cutover gates, including MobilePay
+before S6, remain mandatory. The Django reference at `~/code/nulysa-py/` is unchanged.
 
 The portal uses Blazor static SSR, with Interactive Server available per component
 when needed. Login/logout remain ordinary HTTP-based Razor Pages; there is no
@@ -16,13 +16,19 @@ WebAssembly client or global interactive circuit.
 - [Billing](AGENTS/BILLING_DESIGN.md), [services](AGENTS/SERVICE_DESIGN.md),
   [policy examples](AGENTS/POLICY_REVIEW.md), [remaining work](AGENTS/OPEN_QUESTIONS.md).
 - [Foundation evidence and limits](docs/foundations.md),
-  [S1 membership/mail, local walkthrough and billing boundary](docs/membership.md),
+  [S1 membership/mail](docs/membership.md), [S2 billing/configuration](docs/billing.md),
   [operations runbook](docs/operations.md), [OIDC configuration](docs/oidc-reference.md).
 
 ## Host development
 
 Requires Linux, .NET SDK **10.0.113** and Docker Compose (or Podman's Docker
-compatibility). PostgreSQL **18.4** is the only database provider.
+compatibility). PostgreSQL **18.4** is the only database provider. Invoice rendering
+requires Typst **0.15.0**, also used in CI and the release image:
+
+```sh
+bash scripts/install-typst.sh "$HOME/.local/bin"
+export PATH="$HOME/.local/bin:$PATH"
+```
 
 ```sh
 bash scripts/dev.sh
@@ -55,7 +61,9 @@ bash scripts/dev.sh create-development-user
 This command is unavailable in Production. It grants the new account both
 `Administrator` (board administration) and `Superuser` (System Console) roles and
 prints the user ID after account creation and both grants commit together.
-It accepts any non-empty password,
+It supplies a synthetic monthly membership price if none exists and issues the
+initial invoice. The launcher supplies a synthetic IBAN; never use it for real payments.
+The command accepts any non-empty password,
 without Identity's password-complexity rules; normal password validation is unchanged.
 OIDC is disabled unless configured.
 Never use the published synthetic development credentials in a deployment.
@@ -66,12 +74,15 @@ confirm the verification link printed by the worker (also spooled at
 always printed to the console; set `Mail__Transport=Smtp` plus `Mail__Host`,
 `Mail__Port` and `Mail__FromEmail` to send it as well.
 Approval queues password setup; `/profile` and `/resign` provide self-service.
-Use synthetic data only. See the [S1 walkthrough](docs/membership.md).
+Use `/billing` for invoices/services and `/admin/payments` for bank review/exports.
+Configure real prices and bank details before any deployment approvals; no production
+prices are seeded. Use synthetic data only. See the [S1 walkthrough](docs/membership.md)
+and [S2 walkthrough](docs/billing.md).
 
 ## System Console
 
 The read-only console at `/system-console` currently shows scheduler health,
-maintenance schedules/last successes and recent final failure observations. Other
+maintenance schedules/last successes, recent failures and billing operation IDs/counts. Other
 diagnostics will be added with their features. Only the separate `Superuser` role
 grants access; board `Administrator` membership is not sufficient.
 
@@ -100,8 +111,9 @@ dotnet test
 
 `tests.runsettings` excludes tests marked `Category=Slow` and the `Group=Browser`
 tests. It keeps fast PostgreSQL schema, transaction/concurrency, schedule, OIDC and
-static UI checks. Chromium and Keycloak are not needed for this target. An additional
-`--filter` narrows this selection; use the full settings when targeting excluded tests.
+static UI checks, including real Typst rendering. Chromium and Keycloak are not needed
+for this target. An additional `--filter` narrows this selection; use the full settings
+when targeting excluded tests.
 
 The **full target**, including all slow and browser tests, is:
 
@@ -125,9 +137,11 @@ already running (restore/build included):
 | Standard | 27 | 18.7s | 25.4s |
 | Full | 41 | 115.3s | 117.2s |
 
-Current S1 totals are **56 standard / 74 full cases**. Release execution takes about
-30 seconds / 140 seconds respectively; the standard suite remains below the
-60-second budget. See [S1 evidence](docs/membership.md#evidence).
+The S2 Release suites pass **92/92 standard tests in 52 seconds** and **112/112 full
+tests in 3m 3s**, with no skips. The standard suite remains below the 60-second
+budget. See [S2 evidence](docs/billing.md#acceptance-evidence) for billing,
+browser, migration and container coverage; [S1 evidence](docs/membership.md#evidence)
+records its earlier baseline.
 
 Mark new slow tests with `[Trait("Category", "Slow")]`; browser tests use
 `[Trait("Group", "Browser")]`. Fast database tests should stay in the standard suite.
@@ -149,9 +163,9 @@ before testing. Missing prerequisites fail tests; none of these gates silently s
 Override `NULYSA_TEST_POSTGRES` or `NULYSA_TEST_KEYCLOAK` only for disposable loopback
 instances. Worker/process tests use bounded readiness polling, not simulated workers.
 
-The last full-run timings identified circuit revalidation (~31s), worker recovery/
-retry scenarios (~55s combined), and subprocess status checks (~6s) as the main slow
-paths. They remain intact in the full target; no assertions or recovery waits were
+Full-run timings identify circuit revalidation (~31s), stalled SMTP timeout (~15s),
+worker recovery/retry scenarios (~5s each), and subprocess status checks (~6s) as the
+main slow paths. They remain intact in the full target; no assertions or recovery waits were
 weakened to make the standard target faster. Browser tests are full-only because
 they also require external browser/broker setup.
 

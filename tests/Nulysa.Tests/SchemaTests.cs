@@ -2,6 +2,7 @@ using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Nulysa.Billing;
 using Nulysa.Data;
 using Nulysa.Operations;
 using Nulysa.WorkerHarness;
@@ -12,6 +13,28 @@ namespace Nulysa.Tests;
 [Trait("Group", "Worker")]
 public sealed class SchemaTests : DatabaseTest
 {
+    [Fact]
+    public async Task S1_upgrade_backfills_distinct_references_and_preserves_initial_requests_without_seeding_prices()
+    {
+        await using var db = Context();
+        await db.GetService<IMigrator>().MigrateAsync("20261031022746_UsernameGuidAndLanguageDefault");
+        await db.Database.ExecuteSqlRawAsync("""
+            INSERT INTO "BillingAccounts" ("CreatedAt") VALUES ('2026-06-01T10:00Z'), ('2026-06-02T10:00Z');
+            INSERT INTO "InitialMembershipRequests" ("BillingAccountId", "Anchor", "RequestedAt")
+            SELECT "Id", '2026-06-01', "CreatedAt" FROM "BillingAccounts";
+            """);
+        await db.Database.MigrateAsync();
+        var accounts = await db.BillingAccounts.AsNoTracking().ToListAsync();
+        Assert.Equal(2, accounts.Count); Assert.Equal(2, accounts.Select(x => x.PurchaseDepositReference).Distinct().Count());
+        foreach (var account in accounts)
+        {
+            Assert.Equal(account.PurchaseDepositReference, PaymentReference.Complete(account.PurchaseDepositReference[..^1]));
+            Assert.True(account.EmailInvoices);
+        }
+        Assert.Equal(2, await db.InitialMembershipRequests.CountAsync(x => x.InvoiceId == null));
+        Assert.Empty(await db.FeePrices.ToListAsync()); Assert.Empty(await db.Invoices.ToListAsync());
+    }
+
     [Fact]
     public async Task EF_upgrade_and_Quartz_45_shape_upgrade_preserve_existing_work_and_identities()
     {

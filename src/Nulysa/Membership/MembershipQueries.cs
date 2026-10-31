@@ -1,6 +1,8 @@
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Nulysa.Accounts;
+using Nulysa.Billing;
 using Nulysa.Communications;
 using Nulysa.Data;
 
@@ -8,12 +10,12 @@ namespace Nulysa.Membership;
 
 public sealed record ApplicationReview(Guid Id, string Name, string Email, string Municipality, DateOnly DateOfBirth,
     string Language, string? PhoneNumber, string? Nickname, string? MatrixId, string Message);
-public sealed record RegistryEntry(long Id, string Name, string Email, DateOnly JoinedOn, DateTimeOffset? PendingDeletionAt);
+public sealed record RegistryEntry(long Id, string Name, string Email, DateOnly JoinedOn, DateTimeOffset? PendingDeletionAt, Standing? Standing = null);
 public sealed record MemberDetails(long Id, string Email, ProfileInput Profile, DateOnly JoinedOn, DateTimeOffset? PendingDeletionAt,
     DateTimeOffset? DeletionEligibleAt, string? PendingEmail, Approval? Approval, List<LifecycleAction> History);
 public sealed record MailAttention(Guid Id, MailKind Kind, DeliveryState State, DateTimeOffset CreatedAt);
 
-public sealed class MembershipQueries(AppDbContext db)
+public sealed class MembershipQueries(AppDbContext db, AssociationClock clock, IOptions<BillingOptions> billing)
 {
     public Task<bool> IsAdministrator(ClaimsPrincipal actor) => Authority.IsAdministrator(db, actor);
     public async Task<List<ApplicationReview>> Applications(ClaimsPrincipal actor, Guid? id = null, CancellationToken ct = default)
@@ -35,8 +37,23 @@ public sealed class MembershipQueries(AppDbContext db)
             _ = long.TryParse(term, out var id);
             query = query.Where(x => x.user.Id == id || x.user.Name.ToUpper().Contains(term) || x.user.NormalizedEmail!.Contains(term));
         }
-        return await query.OrderByDescending(x => x.user.PendingDeletionAt != null).ThenBy(x => x.user.Name).Take(100)
-            .Select(x => new RegistryEntry(x.user.Id, x.user.Name, x.user.Email!, x.member.JoinedOn, x.user.PendingDeletionAt)).ToListAsync(ct);
+        var entries = await query.Select(x => new RegistryEntry(x.user.Id, x.user.Name, x.user.Email!, x.member.JoinedOn, x.user.PendingDeletionAt)).ToListAsync(ct);
+        var ids = entries.Select(x => x.Id).ToList();
+        var accounts = await db.BillingAccounts.AsNoTracking().Where(x => x.UserId != null && ids.Contains(x.UserId.Value)).ToListAsync(ct);
+        var accountIds = accounts.Select(x => x.Id).ToList();
+        var coverage = (await db.Coverage.AsNoTracking().Where(x => accountIds.Contains(x.BillingAccountId) && x.Benefit == Benefit.Membership).ToListAsync(ct)).ToLookup(x => x.BillingAccountId);
+        var lines = (await (from line in db.InvoiceLines.AsNoTracking()
+                            join invoice in db.Invoices on line.InvoiceId equals invoice.Id
+                            where accountIds.Contains(invoice.BillingAccountId) && line.Benefit == Benefit.Membership
+                            select new { invoice.BillingAccountId, line }).ToListAsync(ct)).ToLookup(x => x.BillingAccountId, x => x.line);
+        var renewing = (await db.RecurringItems.Where(x => x.MembershipId != null && ids.Contains(x.MembershipId.Value) && x.EndedAt == null).Select(x => x.MembershipId!.Value).ToListAsync(ct)).ToHashSet();
+        var accountByUser = accounts.ToDictionary(x => x.UserId!.Value, x => x.Id);
+        return entries.Select(entry => entry with
+        {
+            Standing = BillingFacts.MembershipStanding(entry.PendingDeletionAt is null,
+                coverage[accountByUser.GetValueOrDefault(entry.Id)], lines[accountByUser.GetValueOrDefault(entry.Id)], renewing.Contains(entry.Id), billing.Value.MembershipRenewalGraceDays, clock.Today)
+        })
+            .OrderByDescending(x => x.PendingDeletionAt != null).ThenBy(x => x.Standing!.Active).ThenBy(x => x.Standing!.InactiveSince ?? DateOnly.MaxValue).ThenBy(x => x.Name).Take(100).ToList();
     }
 
     public async Task<MemberDetails?> Details(ClaimsPrincipal actor, long id, CancellationToken ct = default)

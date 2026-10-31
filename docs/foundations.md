@@ -4,7 +4,8 @@ S0 is implemented in C#/ASP.NET Core. Evidence below comes from this checkout's
 synthetic PostgreSQL/process/protocol/browser tests, **not** the Django suite.
 S0 itself included no membership, billing, mail delivery or legacy migration workflow.
 The subsequent [S1 implementation](membership.md) now adds real membership and
-essential mail, preserving these infrastructure gates; billing and migration remain later work.
+essential mail, preserving these infrastructure gates. [S2](billing.md) now adds
+billing/subscriptions; legacy migration remains later work.
 
 A first post-S0 System Console increment now provides a superuser-only static SSR
 shell and read-only scheduler diagnostics. Operator CLI commands grant/revoke the

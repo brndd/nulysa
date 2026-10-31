@@ -1,6 +1,6 @@
 # ASP.NET Core architecture and delivery blueprint
 
-**ASP.NET Core architecture accepted in principle; S0 and S1 are implemented with
+**ASP.NET Core architecture accepted in principle; S0–S2 are implemented with
 their own acceptance suites. Later-slice implementation details remain proposals.**
 The behaviour in [SPEC.md](SPEC.md) is preserved. C#/ASP.NET Core, PostgreSQL-only
 database profiles and Quartz.NET are the selected platform direction. The stack
@@ -609,8 +609,9 @@ Optional reader caches reduce some access outages, not database durability risks
   settlement reconciliation, not a second member receipt. Fees/refunds are explicit
   facts; the browser's return page is not proof of payment.
 - Bank transfer and MobilePay remain target scope. Build a real MobilePay adapter
-  and reconciliation tests before claiming that support; exact onboarding/delivery
-  milestone is still technical planning, not permission to drop the requirement.
+  and reconciliation tests before claiming that support. The approved milestone is
+  bank transfer/GoCardless in S2, with MobilePay implementation and sandbox acceptance
+  mandatory before S6; it is not permission to drop the requirement.
 - Keep actual credentials and live provider calls out of CI; use contract fixtures
   and sandbox integration checks. Do not reuse legacy allocation rules or email-
   based identity assumptions through an adapter.
@@ -690,15 +691,16 @@ transport reconnection/state retention and account-gate revalidation. Preserve t
 authentication/infrastructure gates as S1 adds real pages and domain operations;
 the synthetic widget does not prove future interactive business workflows.
 
-S1 is deliberately not a production-ready billing registry by itself. Its missing
-S2 invoice integration is a tracked dependency and acceptance gate, not a new policy
+S1 is deliberately not a production-ready billing registry by itself. Its former
+S2 invoice dependency was an acceptance gate, not a new policy
 that approval omits invoices. Later slices extend the same contracts; they must not
 retrofit a second billing path or replace the foundational user model.
 
-S1 implementation, essential-mail failure/retention handling, local usage and the
-explicit `InitialMembershipRequest` → S2 dependency are recorded in
-[`docs/membership.md`](../docs/membership.md). Approval does not claim to have issued
-an invoice or established paid coverage in this slice.
+S1 implementation and essential-mail failure/retention handling are recorded in
+[`docs/membership.md`](../docs/membership.md). S2 now completes the
+`InitialMembershipRequest` handover, initial PDFs, journal/coverage/grace, bank
+ingestion/review and subscription lifecycle in the same application. See
+[`docs/billing.md`](../docs/billing.md) for configuration, acceptance and limits.
 
 ## 12. Review gate before scaffolding
 
@@ -720,8 +722,8 @@ Once implementation is requested, its concrete checkpoints are:
    integration in S2 before any operational release.
 
 The membership slice and its rejection-email terminal-failure/erasure handling are
-now implemented; see the S1 evidence above. Precise device schemas, one-off invoice
-routing, accountant export mappings and deployment retention validation remain
+now implemented; see the S1 evidence above. S2 adds explicit one-off routing and
+source/journal exports. Precise device schemas, accountant export mappings and deployment retention validation remain
 feature/deployment follow-up. Raise a meaningful
 tradeoff or change to agreed behaviour, not every field/package choice. Architectural
 agreement does not mean implementation, recovery tests or production validation have

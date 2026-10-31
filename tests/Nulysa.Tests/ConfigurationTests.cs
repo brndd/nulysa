@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Nulysa.Accounts;
+using Nulysa.Billing;
 using Nulysa.Communications;
 using Nulysa.Membership;
 using Nulysa.Operations;
@@ -15,6 +16,21 @@ namespace Nulysa.Tests;
 [Trait("Group", "Protocol")]
 public sealed class ConfigurationTests : DatabaseTest
 {
+    [Theory]
+    [InlineData("FI21 1234 5600 0007 85", true)]
+    [InlineData("DE89370400440532013000", true)]
+    [InlineData("FI2112345600000786", false)]
+    [InlineData("FI21not-an-account", false)]
+    [InlineData("", false)]
+    public async Task Billing_rejects_invalid_payment_destinations(string iban, bool valid)
+    {
+        Assert.Equal(valid, BillingOptions.ValidIban(iban));
+        Settings["Billing:Iban"] = iban;
+        await using var app = Build("commands");
+        if (valid || iban.Length == 0) Assert.Equal(iban, app.Services.GetRequiredService<IOptions<BillingOptions>>().Value.Iban);
+        else Assert.Throws<OptionsValidationException>(() => app.Services.GetRequiredService<IOptions<BillingOptions>>().Value);
+    }
+
     [Fact]
     public async Task Membership_and_mail_options_reject_invalid_retention_fallback_URL_and_missing_sender()
     {

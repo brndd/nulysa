@@ -2,8 +2,9 @@
 @inject IConfiguration Configuration
 
 <header><a href="/">@Configuration["Association:Name"]</a></header>
+<AuthorizeView><Authorized><nav aria-label="Member self-service"><a href="/profile">Profile</a> · <a href="/billing">Payments and services</a></nav></Authorized></AuthorizeView>
 <AuthorizeView Policy="Administrator">
-    <Authorized><nav aria-label="Board administration"><a href="/admin/members">Member registry</a> · <a href="/admin/applications">Application review</a></nav></Authorized>
+    <Authorized><nav aria-label="Board administration"><a href="/admin/members">Member registry</a> · <a href="/admin/applications">Application review</a> · <a href="/admin/payments">Payments and accounting</a> · <a href="/admin/billing-configuration">Fees and services</a></nav></Authorized>
 </AuthorizeView>
 <AuthorizeView Policy="Superuser">
     <Authorized><nav aria-label="System administration"><a href="/system-console">System Console</a></nav></Authorized>

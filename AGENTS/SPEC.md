@@ -895,6 +895,13 @@ none silently withdraws a confirmed requirement.
   twelve months), using the shared schedules and alignment rules below.
 - Support bank transfers and at least MobilePay. Other providers must not require
   a fundamental redesign; SumUp is a possible later integration.
+
+**Confirmed delivery milestone:** S2 implements bank transfers and GoCardless
+ingestion. MobilePay implementation and sandbox acceptance remain mandatory before
+S6; this milestone does not remove MobilePay from the replacement's requirements.
+
+**Confirmed requirements (continued)**
+
 - Do not require members to adopt standing orders as their normal way to pay.
 - Integrate payment status with membership and applicable paid services.
 - Respect administrative paid-period extensions and time-limited discounts as

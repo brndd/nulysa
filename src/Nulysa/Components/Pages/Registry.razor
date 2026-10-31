@@ -9,11 +9,11 @@
 <h1>Member registry</h1>
 <p><a href="/admin/applications">Review verified applications</a></p>
 <form method="get"><label for="member-search">Search name, email or member ID</label> <input id="member-search" name="q" value="@Search" maxlength="200" /><button type="submit">Search</button></form>
-<p>Up to 100 results; pending deletions first. Payment standing and long-inactive sorting require S2 coverage facts.</p>
+<p>Up to 100 results; pending deletions first, then longest-inactive members. Standing uses current coverage and grace dates.</p>
 <table>
     <caption>Members</caption>
     <thead><tr><th scope="col">Member</th><th scope="col">Email</th><th scope="col">Joined</th><th scope="col">Lifecycle</th></tr></thead>
-    <tbody>@foreach (var member in members) { <tr><td><a href="@($"/admin/members/{member.Id}")">#@member.Id @member.Name</a></td><td>@member.Email</td><td>@member.JoinedOn</td><td>@(member.PendingDeletionAt is null ? "Admitted; billing pending S2" : "Pending deletion")</td></tr> }</tbody>
+    <tbody>@foreach (var member in members) { <tr><td><a href="@($"/admin/members/{member.Id}")">#@member.Id @member.Name</a></td><td>@member.Email</td><td>@member.JoinedOn</td><td>@member.Standing?.Description @if (member.Standing?.InactiveSince is { } since) { <span>since @since</span> }</td></tr> }</tbody>
 </table>
 <h2>Essential mail needing attention</h2>
 <p>Do not blindly resend an uncertain send. Reconcile the delivery ID with the provider. Rejected applicant payloads are erased at their configured deadline even if sending failed.</p>

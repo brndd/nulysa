@@ -49,6 +49,7 @@ public abstract class DatabaseTest : IAsyncLifetime
         }
         Settings["ConnectionStrings:Database"] = parsed.ConnectionString;
         Settings["DataProtection:Path"] = Path.Combine(DirectoryPath, "data-protection");
+        Settings["Billing:Iban"] = "FI2112345600000785";
         Settings["Oidc:Enabled"] = "true";
         Settings["Oidc:Issuer"] = "http://127.0.0.1:" + FreePort() + "/";
         Settings["Oidc:SigningKeyPath"] = Path.Combine(DirectoryPath, "signing.pem");
@@ -59,6 +60,8 @@ public abstract class DatabaseTest : IAsyncLifetime
         await using var scope = Maintenance.Services.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         await db.Database.MigrateAsync();
+        db.FeePrices.Add(new Nulysa.Billing.FeePrice { FeeDefinitionId = 1, EffectiveOn = new DateOnly(2000, 1, 1), MonthlyAmount = 10m });
+        await db.SaveChangesAsync();
         Scheduler = await Maintenance.Services.GetRequiredService<ISchedulerFactory>().GetScheduler();
         await db.Database.ExecuteSqlRawAsync("""
             CREATE TABLE probe_operations (id text PRIMARY KEY, input integer NOT NULL,
