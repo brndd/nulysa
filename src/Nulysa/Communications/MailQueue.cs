@@ -16,6 +16,7 @@ public sealed class MailQueue(AppDbContext db, TimeProvider clock)
     {
         if (db.Database.CurrentTransaction is null)
             throw new InvalidOperationException("Mail scheduling requires a command transaction.");
+
         var existing = await db.Deliveries.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct);
         if (existing is not null)
         {
@@ -23,8 +24,10 @@ public sealed class MailQueue(AppDbContext db, TimeProvider clock)
                 throw new ValidationException("This delivery key was already used for another action.");
             return;
         }
+
         db.Deliveries.Add(new() { Id = id, Kind = kind, UserId = userId, ApplicationId = applicationId, Version = version, CreatedAt = clock.GetUtcNow(), InvoiceId = invoiceId, InvoiceRevision = invoiceRevision });
         await db.SaveChangesAsync(ct);
+
         var job = JobBuilder.Create<MailDeliveryJob>().WithIdentity(JobKey(id)).RequestRecovery()
             .UsingJobData("delivery_id", id.ToString("D"))
             .UsingJobData("enqueued_at", clock.GetUtcNow().ToString("O", CultureInfo.InvariantCulture)).Build();
@@ -40,6 +43,7 @@ public sealed class MailQueue(AppDbContext db, TimeProvider clock)
             delivery.State = DeliveryState.Cancelled;
             await scheduler.DeleteJob(JobKey(delivery.Id), ct);
         }
+
         await db.SaveChangesAsync(ct);
     }
 }

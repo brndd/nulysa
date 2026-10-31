@@ -21,16 +21,19 @@ public sealed class MembershipFormTests : MembershipTest
         await Run(commands, sp => sp.GetRequiredService<Nulysa.Accounts.AccountCommands>().SetPassword(id, token, Password));
         await using var app = await StartProvider();
         using var client = Client();
+
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsync("apply", new FormUrlEncodedContent([]))).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsync("apply/verify?id=" + Guid.NewGuid(), new FormUrlEncodedContent([]))).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsync("Account/ForgotPassword", new FormUrlEncodedContent([]))).StatusCode);
         await Login(client);
+
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsync("profile", new FormUrlEncodedContent([]))).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsync("resign", new FormUrlEncodedContent([]))).StatusCode);
         Assert.Equal("/Account/AccessDenied", (await client.GetAsync("admin/members")).Headers.Location!.AbsolutePath);
         Assert.Equal("/Account/AccessDenied", (await client.GetAsync("admin/applications")).Headers.Location!.AbsolutePath);
         Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("admin/members/" + Nulysa.Accounts.Authority.Id(board))).StatusCode);
         var html = await client.GetStringAsync("profile");
+
         Assert.Contains("Input.DateOfBirth", html);
         Assert.DoesNotContain("PasswordHash", html);
         Assert.True((await client.GetAsync("profile")).Headers.CacheControl?.NoStore);
@@ -75,6 +78,7 @@ public sealed class MembershipBrowserTests : MembershipTest
         await Run(commands, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(verification));
         var verifyUrl = Regex.Match(transport.Sent[^1].Text, @"https?://\S+").Value;
         await memberPage.GotoAsync(verifyUrl);
+
         Assert.Null((await db.Applications.AsNoTracking().SingleAsync()).VerifiedAt); // Mail-scanner GET is not confirmation.
         await memberPage.GetByRole(AriaRole.Button, new() { Name = "Verify my email address" }).ClickAsync();
         await Assertions.Expect(memberPage.GetByRole(AriaRole.Status)).ToContainTextAsync("awaiting administrator review");
@@ -132,6 +136,7 @@ public sealed class MembershipBrowserTests : MembershipTest
         await Assertions.Expect(memberPage).ToHaveURLAsync(root + "Account/Login");
         var warning = await db.Deliveries.Where(x => x.UserId == id && x.Kind == MailKind.DeletionWarning).Select(x => x.Id).SingleAsync();
         await Run(commands, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(warning));
+
         Assert.Contains("14 days", transport.Sent[^1].Text);
         await memberPage.GotoAsync(root);
         await Assertions.Expect(memberPage).ToHaveURLAsync(new Regex("/Account/Login"));
@@ -140,6 +145,7 @@ public sealed class MembershipBrowserTests : MembershipTest
         await boardPage.GetByLabel("I confirm this membership action and its consequences.").CheckAsync();
         await boardPage.GetByRole(AriaRole.Button, new() { Name = "Cancel pending deletion" }).ClickAsync();
         await Assertions.Expect(boardPage.GetByRole(AriaRole.Heading, new() { Name = "Member registry", Exact = true })).ToBeVisibleAsync();
+
         Assert.Null((await db.Users.AsNoTracking().SingleAsync(x => x.Id == id)).PendingDeletionAt);
         Assert.Equal(5, transport.Sent.Count); // Verification, welcome, email change, reset, warning.
     }

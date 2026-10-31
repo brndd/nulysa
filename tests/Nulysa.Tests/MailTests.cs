@@ -23,9 +23,11 @@ public sealed class MailTransportTests
         var transport = Transport(server.Port);
         var id = Guid.NewGuid();
         var result = await transport.Send(id, new("member@example.test", "Subject", "Plain text; not executable <script>"), CancellationToken.None);
+
         Assert.Equal(SendOutcome.Accepted, result.Outcome);
         Assert.Null(result.ProviderId);
         var transcript = await server.Transcript;
+
         Assert.Contains($"X-Nulysa-Delivery-ID: {id:D}", transcript);
         Assert.Contains("Subject: Subject", transcript);
         Assert.Contains("Plain text; not executable <script>", transcript);
@@ -38,6 +40,7 @@ public sealed class MailTransportTests
     {
         await using var server = new FakeSmtpServer(reply);
         var result = await Transport(server.Port).Send(Guid.NewGuid(), new("member@example.test", "Subject", "Text"), CancellationToken.None);
+
         Assert.Equal(expected, result.Outcome);
     }
 
@@ -45,6 +48,7 @@ public sealed class MailTransportTests
     public async Task Lost_SMTP_connection_is_uncertain_and_never_retried_by_the_adapter()
     {
         var result = await Transport(1).Send(Guid.NewGuid(), new("member@example.test", "Subject", "Text"), CancellationToken.None);
+
         Assert.Equal(SendOutcome.Uncertain, result.Outcome);
     }
 
@@ -55,6 +59,7 @@ public sealed class MailTransportTests
         await using var server = new FakeSmtpServer(null);
         var result = await Transport(server.Port).Send(Guid.NewGuid(), new("member@example.test", "Subject", "Text"), CancellationToken.None)
             .WaitAsync(TimeSpan.FromSeconds(20));
+
         Assert.Equal(SendOutcome.Uncertain, result.Outcome);
         Assert.Contains("Text", await server.Transcript);
     }
@@ -66,6 +71,7 @@ public sealed class MailTransportTests
         using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(1));
         var result = await Transport(server.Port).Send(Guid.NewGuid(), new("member@example.test", "Subject", "Text"), cancellation.Token)
             .WaitAsync(TimeSpan.FromSeconds(5));
+
         Assert.Equal(SendOutcome.Uncertain, result.Outcome);
         Assert.Contains("Text", await server.Transcript);
     }
@@ -81,11 +87,13 @@ public sealed class MailTransportTests
             Options.Create(new MailOptions { Transport = "Smtp", SpoolPath = path }),
             new ConfigurationBuilder().Build(), new TestEnvironment { EnvironmentName = "Development" }, output);
         var result = await transport.Send(id, new("member@example.test", "Subject", "Body"), CancellationToken.None);
+
         Assert.Equal(SendOutcome.Accepted, result.Outcome);
         Assert.Single(inner.Sent);
         Assert.Contains("member@example.test", output.ToString());
         Assert.Contains("Body", output.ToString());
         var spooled = JsonSerializer.Deserialize<OutgoingMail>(await File.ReadAllTextAsync(Path.Combine(path, id.ToString("N") + ".json")))!;
+
         Assert.Equal("Subject", spooled.Subject);
         Directory.Delete(path, true);
     }
@@ -95,6 +103,7 @@ public sealed class MailTransportTests
     {
         var transport = new DevelopmentMailTransport(new RecordingMail(),
             Options.Create(new MailOptions { Transport = "Development" }), new ConfigurationBuilder().Build(), new TestEnvironment());
+
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             transport.Send(Guid.NewGuid(), new("member@example.test", "Subject", "Body"), CancellationToken.None));
     }
@@ -193,6 +202,7 @@ public sealed class MailTests : MembershipTest
         await Run(app, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(welcome));
         var link = Link(Assert.Single(transport.Sent));
         await Run(app, sp => sp.GetRequiredService<Nulysa.Accounts.AccountCommands>().SetPassword(id, link["token"]!, Password));
+
         Assert.Equal(DeliveryState.Accepted, (await db.Deliveries.AsNoTracking().SingleAsync(x => x.Id == welcome)).State);
 
         await Run(app, sp => sp.GetRequiredService<MembershipCommands>().BeginDeletion(board, id, Guid.NewGuid(), "Manual termination"));
@@ -200,6 +210,7 @@ public sealed class MailTests : MembershipTest
         await Run(app, sp => sp.GetRequiredService<MembershipCommands>().Restore(board, id, restoration, "Verified request"));
         Clock.Now = Clock.Now.AddDays(3);
         await Run(app, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(restoration));
+
         Assert.Equal(2, transport.Sent.Count);
         Assert.Contains("peruttu", transport.Sent[^1].Subject, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(DeliveryState.Accepted, (await db.Deliveries.AsNoTracking().SingleAsync(x => x.Id == restoration)).State);
@@ -216,12 +227,14 @@ public sealed class MailTests : MembershipTest
         var welcome = await db.Deliveries.Where(x => x.UserId == id && x.Kind == MailKind.Welcome).Select(x => x.Id).SingleAsync();
         await db.Deliveries.Where(x => x.Id == welcome).ExecuteUpdateAsync(x => x.SetProperty(d => d.State, DeliveryState.Sending).SetProperty(d => d.StartedAt, Clock.Now));
         await Run(app, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(welcome));
+
         Assert.Empty(transport.Sent);
         Assert.Equal(DeliveryState.Review, (await db.Deliveries.AsNoTracking().SingleAsync(x => x.Id == welcome)).State);
         var deletion = Guid.NewGuid();
         await Run(app, sp => sp.GetRequiredService<MembershipCommands>().BeginDeletion(board, id, deletion, "Manual termination"));
         await Run(app, sp => sp.GetRequiredService<MembershipCommands>().Restore(board, id, Guid.NewGuid(), "Verified request"));
         await Run(app, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(deletion));
+
         Assert.Empty(transport.Sent); // Restoration cancelled the obsolete warning.
         Assert.Equal(DeliveryState.Cancelled, (await db.Deliveries.AsNoTracking().SingleAsync(x => x.Id == deletion)).State);
     }
@@ -236,19 +249,23 @@ public sealed class MailTests : MembershipTest
         var id = await Verified(app);
         await Run(app, sp => sp.GetRequiredService<MembershipCommands>().Reject(board, id, null));
         for (var attempt = 0; attempt < 2; attempt++)
+
             await Assert.ThrowsAsync<JobExecutionException>(() => Run(app, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(id)));
         await Assert.ThrowsAsync<JobExecutionException>(() => Run(app, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(id)));
         Assert.Equal(2, transport.Sent.Count); // Retrying the SAME recipient still consumes provider rate capacity.
         Clock.Now = Clock.Now.AddMinutes(1);
         await Run(app, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(id));
         await Run(app, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(id));
+
         Assert.Equal(3, transport.Sent.Count);
         await using var db = Context();
+
         Assert.Equal(DeliveryState.Failed, (await db.Deliveries.SingleAsync(x => x.Id == id)).State);
         Settings["Mail:MaxPerMinute"] = "1";
         await using var limited = CommandsApp(transport);
         var pending = await Verified(limited, "second@example.test");
         await Run(limited, sp => sp.GetRequiredService<MembershipCommands>().Reject(board, pending, null));
+
         await Assert.ThrowsAsync<JobExecutionException>(() => Run(limited, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(pending)));
         Assert.Equal(3, transport.Sent.Count);
     }
@@ -264,6 +281,7 @@ public sealed class MailTests : MembershipTest
         await Run(app, sp => sp.GetRequiredService<MembershipCommands>().Apply(application, Input()));
         var queuedKey = Assert.Single(await Scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("work")));
         var queued = (await Scheduler.GetJobDetail(queuedKey))!;
+
         Assert.Equal(new[] { "delivery_id", "enqueued_at" }, queued.JobDataMap.Keys.Order());
         Assert.All(queued.JobDataMap.Values, value => Assert.DoesNotContain(Email, Assert.IsType<string>(value)));
         StartWorker();
@@ -282,6 +300,7 @@ public sealed class MailTests : MembershipTest
         await Run(app, sp => sp.GetRequiredService<MembershipCommands>().BeginDeletion(board, id, warning, "Manual termination"));
         await Until(async () => await db.Deliveries.AnyAsync(x => x.Id == warning && x.State == DeliveryState.Accepted));
         foreach (var kind in new[] { MailKind.Verification, MailKind.Welcome, MailKind.Rejection, MailKind.DeletionWarning })
+
             Assert.True(await db.Deliveries.AnyAsync(x => x.Kind == kind && x.State == DeliveryState.Accepted));
     }
 }

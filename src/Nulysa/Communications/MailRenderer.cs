@@ -22,6 +22,7 @@ public sealed class MailRenderer(AppDbContext db, UserManager<User> users, Membe
         if (language is not ("en" or "fi"))
             language = membershipOptions.Value.DefaultLanguage;
         var fi = language == "fi";
+
         if (delivery.Kind == MailKind.Verification)
         {
             if (application is null || application.VerifiedAt is not null || application.RejectedAt is not null ||
@@ -46,14 +47,17 @@ public sealed class MailRenderer(AppDbContext db, UserManager<User> users, Membe
             if (user?.Email is null || !user.Admitted || !user.EmailConfirmed)
                 return null;
             email = user.Email;
+
             if (delivery.Kind == MailKind.Invoice)
             {
                 if (!user.MayLogIn || delivery.InvoiceId is not { } invoiceId)
                     return null;
+
                 var account = await db.BillingAccounts.AsNoTracking().SingleAsync(x => x.UserId == user.Id, ct);
                 var invoice = await db.Invoices.AsNoTracking().SingleOrDefaultAsync(x => x.Id == invoiceId && x.BillingAccountId == account.Id, ct);
                 if (!account.EmailInvoices || invoice is null || invoice.ClosedAt is not null || invoice.Revision != delivery.InvoiceRevision)
                     return null;
+
                 var attachment = await pdf.Render(invoiceId, delivery.InvoiceRevision, ct);
                 if (attachment is null)
                     return null;
@@ -64,12 +68,14 @@ public sealed class MailRenderer(AppDbContext db, UserManager<User> users, Membe
             {
                 if (!user.MayLogIn)
                     return null;
+
                 var account = await db.BillingAccounts.SingleAsync(x => x.UserId == user.Id, ct);
                 var standing = (await BillingFacts.Load(db, account.Id, ct, billingOptions.Value.MembershipRenewalGraceDays)).Membership(clock.Today);
                 if (delivery.Kind == MailKind.MembershipInactive && standing.Active)
                     return null;
                 if (delivery.Kind == MailKind.MembershipGrace && (!standing.Active || standing.Description != "Active during grace"))
                     return null;
+
                 subject = delivery.Kind == MailKind.MembershipInactive ? (fi ? "Jäsenpalvelut keskeytetty" : "Membership benefits paused") : (fi ? "Jäsenmaksun lisäaika" : "Membership payment grace");
                 text = (delivery.Kind == MailKind.MembershipInactive
                     ? (fi ? "Jäsenmaksun määräaika päättyi. Jäsenyys jatkuu, mutta jäsenpalvelut ja jäsenlaskutus on keskeytetty. Voit palata maksamalla uuden paluujakson. " : "Your membership payment grace ended. You remain a member; benefits and membership billing are paused. Request a return period to resume. ")
@@ -79,6 +85,7 @@ public sealed class MailRenderer(AppDbContext db, UserManager<User> users, Membe
             {
                 if (!user.MayLogIn || !await Authority.IsAdministrator(db, new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity([new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, user.Id.ToString())], "mail")), ct))
                     return null;
+
                 subject = fi ? "Pankkisynkronointi vaatii huomiota" : "Bank import requires attention";
                 text = (fi ? "Pankkisyöte on epäonnistunut, vanhentunut tai vaatii uuden valtuutuksen. Tarkista maksujen hallinta: " : "The bank feed failed, is stale or needs renewed authorization. Check payment administration: ") + Link("admin/payments", new());
             }
@@ -95,6 +102,7 @@ public sealed class MailRenderer(AppDbContext db, UserManager<User> users, Membe
                 var member = await db.Members.AsNoTracking().SingleOrDefaultAsync(x => x.UserId == user.Id, ct);
                 if (user.PendingDeletionAt is null || member?.DeletionOperation != delivery.Version || member.DeletionEligibleAt is not { } eligibleAt)
                     return null;
+
                 var eligible = TimeZoneInfo.ConvertTime(eligibleAt, clock.Zone);
                 subject = fi ? "Jäsenyyden päättyminen ja tietojen poisto" : "Membership ended: account deletion warning";
                 text = fi ? $"Kirjautuminen ja jäsenpalvelut on estetty. Tilisi voidaan poistaa aikaisintaan {eligible:yyyy-MM-dd HH:mm zzz}. Poistoerä ajetaan 14 päivän välein, joten poisto tapahtuu tavallisesti {eligible:yyyy-MM-dd}–{eligible.AddDays(14):yyyy-MM-dd}, häiriöissä myöhemmin. Ota yhteys hallitukseen, jos haluat perua poiston."
@@ -113,6 +121,7 @@ public sealed class MailRenderer(AppDbContext db, UserManager<User> users, Membe
                 {
                     if (user.PendingEmail is null || user.PendingEmailVersion != delivery.Version || user.PendingEmailRequestedAt?.AddDays(1) <= clock.Now)
                         return null;
+
                     email = user.PendingEmail;
                     var token = await users.GenerateChangeEmailTokenAsync(user, email);
                     var link = Link("Account/ConfirmEmail", new() { ["id"] = user.Id.ToString(), ["version"] = delivery.Version.ToString(), ["token"] = token });

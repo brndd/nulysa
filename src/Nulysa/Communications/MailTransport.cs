@@ -21,6 +21,7 @@ public sealed class SmtpMailTransport(IOptions<MailOptions> options, IConfigurat
         if (mail.Pdf is not null)
             message.Attachments.Add(new Attachment(new MemoryStream(mail.Pdf), mail.FileName ?? "invoice.pdf", "application/pdf"));
         message.Headers.Add("X-Nulysa-Delivery-ID", id.ToString("D"));
+
         using var client = new SmtpClient(settings.Host, settings.Port)
         {
             EnableSsl = settings.EnableSsl,
@@ -28,6 +29,7 @@ public sealed class SmtpMailTransport(IOptions<MailOptions> options, IConfigurat
         };
         if (!string.IsNullOrEmpty(settings.Username))
             client.Credentials = new NetworkCredential(settings.Username, settings.Password);
+
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
         deadline.CancelAfter(TimeSpan.FromSeconds(15));
         // The final SMTP acknowledgement can block without observing the send token.

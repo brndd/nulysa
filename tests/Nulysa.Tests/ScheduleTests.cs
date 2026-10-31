@@ -16,6 +16,7 @@ public sealed class CalendarTests
     {
         var clock = new ManualClock { Now = new DateTimeOffset(year, month, day, hour, minute, 0, TimeSpan.Zero) };
         var association = new AssociationClock(clock, new ConfigurationBuilder().Build());
+
         Assert.Equal(new DateTimeOffset(endYear, endMonth, endDay, endHour, endMinute, 0, TimeSpan.Zero), association.AfterCalendarDays(14));
     }
 
@@ -32,6 +33,7 @@ public sealed class CalendarTests
         {
             time = trigger.GetFireTimeAfter(time)!.Value;
             var local = TimeZoneInfo.ConvertTime(time, zone);
+
             Assert.Equal(anchor.AddDays(14 * i), DateOnly.FromDateTime(local.DateTime));
             Assert.Equal(TimeSpan.Zero, local.TimeOfDay);
         }
@@ -41,6 +43,7 @@ public sealed class CalendarTests
         {
             time = cron.GetNextValidTimeAfter(time)!.Value;
             var local = TimeZoneInfo.ConvertTime(time, zone);
+
             Assert.Equal(anchor.AddDays(i), DateOnly.FromDateTime(local.DateTime));
             Assert.Equal(TimeSpan.Zero, local.TimeOfDay);
         }
@@ -68,6 +71,7 @@ public sealed class ScheduleTests : DatabaseTest
         StartWorker();
         await Schedules.Install(Scheduler, TimeProvider.System, zone);
         var after = (ICalendarIntervalTrigger)(await Scheduler.GetTrigger(trigger.Key))!;
+
         Assert.Equal(stored.StartTimeUtc, after.StartTimeUtc);
         Assert.Equal(stored.NextFireTimeUtc, after.NextFireTimeUtc);
         Assert.Equal(14, after.RepeatInterval);
@@ -85,11 +89,13 @@ public sealed class ScheduleTests : DatabaseTest
             await db.Database.MigrateAsync();
         await Schedules.Install(Scheduler, TimeProvider.System, TimeZoneInfo.FindSystemTimeZoneById("Europe/Helsinki"));
         var after = await Scheduler.GetTrigger(key);
+
         Assert.Equal(before!.NextFireTimeUtc, after!.NextFireTimeUtc);
         Assert.Equal(before.StartTimeUtc, after.StartTimeUtc);
         var bad = TriggerBuilder.Create<HeartbeatJob>().WithIdentity("heartbeat", Schedules.Group)
             .ForJob("heartbeat", Schedules.Group).WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromHours(1)).RepeatForever()).Build();
         await Scheduler.RescheduleJob(key, bad);
+
         await Assert.ThrowsAsync<InvalidOperationException>(() => Schedules.Install(Scheduler, TimeProvider.System, TimeZoneInfo.Utc));
     }
 
@@ -103,13 +109,16 @@ public sealed class ScheduleTests : DatabaseTest
         var worker = StartWorker();
         await Until(async () => await db.Observations.CountAsync() == Schedules.Names.Length - 1, seconds: 45);
         await Until(async () => await db.Database.SqlQuery<int>($"SELECT count(*)::integer AS \"Value\" FROM qrtz_execution_history WHERE job_name = 'authentication-cleanup'").SingleAsync() == 1);
+
         Assert.True((await WorkStatus.Read(db, Scheduler, TimeProvider.System)).Healthy);
         Assert.Equal(1, await db.Database.SqlQuery<int>($"SELECT count(*)::integer AS \"Value\" FROM qrtz_execution_history WHERE job_name = 'authentication-cleanup'").SingleAsync());
         await worker.Stop();
         await Scheduler.PauseTrigger(new TriggerKey("heartbeat", Schedules.Group));
         var stopped = await WorkStatus.Read(db, Scheduler, TimeProvider.System);
+
         Assert.Contains("stopped_schedule", stopped.Issues);
         await db.Observations.ExecuteUpdateAsync(x => x.SetProperty(o => o.LastSeen, DateTimeOffset.UtcNow.AddDays(-2)));
+
         Assert.Contains("stale_heartbeat", (await WorkStatus.Read(db, Scheduler, TimeProvider.System)).Issues);
     }
 }

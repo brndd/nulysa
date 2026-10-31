@@ -24,12 +24,15 @@ public sealed class ConfigurationTests : DatabaseTest
     [InlineData("", false)]
     public async Task Billing_rejects_invalid_payment_destinations(string iban, bool valid)
     {
+
         Assert.Equal(valid, BillingOptions.ValidIban(iban));
         Settings["Billing:Iban"] = iban;
         await using var app = Build("commands");
         if (valid || iban.Length == 0)
+
             Assert.Equal(iban, app.Services.GetRequiredService<IOptions<BillingOptions>>().Value.Iban);
         else
+
             Assert.Throws<OptionsValidationException>(() => app.Services.GetRequiredService<IOptions<BillingOptions>>().Value);
     }
 
@@ -38,26 +41,32 @@ public sealed class ConfigurationTests : DatabaseTest
     {
         Settings["Membership:DefaultLanguage"] = "sv";
         await using (var app = Build("commands"))
+
             Assert.Throws<OptionsValidationException>(() => app.Services.GetRequiredService<IOptions<MembershipOptions>>().Value);
         Settings.Remove("Membership:DefaultLanguage");
         Settings["Membership:DeletionWaitingDays"] = "-1";
         await using (var app = Build("commands"))
+
             Assert.Throws<OptionsValidationException>(() => app.Services.GetRequiredService<IOptions<MembershipOptions>>().Value);
         Settings.Remove("Membership:DeletionWaitingDays");
         Settings["Mail:PublicUrl"] = "https://user:password@example.test/";
         await using (var app = Build("commands"))
+
             Assert.Throws<OptionsValidationException>(() => app.Services.GetRequiredService<IOptions<MailOptions>>().Value);
         Settings["Mail:PublicUrl"] = "https://registry.example.test/";
         Settings["Mail:Transport"] = "Smtp";
         Settings["Mail:Host"] = "smtp.example.test";
         await using (var app = Build("commands"))
+
             Assert.Throws<OptionsValidationException>(() => app.Services.GetRequiredService<IOptions<MailOptions>>().Value);
         Settings["Mail:FromEmail"] = "from@example.test";
         Settings["Mail:Username"] = "smtp-user";
         await using (var app = Build("commands"))
+
             Assert.Throws<OptionsValidationException>(() => app.Services.GetRequiredService<IOptions<MailOptions>>().Value);
         Settings.Remove("Mail:Username");
         await using (var app = Build("commands"))
+
             Assert.Equal("Smtp", app.Services.GetRequiredService<IOptions<MailOptions>>().Value.Transport);
     }
     [Fact]
@@ -84,8 +93,10 @@ public sealed class ConfigurationTests : DatabaseTest
             return (process.ExitCode, await stdout);
         }
         var created = await Create("weak@example.test", "x");
+
         Assert.Equal(0, created.Exit);
         var duplicate = await Create("weak@example.test", "x");
+
         Assert.Equal(1, duplicate.Exit); // Email uniqueness remains enforced.
         Assert.DoesNotContain("Created development user with ID", duplicate.Output);
         Assert.Equal(1, (await Create("empty@example.test", "")).Exit);
@@ -93,12 +104,14 @@ public sealed class ConfigurationTests : DatabaseTest
         await using var scope = Maintenance.Services.CreateAsyncScope();
         var users = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
         var user = (await users.FindByEmailAsync("weak@example.test"))!;
+
         Assert.True(await users.CheckPasswordAsync(user, "x"));
         Assert.NotEqual("x", user.PasswordHash);
         Assert.True(await users.IsInRoleAsync(user, "Superuser"));
         Assert.True(await users.IsInRoleAsync(user, "Administrator"));
         Assert.Contains($"Created development user with ID {user.Id}.", created.Output);
         var normal = await users.CreateAsync(new User { Email = "normal@example.test", UserName = "normal@example.test" }, "x");
+
         Assert.False(normal.Succeeded);
         Assert.Contains(normal.Errors, error => error.Code == "PasswordTooShort");
         Assert.Null(await users.FindByEmailAsync("empty@example.test"));
@@ -112,9 +125,11 @@ public sealed class ConfigurationTests : DatabaseTest
         await using (var app = await StartWeb())
         {
             using var client = new HttpClient { BaseAddress = new Uri(Settings["Oidc:Issuer"]!) };
+
             Assert.Equal(System.Net.HttpStatusCode.NotFound, (await client.GetAsync(".well-known/openid-configuration")).StatusCode);
             Assert.Equal(System.Net.HttpStatusCode.NotFound, (await client.GetAsync("connect/token")).StatusCode);
         }
+
         Assert.Throws<InvalidOperationException>(() => Build("web", b => b.Environment.EnvironmentName = "Production"));
         using var key = RSA.Create(2048);
         var request = new CertificateRequest("CN=Synthetic", key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -124,9 +139,11 @@ public sealed class ConfigurationTests : DatabaseTest
         Settings["DataProtection:CertificatePath"] = path;
         Settings["DataProtection:CertificatePassword"] = "synthetic";
         Settings["Oidc:Enabled"] = "true";
+
         Assert.Throws<InvalidOperationException>(() => Build("web", b => b.Environment.EnvironmentName = "Production")); // HTTP issuer.
         Settings["Oidc:Issuer"] = "https://registry.example.test/";
         Settings["Oidc:SigningKeyPath"] = Path.Combine(DirectoryPath, "missing.pem");
+
         Assert.Throws<FileNotFoundException>(() => Build("web", b => b.Environment.EnvironmentName = "Production"));
     }
 
@@ -150,11 +167,13 @@ public sealed class ConfigurationTests : DatabaseTest
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             await process.WaitForExitAsync(deadline.Token);
             var text = await stdout;
+
             Assert.DoesNotContain("private-never-output", text + await stderr);
             using var document = JsonDocument.Parse(text);
             return (process.ExitCode, document.RootElement.Clone());
         }
         var missing = await Status(Settings);
+
         Assert.Equal(1, missing.Exit);
         Assert.False(missing.Json.GetProperty("healthy").GetBoolean());
         await Schedules.Install(Scheduler, TimeProvider.System, TimeZoneInfo.Utc);
@@ -164,6 +183,7 @@ public sealed class ConfigurationTests : DatabaseTest
                 await Observations.Record(db, name, DateTimeOffset.UtcNow, CancellationToken.None);
         }
         var healthy = await Status(Settings);
+
         Assert.Equal(0, healthy.Exit);
         Assert.True(healthy.Json.GetProperty("healthy").GetBoolean());
         var unavailable = new Dictionary<string, string?>(Settings)
@@ -171,6 +191,7 @@ public sealed class ConfigurationTests : DatabaseTest
             ["ConnectionStrings:Database"] = "Host=127.0.0.1;Port=1;Database=unavailable;Username=test;Password=private-never-output;Timeout=1"
         };
         var failure = await Status(unavailable);
+
         Assert.Equal(1, failure.Exit);
         Assert.Equal("database_unavailable", failure.Json.GetProperty("issues")[0].GetString());
     }

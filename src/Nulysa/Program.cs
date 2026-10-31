@@ -23,7 +23,9 @@ if (mode == "worker")
 }
 WebApplication app;
 try
-{ app = FoundationHost.Build(args); }
+{
+    app = FoundationHost.Build(args);
+}
 catch (Exception) when (mode == "status")
 {
     Console.WriteLine("{\"healthy\":false,\"issues\":[\"configuration_invalid\"]}");

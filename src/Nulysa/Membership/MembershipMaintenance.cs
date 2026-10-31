@@ -19,14 +19,21 @@ public sealed class MembershipMaintenance(AppDbContext db, AssociationClock cloc
         {
             var unverified = clock.Now.AddHours(-options.Value.UnverifiedRetentionHours);
             var rejected = clock.Now.AddDays(-options.Value.RejectionRetentionDays);
-            var applications = await db.Applications.Where(x => (x.VerifiedAt == null && x.CreatedAt <= unverified) || x.RejectedAt <= rejected)
-                .OrderBy(x => x.CreatedAt).Select(x => x.Id).Take(50).ToListAsync(ct);
+            var applications = await db.Applications
+                .Where(x => (x.VerifiedAt == null && x.CreatedAt <= unverified) || x.RejectedAt <= rejected)
+                .OrderBy(x => x.CreatedAt)
+                .Select(x => x.Id)
+                .Take(50)
+                .ToListAsync(ct);
             foreach (var id in applications)
             {
                 // Recheck after the row lock: verification/rejection/approval may have raced the scan.
                 var application = await db.Applications.FromSqlInterpolated($"SELECT * FROM \"Applications\" WHERE \"Id\" = {id} FOR UPDATE").SingleOrDefaultAsync(ct);
-                if (application is null || !((application.VerifiedAt == null && application.CreatedAt <= unverified) || application.RejectedAt <= rejected))
+                var shouldRemove = application is not null
+                    && ((application.VerifiedAt == null && application.CreatedAt <= unverified) || application.RejectedAt <= rejected);
+                if (!shouldRemove)
                     continue;
+
                 var deliveries = await db.Deliveries.Where(x => x.ApplicationId == id).ToListAsync(ct);
                 foreach (var delivery in deliveries)
                 {
@@ -34,28 +41,46 @@ public sealed class MembershipMaintenance(AppDbContext db, AssociationClock cloc
                     if (delivery.State != DeliveryState.Accepted)
                         delivery.State = delivery.Kind == MailKind.Rejection ? DeliveryState.Failed : DeliveryState.Cancelled;
                 }
-                db.Applications.Remove(application);
+                db.Applications.Remove(application!);
             }
             await db.SaveChangesAsync(ct);
+
             await db.Deliveries.Where(x => x.State == DeliveryState.Sending && x.StartedAt <= clock.Now.AddMinutes(-2))
                 .ExecuteUpdateAsync(x => x.SetProperty(d => d.State, DeliveryState.Review), ct);
-            var pending = await db.Deliveries.AsNoTracking().Where(x => x.State == DeliveryState.Pending).OrderBy(x => x.CreatedAt).Take(50).ToListAsync(ct);
+            var pending = await db.Deliveries.AsNoTracking()
+                .Where(x => x.State == DeliveryState.Pending)
+                .OrderBy(x => x.CreatedAt)
+                .Take(50)
+                .ToListAsync(ct);
             foreach (var delivery in pending)
             {
                 var key = MailQueue.JobKey(delivery.Id);
-                if (await scheduler.GetJobDetail(key, ct) is null)
-                    await scheduler.ScheduleJob(JobBuilder.Create<MailDeliveryJob>().WithIdentity(key).RequestRecovery()
-                        .UsingJobData("delivery_id", delivery.Id.ToString()).UsingJobData("enqueued_at", delivery.CreatedAt.ToString("O")).Build(),
-                        TriggerBuilder.Create<MailDeliveryJob>().StartNow().Build(), cancellationToken: ct);
+                if (await scheduler.GetJobDetail(key, ct) is not null)
+                    continue;
+
+                await scheduler.ScheduleJob(JobBuilder.Create<MailDeliveryJob>().WithIdentity(key).RequestRecovery()
+                    .UsingJobData("delivery_id", delivery.Id.ToString()).UsingJobData("enqueued_at", delivery.CreatedAt.ToString("O")).Build(),
+                    TriggerBuilder.Create<MailDeliveryJob>().StartNow().Build(), cancellationToken: ct);
             }
-            var oldDeliveries = await db.Deliveries.Where(x => x.State != DeliveryState.Pending && x.State != DeliveryState.Sending && x.CreatedAt < clock.Now.AddDays(-30))
-                .OrderBy(x => x.CreatedAt).Select(x => x.Id).Take(100).ToListAsync(ct);
+
+            var oldDeliveries = await db.Deliveries
+                .Where(x => x.State != DeliveryState.Pending && x.State != DeliveryState.Sending && x.CreatedAt < clock.Now.AddDays(-30))
+                .OrderBy(x => x.CreatedAt)
+                .Select(x => x.Id)
+                .Take(100)
+                .ToListAsync(ct);
             await db.Deliveries.Where(x => oldDeliveries.Contains(x.Id)).ExecuteDeleteAsync(ct);
             await tx.CommitAsync(ct);
         }
+
         // Do not acquire member locks while holding application, delivery or scheduler locks.
-        var expiredEmails = await db.Users.Where(x => x.PendingEmailRequestedAt <= clock.Now.AddDays(-1))
-            .OrderBy(x => x.PendingEmailRequestedAt).ThenBy(x => x.Id).Select(x => x.Id).Take(50).ToListAsync(ct);
+        var expiredEmails = await db.Users
+            .Where(x => x.PendingEmailRequestedAt <= clock.Now.AddDays(-1))
+            .OrderBy(x => x.PendingEmailRequestedAt)
+            .ThenBy(x => x.Id)
+            .Select(x => x.Id)
+            .Take(50)
+            .ToListAsync(ct);
         foreach (var id in expiredEmails)
         {
             await using var cleanup = await db.Database.BeginTransactionAsync(ct);
@@ -69,6 +94,7 @@ public sealed class MembershipMaintenance(AppDbContext db, AssociationClock cloc
             }
             await cleanup.CommitAsync(ct);
         }
+
         await Observations.Record(db, "membership-due-work", clock.Now, ct);
     }
 }
@@ -99,7 +125,10 @@ public sealed class FinalDeletionJob(IServiceScopeFactory scopes, TimeProvider c
                 await using var scope = scopes.CreateAsyncScope();
                 await scope.ServiceProvider.GetRequiredService<MembershipCommands>().Erase(id, cancellationToken);
             }
-            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (Exception error)
             {
                 logger.LogError(error, "Final deletion failed for member {MemberId}.", id);

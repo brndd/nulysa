@@ -30,6 +30,7 @@ public sealed class MailDispatcher(AppDbContext db, MailRenderer renderer, IMail
             }
             if (delivery.State != DeliveryState.Pending)
                 return;
+
             message = await renderer.Render(delivery, ct);
             if (message is null)
             {
@@ -38,14 +39,22 @@ public sealed class MailDispatcher(AppDbContext db, MailRenderer renderer, IMail
                 await tx.CommitAsync(ct);
                 return;
             }
+
             var window = await db.MailRateWindows.SingleOrDefaultAsync(ct);
             if (window is null)
-            { window = new() { StartedAt = clock.GetUtcNow() }; db.MailRateWindows.Add(window); }
+            {
+                window = new() { StartedAt = clock.GetUtcNow() };
+                db.MailRateWindows.Add(window);
+            }
             if (window.StartedAt.AddMinutes(1) <= clock.GetUtcNow())
-            { window.StartedAt = clock.GetUtcNow(); window.Attempts = 0; }
+            {
+                window.StartedAt = clock.GetUtcNow();
+                window.Attempts = 0;
+            }
             if (window.Attempts >= options.Value.MaxPerMinute)
                 throw new JobExecutionException("Mail provider rate limit; dispatch deferred.");
             window.Attempts++;
+
             delivery.State = DeliveryState.Sending;
             delivery.StartedAt = clock.GetUtcNow();
             attempt = ++delivery.Attempts;
@@ -56,12 +65,15 @@ public sealed class MailDispatcher(AppDbContext db, MailRenderer renderer, IMail
 
         SendResult result;
         try
-        { result = await transport.Send(id, message, ct); }
+        {
+            result = await transport.Send(id, message, ct);
+        }
         catch (Exception error)
         {
             logger.LogWarning(error, "Mail transport threw for delivery {DeliveryId}; recording the outcome as uncertain.", id);
             result = new(SendOutcome.Uncertain);
         }
+
         // Record acceptance/ambiguity even when shutdown cancelled the HTTP operation.
         using var finish = new CancellationTokenSource(TimeSpan.FromSeconds(20));
         await using (var tx = await db.Database.BeginTransactionAsync(finish.Token))
@@ -70,9 +82,11 @@ public sealed class MailDispatcher(AppDbContext db, MailRenderer renderer, IMail
             // Match application commands' lock order; never hold a delivery while waiting for its applicant.
             if (rejectedApplication is { } applicationId)
                 await db.Database.ExecuteSqlInterpolatedAsync($"SELECT 1 FROM \"Applications\" WHERE \"Id\" = {applicationId} FOR UPDATE", finish.Token);
+
             var delivery = await Lock(id, finish.Token);
             if (delivery is null || delivery.Attempts != attempt)
                 return;
+
             delivery.State = result.Outcome switch
             {
                 SendOutcome.Accepted => DeliveryState.Accepted,

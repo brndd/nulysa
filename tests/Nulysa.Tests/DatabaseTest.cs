@@ -171,6 +171,7 @@ public sealed class WorkerProcess : IAsyncDisposable
     {
         using var command = Process.Start(new ProcessStartInfo("kill") { ArgumentList = { "-" + signal, process.Id.ToString() } })!;
         await command.WaitForExitAsync();
+
         Assert.Equal(0, command.ExitCode);
     }
 
@@ -181,6 +182,7 @@ public sealed class WorkerProcess : IAsyncDisposable
         await Signal("TERM");
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(25));
         await process.WaitForExitAsync(deadline.Token);
+
         Assert.Equal(0, process.ExitCode);
     }
 
@@ -189,7 +191,11 @@ public sealed class WorkerProcess : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         if (!process.HasExited)
-        { process.Kill(entireProcessTree: true); await process.WaitForExitAsync(); }
+        {
+            process.Kill(entireProcessTree: true);
+            await process.WaitForExitAsync();
+        }
+
         await Task.WhenAll(stdout, stderr);
         process.Dispose();
     }

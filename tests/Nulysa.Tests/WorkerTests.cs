@@ -13,6 +13,7 @@ public sealed class WorkerTests : DatabaseTest
     public async Task Shared_transaction_is_invisible_until_commit_and_rollback_removes_both_writes()
     {
         await using var db = Context();
+
         await Assert.ThrowsAsync<InvalidOperationException>(() => Probe.ScheduleInTransaction(db, Scheduler, "no-tx"));
         await using (var tx = await db.Database.BeginTransactionAsync())
         {
@@ -20,13 +21,16 @@ public sealed class WorkerTests : DatabaseTest
             {
                 await Probe.ScheduleInTransaction(db, Scheduler, "rolled-back");
                 await using var other = Context();
+
                 Assert.Equal(0, await other.Database.SqlQuery<int>($"SELECT count(*)::integer AS \"Value\" FROM probe_operations").SingleAsync());
                 Assert.Equal(0, await other.Database.SqlQuery<int>($"SELECT count(*)::integer AS \"Value\" FROM qrtz_job_details WHERE job_group = 'work'").SingleAsync());
                 await tx.RollbackAsync();
             }
         }
+
         Assert.Null(await Scheduler.GetJobDetail(new JobKey("rolled-back", "work")));
         await Probe.Enqueue(db, Scheduler, "committed");
+
         Assert.NotNull(await Scheduler.GetJobDetail(new JobKey("committed", "work")));
         StartWorker();
         await Until(async () => await Effects("committed") == 1);
@@ -38,6 +42,7 @@ public sealed class WorkerTests : DatabaseTest
         var job = JobBuilder.Create<ProbeJob>().WithIdentity("occupied", "work").Build();
         await Scheduler.ScheduleJob(job, TriggerBuilder.Create<ProbeJob>().WithIdentity("occupied", "work").StartAt(DateTimeOffset.UtcNow.AddDays(1)).Build());
         await using var db = Context();
+
         await Assert.ThrowsAsync<ObjectAlreadyExistsException>(() => Probe.Enqueue(db, Scheduler, "occupied"));
         Assert.Equal(0, await db.Database.SqlQuery<int>($"SELECT count(*)::integer AS \"Value\" FROM probe_operations").SingleAsync());
     }
@@ -55,6 +60,7 @@ public sealed class WorkerTests : DatabaseTest
         StartWorker();
         StartWorker();
         await Until(async () => await Effects("queued") == 1);
+
         Assert.Equal(1, await Attempts("queued"));
     }
 
@@ -86,6 +92,7 @@ public sealed class WorkerTests : DatabaseTest
             StartWorker();
         }
         await Until(async () => await Attempts("crash") == 2 && await Effects("crash") == 1);
+
         Assert.Equal(2, await Attempts("crash"));
     }
 
@@ -98,9 +105,11 @@ public sealed class WorkerTests : DatabaseTest
         var first = StartWorker();
         await Until(async () => await Attempts("shutdown") == 1);
         await first.Stop();
+
         Assert.Equal(0, await Effects("shutdown"));
         StartWorker();
         await Until(async () => await Effects("shutdown") == 1);
+
         Assert.Equal(2, await Attempts("shutdown"));
     }
 
@@ -114,14 +123,17 @@ public sealed class WorkerTests : DatabaseTest
         await Probe.Enqueue(db, Scheduler, "failure", mode: mode);
         StartWorker();
         await Until(async () => await db.Database.SqlQuery<int>($"SELECT count(*)::integer AS \"Value\" FROM qrtz_execution_history WHERE job_name = 'failure' AND retry_scheduled = false").SingleAsync() == 1);
+
         Assert.Equal(3, await Attempts("failure")); // Initial attempt plus two retries.
         Assert.Equal(0, await Effects("failure"));
         var messages = await db.Database.SqlQuery<string>($"SELECT error_message AS \"Value\" FROM qrtz_execution_history WHERE job_name = 'failure'").ToListAsync();
+
         Assert.Equal(3, messages.Count);
         Assert.All(messages, x => Assert.DoesNotContain("private-test", x));
         // History and the operational observation deliberately commit independently.
         await Until(async () => await db.FailureObservations.AnyAsync());
         var status = await WorkStatus.Read(db, Scheduler, TimeProvider.System);
+
         Assert.Contains("failed_work", status.Issues);
     }
 
@@ -131,12 +143,14 @@ public sealed class WorkerTests : DatabaseTest
         await using var db = Context();
         await Probe.Enqueue(db, Scheduler, "duplicate", 5);
         await Probe.Enqueue(db, Scheduler, "duplicate", 5);
+
         await Assert.ThrowsAsync<InvalidOperationException>(() => Probe.Enqueue(db, Scheduler, "duplicate", 6));
         await Task.WhenAll(Enumerable.Range(0, 8).Select(async _ =>
         {
             await using var other = Context();
             await Probe.Complete(other, "duplicate", CancellationToken.None);
         }));
+
         Assert.Equal(1, await Effects("duplicate"));
     }
 
@@ -159,6 +173,7 @@ public sealed class WorkerTests : DatabaseTest
         await Probe.Enqueue(db, Scheduler, "later");
         await Until(async () => await Effects("later") == 1);
         await Until(async () => await db.Database.SqlQuery<int>($"SELECT count(*)::integer AS \"Value\" FROM qrtz_fired_triggers WHERE job_name = 'stale'").SingleAsync() == 0);
+
         Assert.Equal(1, await Effects("stale"));
         Assert.Equal(2, await Attempts("stale"));
     }
@@ -176,8 +191,10 @@ public sealed class WorkerTests : DatabaseTest
         await Scheduler.AddJob(job, AddJobOptions.ReplacingAndStoringNonDurable);
         StartWorker();
         await Until(async () => await Attempts("uncancellable") == 1);
+
         Assert.True(await Scheduler.Interrupt(key));
         await Until(() => Task.FromResult(File.Exists(marker)));
+
         Assert.Equal(0, await Effects("uncancellable"));
         Assert.Equal(1, await db.Database.SqlQuery<int>($"SELECT count(*)::integer AS \"Value\" FROM qrtz_fired_triggers WHERE job_name = 'uncancellable'").SingleAsync());
         await Release("uncancellable");
@@ -194,9 +211,11 @@ public sealed class WorkerTests : DatabaseTest
         await Until(() => Task.FromResult(one.HasExited));
         var two = StartWorker();
         await Until(() => Task.FromResult(two.HasExited));
+
         Assert.Equal(2, await Attempts("loop"));
         Assert.Equal(0, await db.Database.SqlQuery<int>($"SELECT count(*)::integer AS \"Value\" FROM qrtz_execution_history").SingleAsync());
         var report = await WorkStatus.Read(db, Scheduler, TimeProvider.System);
+
         Assert.Contains("aged_work", report.Issues);
         Assert.True(report.OldestWorkAgeSeconds >= 600);
     }

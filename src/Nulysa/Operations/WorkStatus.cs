@@ -17,11 +17,17 @@ public static class WorkStatus
         foreach (var name in Schedules.Names)
         {
             var observation = await db.Observations.AsNoTracking().SingleOrDefaultAsync(x => x.Name == name, ct);
-            var maxAge = name switch { "heartbeat" or "membership-due-work" or "billing-due-work" => TimeSpan.FromMinutes(3), "final-deletion" => TimeSpan.FromDays(15), _ => TimeSpan.FromHours(26) };
+            var maxAge = name switch
+            {
+                "heartbeat" or "membership-due-work" or "billing-due-work" => TimeSpan.FromMinutes(3),
+                "final-deletion" => TimeSpan.FromDays(15),
+                _ => TimeSpan.FromHours(26)
+            };
             if (observation is null && name != "final-deletion")
                 issues.Add($"missing_{name}");
             else if (observation is not null && now - observation.LastSeen > maxAge)
                 issues.Add($"stale_{name}");
+
             var key = new TriggerKey(name, Schedules.Group);
             var trigger = await scheduler.GetTrigger(key, ct);
             if (trigger is null)
@@ -29,7 +35,9 @@ public static class WorkStatus
             else
             {
                 var state = await scheduler.GetTriggerState(key, ct);
-                if (state is TriggerState.Paused or TriggerState.Error or TriggerState.Complete || trigger.NextFireTimeUtc is null)
+                var stopped = state is TriggerState.Paused or TriggerState.Error or TriggerState.Complete
+                    || trigger.NextFireTimeUtc is null;
+                if (stopped)
                     issues.Add("stopped_schedule");
                 else if (trigger.NextFireTimeUtc < now - TimeSpan.FromMinutes(2))
                     issues.Add("overdue_schedule");
@@ -51,6 +59,7 @@ public static class WorkStatus
         var age = oldest is { } at ? (double?)(now - at).TotalSeconds : null;
         if (age > 300)
             issues.Add("aged_work");
+
         var failures = await db.FailureObservations.CountAsync(ct);
         if (failures > 0)
             issues.Add("failed_work");
@@ -58,6 +67,7 @@ public static class WorkStatus
             issues.Add("mail_requires_review");
         if (await db.Deliveries.AnyAsync(x => x.State == DeliveryState.Pending && x.CreatedAt < now.AddMinutes(-5), ct))
             issues.Add("aged_mail");
+
         return new(issues.Count == 0, [.. issues.Order()], keys.Count, failures, age);
     }
 }

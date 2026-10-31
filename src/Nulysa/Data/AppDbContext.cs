@@ -46,7 +46,12 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         base.OnModelCreating(builder);
         builder.UseOpenIddict();
         BillingMapping.Configure(builder);
-        builder.Entity<BankSyncState>(e => { e.HasKey(x => x.Account); e.Property(x => x.Account).HasMaxLength(200); e.Property(x => x.Status).HasMaxLength(80); });
+        builder.Entity<BankSyncState>(e =>
+        {
+            e.HasKey(x => x.Account);
+            e.Property(x => x.Account).HasMaxLength(200);
+            e.Property(x => x.Status).HasMaxLength(80);
+        });
         builder.Entity<User>(user =>
         {
             user.Property(x => x.Name).HasMaxLength(200);

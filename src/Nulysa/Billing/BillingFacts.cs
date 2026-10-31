@@ -66,14 +66,18 @@ internal sealed class BillingFacts
             _ => 0
         }), Lines.Sum(Held));
 
-    public decimal Held(InvoiceLine line) => Movements.Where(x => x.InvoiceLineId == line.Id).Sum(x => x.Kind switch
-    {
-        MovementKind.ReceiptToLine or MovementKind.BillingToLine => x.Amount,
-        MovementKind.LineToBilling or MovementKind.LinePurchase => -x.Amount,
-        _ => 0
-    });
+    public decimal Held(InvoiceLine line) => Movements
+        .Where(x => x.InvoiceLineId == line.Id)
+        .Sum(x => x.Kind switch
+        {
+            MovementKind.ReceiptToLine or MovementKind.BillingToLine => x.Amount,
+            MovementKind.LineToBilling or MovementKind.LinePurchase => -x.Amount,
+            _ => 0
+        });
 
-    public IEnumerable<Period> Periods(Benefit benefit, long? service) => Coverage.Where(x => x.Benefit == benefit && x.ServiceDefinitionId == service).Select(x => new Period(x.StartsOn, x.EndsOn));
+    public IEnumerable<Period> Periods(Benefit benefit, long? service) => Coverage
+        .Where(x => x.Benefit == benefit && x.ServiceDefinitionId == service)
+        .Select(x => new Period(x.StartsOn, x.EndsOn));
 
     public Standing Membership(DateOnly on)
         => MembershipStanding(User is { MayLogIn: true }, Coverage, Lines, Items.Any(x => x.MembershipId != null && x.EndedAt == null), MembershipRenewalGraceDays, on);
@@ -82,20 +86,43 @@ internal sealed class BillingFacts
     {
         if (!mayLogIn)
             return new(false, "Pending deletion or unavailable", null);
-        var covered = coverage.Where(x => x.Benefit == Benefit.Membership && x.StartsOn <= on && on < x.EndsOn).OrderByDescending(x => x.EndsOn).FirstOrDefault();
-        if (covered is not null)
-            return new(true, "Covered", covered.EndsOn);
-        var grace = lines.Where(x => x.Benefit == Benefit.Membership && x.State == LineState.Open &&
-            x.Purpose != PurchasePurpose.Resumption && x.StartsOn <= on && on < x.ExpiresOn).OrderByDescending(x => x.ExpiresOn).FirstOrDefault();
-        if (grace is not null)
-            return new(true, "Active during grace", grace.ExpiresOn);
-        var previous = coverage.Where(x => x.Benefit == Benefit.Membership && x.EndsOn <= on).OrderByDescending(x => x.EndsOn).FirstOrDefault();
-        if (previous is not null && on < previous.EndsOn.AddDays(graceDays) && renewing &&
-            !lines.Any(x => x.Benefit == Benefit.Membership && x.StartsOn == previous.EndsOn && x.State is LineState.Cancelled or LineState.Expired))
-            return new(true, "Active during grace", previous.EndsOn.AddDays(graceDays));
-        var since = lines.Where(x => x.Benefit == Benefit.Membership && x.Purpose != PurchasePurpose.Resumption && x.ExpiresOn <= on && x.State != LineState.Fulfilled)
-            .Select(x => (DateOnly?)x.ExpiresOn).Append(previous?.EndsOn.AddDays(graceDays)).Where(x => x <= on).Max();
-        return new(false, "Inactive — membership continues; billing paused", null, since);
+
+        var coveredPeriod = coverage
+            .Where(x => x.Benefit == Benefit.Membership && x.StartsOn <= on && on < x.EndsOn)
+            .OrderByDescending(x => x.EndsOn)
+            .FirstOrDefault();
+        if (coveredPeriod is not null)
+            return new(true, "Covered", coveredPeriod.EndsOn);
+
+        var graceLine = lines
+            .Where(x => x.Benefit == Benefit.Membership && x.State == LineState.Open &&
+                x.Purpose != PurchasePurpose.Resumption && x.StartsOn <= on && on < x.ExpiresOn)
+            .OrderByDescending(x => x.ExpiresOn)
+            .FirstOrDefault();
+        if (graceLine is not null)
+            return new(true, "Active during grace", graceLine.ExpiresOn);
+
+        var previousPeriod = coverage
+            .Where(x => x.Benefit == Benefit.Membership && x.EndsOn <= on)
+            .OrderByDescending(x => x.EndsOn)
+            .FirstOrDefault();
+        var withinRenewalGrace = previousPeriod is not null
+            && on < previousPeriod.EndsOn.AddDays(graceDays)
+            && renewing;
+        var renewalWasCancelled = previousPeriod is not null && lines.Any(x =>
+            x.Benefit == Benefit.Membership
+            && x.StartsOn == previousPeriod.EndsOn
+            && x.State is LineState.Cancelled or LineState.Expired);
+        if (withinRenewalGrace && !renewalWasCancelled)
+            return new(true, "Active during grace", previousPeriod!.EndsOn.AddDays(graceDays));
+
+        var inactiveSince = lines
+            .Where(x => x.Benefit == Benefit.Membership && x.Purpose != PurchasePurpose.Resumption && x.ExpiresOn <= on && x.State != LineState.Fulfilled)
+            .Select(x => (DateOnly?)x.ExpiresOn)
+            .Append(previousPeriod?.EndsOn.AddDays(graceDays))
+            .Where(x => x <= on)
+            .Max();
+        return new(false, "Inactive — membership continues; billing paused", null, inactiveSince);
     }
 
     public Standing Service(ServiceEnrollment enrollment, DateOnly on)
@@ -104,12 +131,17 @@ internal sealed class BillingFacts
             return new(false, "Not subscribed", null);
         if (!Membership(on).Active)
             return new(false, "Membership inactive", null);
-        var covered = Periods(Benefit.Service, enrollment.ServiceDefinitionId).Where(x => x.Start <= on && on < x.End).OrderByDescending(x => x.End).FirstOrDefault();
-        if (covered != default)
-            return new(true, enrollment.RenewalStoppedAt is null ? "Covered" : "Renewal stopped — covered", covered.End);
-        var grace = ServiceGraceEnd(enrollment, on);
-        if (grace > on)
-            return new(true, "Renewal grace", grace);
+
+        var coveredPeriod = Periods(Benefit.Service, enrollment.ServiceDefinitionId)
+            .Where(x => x.Start <= on && on < x.End)
+            .OrderByDescending(x => x.End)
+            .FirstOrDefault();
+        if (coveredPeriod != default)
+            return new(true, enrollment.RenewalStoppedAt is null ? "Covered" : "Renewal stopped — covered", coveredPeriod.End);
+
+        var graceEnd = ServiceGraceEnd(enrollment, on);
+        if (graceEnd > on)
+            return new(true, "Renewal grace", graceEnd);
         return new(false, "Awaiting payment — no current coverage", null);
     }
 
@@ -117,12 +149,21 @@ internal sealed class BillingFacts
     {
         if (enrollment.RenewalStoppedAt is not null || enrollment.FirstPaidOn is null)
             return null;
-        var renewal = Lines.Where(x => x.ServiceEnrollmentId == enrollment.Id && x.Purpose is PurchasePurpose.Renewal or PurchasePurpose.Alignment && x.StartsOn <= on && x.State is LineState.Open or LineState.Expired)
-            .OrderByDescending(x => x.StartsOn).FirstOrDefault();
-        if (renewal is not null)
-            return renewal.ExpiresOn;
-        var last = Coverage.Where(x => x.Benefit == Benefit.Service && x.ServiceDefinitionId == enrollment.ServiceDefinitionId && x.StartsOn <= on)
-            .OrderByDescending(x => x.EndsOn).FirstOrDefault();
-        return last?.EndsOn.AddDays(Services.Single(x => x.Id == enrollment.ServiceDefinitionId).RenewalGraceDays);
+
+        var renewalLine = Lines
+            .Where(x => x.ServiceEnrollmentId == enrollment.Id
+                && x.Purpose is PurchasePurpose.Renewal or PurchasePurpose.Alignment
+                && x.StartsOn <= on
+                && x.State is LineState.Open or LineState.Expired)
+            .OrderByDescending(x => x.StartsOn)
+            .FirstOrDefault();
+        if (renewalLine is not null)
+            return renewalLine.ExpiresOn;
+
+        var lastCoverage = Coverage
+            .Where(x => x.Benefit == Benefit.Service && x.ServiceDefinitionId == enrollment.ServiceDefinitionId && x.StartsOn <= on)
+            .OrderByDescending(x => x.EndsOn)
+            .FirstOrDefault();
+        return lastCoverage?.EndsOn.AddDays(Services.Single(x => x.Id == enrollment.ServiceDefinitionId).RenewalGraceDays);
     }
 }

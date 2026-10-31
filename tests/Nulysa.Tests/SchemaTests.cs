@@ -25,13 +25,16 @@ public sealed class SchemaTests : DatabaseTest
             """);
         await db.Database.MigrateAsync();
         var accounts = await db.BillingAccounts.AsNoTracking().ToListAsync();
+
         Assert.Equal(2, accounts.Count);
         Assert.Equal(2, accounts.Select(x => x.PurchaseDepositReference).Distinct().Count());
         foreach (var account in accounts)
         {
+
             Assert.Equal(account.PurchaseDepositReference, PaymentReference.Complete(account.PurchaseDepositReference[..^1]));
             Assert.True(account.EmailInvoices);
         }
+
         Assert.Equal(2, await db.InitialMembershipRequests.CountAsync(x => x.InvoiceId == null));
         Assert.Empty(await db.FeePrices.ToListAsync());
         Assert.Empty(await db.Invoices.ToListAsync());
@@ -63,6 +66,7 @@ public sealed class SchemaTests : DatabaseTest
         await QuartzSchema.Upgrade(db);
         await QuartzSchema.Upgrade(db);
         var upgraded = await db.Users.SingleAsync();
+
         Assert.Equal("frozen-subject", upgraded.OidcSubject);
         Assert.Equal("en", upgraded.Language);
         Assert.Matches("^[0-9a-f]{32}$", upgraded.UserName!);
@@ -81,17 +85,20 @@ public sealed class SchemaTests : DatabaseTest
         await using (var other = Context())
         {
             other.Users.Add(new() { UserName = "two", NormalizedUserName = "TWO", NormalizedEmail = "ONE@EXAMPLE.TEST", OidcSubject = "subject-two" });
+
             await Assert.ThrowsAsync<DbUpdateException>(() => other.SaveChangesAsync());
         }
         await using (var other = Context())
         {
             other.Users.Add(new() { UserName = "three", NormalizedUserName = "THREE", NormalizedEmail = "TWO@EXAMPLE.TEST", OidcSubject = "subject-one" });
+
             await Assert.ThrowsAsync<DbUpdateException>(() => other.SaveChangesAsync());
         }
         await db.Users.ExecuteDeleteAsync();
         db.ChangeTracker.Clear();
         db.Users.Add(new() { UserName = "four", NormalizedUserName = "FOUR", OidcSubject = "subject-new" });
         await db.SaveChangesAsync();
+
         Assert.True((await db.Users.SingleAsync()).Id > oldId);
     }
 
@@ -99,6 +106,7 @@ public sealed class SchemaTests : DatabaseTest
     public async Task Diagnostics_detect_missing_overdue_unreadable_and_failed_work_even_after_history_is_trimmed()
     {
         await using var db = Context();
+
         Assert.Contains("missing_heartbeat", (await WorkStatus.Read(db, Scheduler, TimeProvider.System)).Issues);
         await Schedules.Install(Scheduler, TimeProvider.System, TimeZoneInfo.Utc);
         await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE qrtz_triggers SET next_fire_time = {DateTimeOffset.UtcNow.AddHours(-1).UtcTicks}");
@@ -111,6 +119,7 @@ public sealed class SchemaTests : DatabaseTest
             TriggerBuilder.Create<ProbeJob>().StartAt(DateTimeOffset.UtcNow.AddDays(1)).Build());
         await db.Database.ExecuteSqlRawAsync("DELETE FROM qrtz_execution_history; DELETE FROM qrtz_job_status;");
         var report = await WorkStatus.Read(db, Scheduler, TimeProvider.System);
+
         Assert.Contains("failed_work", report.Issues);
         Assert.Contains("unreadable_work", report.Issues);
         Assert.Contains("aged_work", report.Issues);

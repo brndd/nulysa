@@ -38,6 +38,7 @@ public sealed class BillingBrowserTests : MembershipTest
         }
         await LoginPage(admin, "board@example.test");
         var configurationPage = await admin.GotoAsync(root + "admin/billing-configuration");
+
         Assert.True(configurationPage!.Ok, "Configuration page failed: " + string.Join(" ", await admin.Locator(".titleerror").AllTextContentsAsync()));
         Assert.Contains("Stable code", await admin.ContentAsync());
         await admin.GetByLabel("Stable code").FillAsync("door");
@@ -61,6 +62,7 @@ public sealed class BillingBrowserTests : MembershipTest
         await Assertions.Expect(page.GetByLabel("Email invoice PDFs")).Not.ToBeCheckedAsync();
         await page.GetByRole(AriaRole.Button, new() { Name = "Subscribe", Exact = true }).ClickAsync();
         await Assertions.Expect(page.GetByRole(AriaRole.Row).Filter(new() { HasText = "Door" })).ToContainTextAsync("30.00");
+
         Assert.False((await db.BillingAccounts.AsNoTracking().SingleAsync(x => x.Id == view.AccountId)).EmailInvoices);
 
         async Task Import(string externalId, string reference, string amount)
@@ -107,6 +109,7 @@ public sealed class BillingBrowserTests : MembershipTest
         var download = await page.RunAndWaitForDownloadAsync(() => page.GetByRole(AriaRole.Link, new() { Name = "Download current PDF" }).First.ClickAsync());
         var path = Path.Combine(DirectoryPath, "browser-invoice.pdf");
         await download.SaveAsAsync(path);
+
         Assert.StartsWith("%PDF-", System.Text.Encoding.ASCII.GetString((await File.ReadAllBytesAsync(path))[..8]));
         var workshop = await db.Invoices.AsNoTracking().SingleAsync(x => x.OneOffReference != null);
         await Import("workshop", "unknown-workshop-reference", "5");
@@ -125,11 +128,13 @@ public sealed class BillingBrowserTests : MembershipTest
             await admin.GetByLabel("Financial account ID").FillAsync(invalidAccount);
             var response = await admin.RunAndWaitForResponseAsync(() => admin.GetByRole(AriaRole.Button, new() { Name = "Save reviewed disposition" }).ClickAsync(),
                 response => response.Request.Method == "POST" && response.Url == root + "admin/payments");
+
             Assert.Equal(200, response.Status);
             await Assertions.Expect(admin.GetByRole(AriaRole.Alert)).ToContainTextAsync("Choose an existing financial account ID");
             await Assertions.Expect(admin.GetByLabel("Disposition / purpose")).ToHaveValueAsync("invoice");
             await Assertions.Expect(admin.GetByLabel("Invoice ID (one-off assignment only)")).ToHaveValueAsync(workshop.Id.ToString());
             await Assertions.Expect(admin.GetByLabel("Reason", new() { Exact = true })).ToHaveValueAsync("Verified workshop payment");
+
             Assert.Equal(reviewKey, await admin.Locator("input[name='Review.Key']").InputValueAsync());
             Assert.Equal(ReceiptState.Review, (await db.Receipts.AsNoTracking().SingleAsync(x => x.Id == workshopReceipt.Id)).State);
             Assert.False(await db.MoneyMovements.AnyAsync(x => x.ReceiptId == workshopReceipt.Id));
@@ -137,6 +142,7 @@ public sealed class BillingBrowserTests : MembershipTest
         await admin.GetByLabel("Financial account ID").FillAsync(view.AccountId.ToString());
         await admin.GetByRole(AriaRole.Button, new() { Name = "Save reviewed disposition" }).ClickAsync();
         await Assertions.Expect(admin.GetByLabel("Receipt ID", new() { Exact = true })).ToHaveValueAsync("0");
+
         Assert.Equal(ReceiptState.Posted, (await db.Receipts.AsNoTracking().SingleAsync(x => x.Id == workshopReceipt.Id)).State);
         await Assertions.Expect(admin.GetByRole(AriaRole.Row).Filter(new() { HasText = "unknown-workshop-reference" })).ToHaveCountAsync(0);
         await page.GotoAsync(root + "billing");
@@ -146,8 +152,10 @@ public sealed class BillingBrowserTests : MembershipTest
         foreach (var export in new[] { "export", "receipts-export" })
         {
             var invalid = await administrator.APIRequest.GetAsync(root + "admin/payments/" + export + "?start=2026-06-02&end=2026-06-01");
+
             Assert.Equal(400, invalid.Status);
         }
+
         Assert.Equal(22m, (await Run(commands, sp => sp.GetRequiredService<BillingQueries>().Member(board, id)))!.Balances.BillingCredit);
         Assert.Equal(0m, (await Run(commands, sp => sp.GetRequiredService<BillingQueries>().Reconcile(board))).Difference);
     }

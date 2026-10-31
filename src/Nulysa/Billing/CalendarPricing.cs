@@ -15,8 +15,9 @@ public static class BillingCalendar
     {
         if (months is < 1 or > 120)
             throw new ArgumentOutOfRangeException(nameof(months));
-        var difference = (date.Year - anchor.Year) * 12 + date.Month - anchor.Month;
-        var step = (int)Math.Floor((decimal)difference / months);
+
+        var monthDifference = (date.Year - anchor.Year) * 12 + date.Month - anchor.Month;
+        var step = (int)Math.Floor((decimal)monthDifference / months);
         var start = anchor.AddMonths(step * months);
         if (start > date)
             start = anchor.AddMonths(--step * months);
@@ -34,21 +35,22 @@ public static class BillingCalendar
 
     public static List<Period> Uncovered(Period period, IEnumerable<Period> coverage)
     {
-        var result = new List<Period>();
-        var start = period.Start;
+        var gaps = new List<Period>();
+        var cursor = period.Start;
         foreach (var covered in coverage.OrderBy(x => x.Start))
         {
-            if (covered.End <= start || covered.Start >= period.End)
+            if (covered.End <= cursor || covered.Start >= period.End)
                 continue;
-            if (covered.Start > start)
-                result.Add(new(start, covered.Start));
-            start = covered.End > start ? covered.End : start;
-            if (start >= period.End)
+            if (covered.Start > cursor)
+                gaps.Add(new(cursor, covered.Start));
+
+            cursor = covered.End > cursor ? covered.End : cursor;
+            if (cursor >= period.End)
                 break;
         }
-        if (start < period.End)
-            result.Add(new(start, period.End));
-        return result;
+        if (cursor < period.End)
+            gaps.Add(new(cursor, period.End));
+        return gaps;
     }
 }
 
@@ -61,6 +63,7 @@ public static class Pricing
     {
         if (period.End <= period.Start)
             throw new ValidationException("A billing period must have positive length.");
+
         var segments = new List<PriceSegment>();
         foreach (var uncovered in BillingCalendar.Uncovered(period, coverage))
         {
@@ -70,14 +73,20 @@ public static class Pricing
                 var basis = BillingCalendar.Containing(anchor, months, cursor);
                 var price = prices.Where(x => x.EffectiveOn <= cursor).OrderByDescending(x => x.EffectiveOn).FirstOrDefault()
                     ?? throw new ValidationException("Configure a price effective before this billing period first.");
-                var discount = discounts.Where(x => x.WithdrawnAt is null && x.StartsOn <= cursor && cursor < x.EndsOn).SingleOrDefault();
-                var end = new[] { uncovered.End, basis.End }
+                var discount = discounts.SingleOrDefault(x => x.WithdrawnAt is null && x.StartsOn <= cursor && cursor < x.EndsOn);
+                var segmentEnd = new[] { uncovered.End, basis.End }
                     .Concat(prices.Where(x => x.EffectiveOn > cursor).Select(x => x.EffectiveOn))
-                    .Concat(discounts.Where(x => x.WithdrawnAt is null).SelectMany(x => new[] { x.StartsOn, x.EndsOn }).Where(x => x > cursor)).Min();
-                var full = price.MonthlyAmount * months;
-                var reduced = discount is null ? full : discount.Kind == DiscountKind.Percentage ? full * (100 - discount.Value) / 100 : discount.Value * months;
-                segments.Add(new(cursor, end, basis.Start, basis.End, full, reduced, discount?.Id));
-                cursor = end;
+                    .Concat(discounts.Where(x => x.WithdrawnAt is null).SelectMany(x => new[] { x.StartsOn, x.EndsOn }).Where(x => x > cursor))
+                    .Min();
+                var fullPrice = price.MonthlyAmount * months;
+                var discountedPrice = discount is null
+                    ? fullPrice
+                    : discount.Kind == DiscountKind.Percentage
+                        ? fullPrice * (100 - discount.Value) / 100
+                        : discount.Value * months;
+
+                segments.Add(new(cursor, segmentEnd, basis.Start, basis.End, fullPrice, discountedPrice, discount?.Id));
+                cursor = segmentEnd;
             }
         }
         return FromSegments(segments);
@@ -85,17 +94,23 @@ public static class Pricing
 
     public static Quote FromSegments(IEnumerable<PriceSegment> segments)
     {
-        var list = segments.ToList();
-        return new(Round(list.Sum(x => x.Price * (x.End.DayNumber - x.Start.DayNumber) / (x.BasisEnd.DayNumber - x.BasisStart.DayNumber))), list);
+        var segmentList = segments.ToList();
+        var amount = Round(segmentList.Sum(x => x.Price * (x.End.DayNumber - x.Start.DayNumber) / (x.BasisEnd.DayNumber - x.BasisStart.DayNumber)));
+        return new(amount, segmentList);
     }
 
     public static Quote Slice(IEnumerable<PriceSegment> segments, DateOnly start, IEnumerable<Period>? coverage = null)
-        => FromSegments(segments.Where(x => x.End > start).SelectMany(x => BillingCalendar.Uncovered(
-            new(x.Start < start ? start : x.Start, x.End), coverage ?? []).Select(p => x with { Start = p.Start, End = p.End })));
+    {
+        var sliced = segments
+            .Where(x => x.End > start)
+            .SelectMany(x => BillingCalendar.Uncovered(new(x.Start < start ? start : x.Start, x.End), coverage ?? [])
+                .Select(period => x with { Start = period.Start, End = period.End }));
+        return FromSegments(sliced);
+    }
 
     public static Quote Adjust(IEnumerable<PriceSegment> quoted, IReadOnlyList<Discount> discounts, DateOnly effectiveOn, IEnumerable<Period> coverage)
     {
-        var result = new List<PriceSegment>();
+        var adjusted = new List<PriceSegment>();
         foreach (var original in quoted)
         {
             foreach (var uncovered in BillingCalendar.Uncovered(new(original.Start, original.End), coverage))
@@ -103,55 +118,82 @@ public static class Pricing
                 var cursor = uncovered.Start;
                 while (cursor < uncovered.End)
                 {
-                    var end = new[] { uncovered.End }.Concat(discounts.SelectMany(x => new[] { x.StartsOn, x.EndsOn }))
-                        .Append(effectiveOn).Where(x => x > cursor).Min();
+                    var segmentEnd = new[] { uncovered.End }
+                        .Concat(discounts.SelectMany(x => new[] { x.StartsOn, x.EndsOn }))
+                        .Append(effectiveOn)
+                        .Where(x => x > cursor)
+                        .Min();
                     if (cursor < effectiveOn)
-                        result.Add(original with { Start = cursor, End = end });
+                        adjusted.Add(original with { Start = cursor, End = segmentEnd });
                     else
                     {
                         var discount = discounts.SingleOrDefault(x => x.WithdrawnAt is null && x.StartsOn <= cursor && cursor < x.EndsOn);
                         var months = (original.BasisEnd.Year - original.BasisStart.Year) * 12 + original.BasisEnd.Month - original.BasisStart.Month;
-                        var price = discount is null ? original.BasePrice : discount.Kind == DiscountKind.Percentage
-                            ? original.BasePrice * (100 - discount.Value) / 100 : discount.Value * months;
-                        result.Add(original with { Start = cursor, End = end, Price = price, DiscountId = discount?.Id });
+                        var price = discount is null
+                            ? original.BasePrice
+                            : discount.Kind == DiscountKind.Percentage
+                                ? original.BasePrice * (100 - discount.Value) / 100
+                                : discount.Value * months;
+                        adjusted.Add(original with { Start = cursor, End = segmentEnd, Price = price, DiscountId = discount?.Id });
                     }
-                    cursor = end;
+                    cursor = segmentEnd;
                 }
             }
         }
-        return FromSegments(result);
+        return FromSegments(adjusted);
     }
 
     public static decimal FutureDiscountCredit(IReadOnlyList<PriceSegment> original, Discount discount,
         IReadOnlyList<(Discount Discount, decimal Amount)> previous)
     {
-        var boundaries = previous.Select(x => x.Discount).Append(discount).SelectMany(x => new[] { x.StartsOn, x.EndsOn }).Distinct().ToList();
-        var pieces = original.SelectMany(segment =>
+        var discountBoundaries = previous
+            .Select(x => x.Discount)
+            .Append(discount)
+            .SelectMany(x => new[] { x.StartsOn, x.EndsOn })
+            .Distinct()
+            .ToList();
+        var splitSegments = original.SelectMany(segment =>
         {
-            var dates = boundaries.Where(x => segment.Start < x && x < segment.End).Append(segment.Start).Append(segment.End).Order().ToArray();
+            var dates = discountBoundaries
+                .Where(x => segment.Start < x && x < segment.End)
+                .Append(segment.Start)
+                .Append(segment.End)
+                .Order()
+                .ToArray();
             return dates.Zip(dates.Skip(1), (start, end) => segment with { Start = start, End = end });
         }).ToList();
+
         static decimal Reduction(PriceSegment segment, Discount adjustment)
         {
             if (segment.Start < adjustment.StartsOn || segment.End > adjustment.EndsOn)
                 return 0;
+
             var months = (segment.BasisEnd.Year - segment.BasisStart.Year) * 12 + segment.BasisEnd.Month - segment.BasisStart.Month;
-            var reduced = adjustment.Kind == DiscountKind.Percentage ? segment.BasePrice * (100 - adjustment.Value) / 100 : adjustment.Value * months;
+            var reduced = adjustment.Kind == DiscountKind.Percentage
+                ? segment.BasePrice * (100 - adjustment.Value) / 100
+                : adjustment.Value * months;
             return Math.Max(0, segment.Price - reduced) * (segment.End.DayNumber - segment.Start.DayNumber) / (segment.BasisEnd.DayNumber - segment.BasisStart.DayNumber);
         }
-        var credited = new decimal[pieces.Count];
+
+        var creditedBySegment = new decimal[splitSegments.Count];
         foreach (var credit in previous)
         {
-            var outstanding = pieces.Select((piece, i) => Math.Max(0, Reduction(piece, credit.Discount) - credited[i])).ToArray();
-            var total = outstanding.Sum();
-            if (total == 0)
+            var uncreditedReduction = splitSegments
+                .Select((segment, i) => Math.Max(0, Reduction(segment, credit.Discount) - creditedBySegment[i]))
+                .ToArray();
+            var totalUncredited = uncreditedReduction.Sum();
+            if (totalUncredited == 0)
                 throw new ValidationException("Previous discount credits require treasurer reconciliation.");
+
             // Distribute actual rounded money only over the days this correction compensated.
-            for (var i = 0; i < pieces.Count; i++)
-                credited[i] += credit.Amount * outstanding[i] / total;
+            for (var i = 0; i < splitSegments.Count; i++)
+                creditedBySegment[i] += credit.Amount * uncreditedReduction[i] / totalUncredited;
         }
-        var remaining = Round(pieces.Select((piece, i) => Math.Max(0, Reduction(piece, discount) - credited[i])).Sum());
-        return Math.Max(0, Math.Min(remaining, FromSegments(original).Amount - previous.Sum(x => x.Amount)));
+
+        var remainingCredit = Round(splitSegments
+            .Select((segment, i) => Math.Max(0, Reduction(segment, discount) - creditedBySegment[i]))
+            .Sum());
+        return Math.Max(0, Math.Min(remainingCredit, FromSegments(original).Amount - previous.Sum(x => x.Amount)));
     }
 }
 

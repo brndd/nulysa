@@ -19,8 +19,19 @@ public sealed class ConfirmEmailModel(AccountCommands commands) : PageModel
         if (!ModelState.IsValid)
             return Page();
         try
-        { await commands.ConfirmEmailChange(Id, Version, Token, HttpContext.RequestAborted); return RedirectToPage("Login"); }
-        catch (ValidationException ex) { ModelState.AddModelError("", ex.Message); return Page(); }
-        catch (DbUpdateException) { ModelState.AddModelError("", "That address is unavailable. Request a new change from your profile."); return Page(); }
+        {
+            await commands.ConfirmEmailChange(Id, Version, Token, HttpContext.RequestAborted);
+            return RedirectToPage("Login");
+        }
+        catch (ValidationException ex)
+        {
+            ModelState.AddModelError("", ex.Message);
+            return Page();
+        }
+        catch (DbUpdateException)
+        {
+            ModelState.AddModelError("", "That address is unavailable. Request a new change from your profile.");
+            return Page();
+        }
     }
 }

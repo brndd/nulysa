@@ -40,8 +40,13 @@ public sealed class RedactJobFailures : IJobExecutionMiddleware
     public async ValueTask Invoke(IJobExecutionContext context, JobExecutionDelegate next, CancellationToken cancellationToken = default)
     {
         try
-        { await next(context, cancellationToken); }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        {
+            await next(context, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception error)
         {
             // History and ordinary logs must not archive SQL parameters or provider payloads.

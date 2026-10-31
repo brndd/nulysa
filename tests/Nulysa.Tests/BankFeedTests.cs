@@ -46,19 +46,23 @@ public sealed class BankFeedTests : MembershipTest
         });
         await Run(app, sp => sp.GetRequiredService<BankFeed>().Sync());
         await using var db = Context();
+
         Assert.Equal(2, await db.Receipts.CountAsync());
         var outgoing = await db.Receipts.SingleAsync(x => x.ExternalId == "out-1");
+
         Assert.Equal("=HYPERLINK(\"untrusted\")", outgoing.Message);
         Assert.Contains("Synthetic landlord", outgoing.Counterparty);
         Assert.Contains("FI2112345600000785", outgoing.Counterparty);
         Assert.Equal(DateOnly.FromDateTime(Clock.Now.DateTime), (await db.Receipts.SingleAsync(x => x.ExternalId == "in-1")).ReceivedOn);
         await Run(app, sp => sp.GetRequiredService<BillingCommands>().IgnoreReceipt(board, outgoing.Id, "Reviewed bank expense"));
         await Run(app, sp => sp.GetRequiredService<BankFeed>().Sync());
+
         Assert.Equal(2, await db.Receipts.CountAsync());
         Assert.Equal(ReceiptState.Ignored, (await db.Receipts.AsNoTracking().SingleAsync(x => x.Id == outgoing.Id)).State);
         Assert.Equal(Clock.Now, (await db.BankSyncStates.AsNoTracking().SingleAsync()).LastSuccess);
         var start = DateOnly.FromDateTime(Clock.Now.DateTime);
         var csv = await Run(app, sp => sp.GetRequiredService<BillingQueries>().ExportReceipts(board, start, start.AddDays(1)));
+
         Assert.Contains("\"-25.00\"", csv);
         Assert.Contains("\"'=HYPERLINK", csv);
         Assert.Contains("Ignored", csv);
@@ -67,12 +71,14 @@ public sealed class BankFeedTests : MembershipTest
         Assert.DoesNotContain("out-1", await Run(app, sp => sp.GetRequiredService<BillingQueries>().ExportReceipts(board, start.AddDays(1), start.AddDays(2))));
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Run(app, sp => sp.GetRequiredService<BillingQueries>().ExportReceipts(Actor(id), start, start.AddDays(1))));
         handler.Deny = true;
+
         await Assert.ThrowsAsync<InvalidOperationException>(() => Run(app, sp => sp.GetRequiredService<BankFeed>().Sync()));
         await Assert.ThrowsAsync<InvalidOperationException>(() => Run(app, sp => sp.GetRequiredService<BankFeed>().Sync()));
         Assert.Equal("Authorization renewal required", (await db.BankSyncStates.AsNoTracking().SingleAsync()).Status);
         Assert.Single(await db.Deliveries.Where(x => x.Kind == MailKind.BankAlert).ToListAsync());
         Clock.Now = Clock.Now.AddHours(27);
         await Run(app, sp => sp.GetRequiredService<BankFeed>().CheckStale(CancellationToken.None));
+
         Assert.Equal(2, await db.Deliveries.CountAsync(x => x.Kind == MailKind.BankAlert));
     }
 
@@ -80,8 +86,10 @@ public sealed class BankFeedTests : MembershipTest
     public void Parsing_requires_booked_date_and_stable_identity_instead_of_guessing_from_payer_or_value_date()
     {
         using var missing = JsonDocument.Parse("""{"transactions":{"booked":[{"valueDate":"2026-01-01","debtorName":"Someone","transactionAmount":{"amount":"5","currency":"EUR"}}]}}""");
+
         Assert.Throws<System.ComponentModel.DataAnnotations.ValidationException>(() => GoCardlessTransactions.Parse("account", missing.RootElement));
         using var referenceArray = JsonDocument.Parse("""{"transactions":{"booked":[{"transactionId":"one","bookingDate":"2026-01-01","remittanceInformationStructuredArray":["111","222"],"transactionAmount":{"amount":"5","currency":"EUR"}}]}}""");
+
         Assert.Equal("111 / 222", Assert.Single(GoCardlessTransactions.Parse("account", referenceArray.RootElement)).Reference);
     }
 
@@ -93,6 +101,7 @@ public sealed class BankFeedTests : MembershipTest
         {
             if (request.RequestUri!.AbsolutePath.EndsWith("token/new/", StringComparison.Ordinal))
                 return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{\"access\":\"synthetic-token\"}", Encoding.UTF8, "application/json") });
+
             Assert.Equal("Bearer", request.Headers.Authorization?.Scheme);
             Assert.Equal("synthetic-token", request.Headers.Authorization?.Parameter);
             return Task.FromResult(new HttpResponseMessage(Deny ? HttpStatusCode.Unauthorized : HttpStatusCode.OK) { Content = new StringContent(Payload, Encoding.UTF8, "application/json") });

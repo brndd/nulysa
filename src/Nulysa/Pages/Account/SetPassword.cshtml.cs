@@ -19,7 +19,14 @@ public sealed class SetPasswordModel(AccountCommands commands) : PageModel
         if (!ModelState.IsValid)
             return Page();
         try
-        { await commands.SetPassword(Id, Token, Password, HttpContext.RequestAborted); return RedirectToPage("Login"); }
-        catch (ValidationException ex) { ModelState.AddModelError("", ex.Message); return Page(); }
+        {
+            await commands.SetPassword(Id, Token, Password, HttpContext.RequestAborted);
+            return RedirectToPage("Login");
+        }
+        catch (ValidationException ex)
+        {
+            ModelState.AddModelError("", ex.Message);
+            return Page();
+        }
     }
 }

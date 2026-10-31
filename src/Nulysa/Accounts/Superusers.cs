@@ -34,8 +34,10 @@ public static class Superusers
         await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(72134502)");
         var user = await users.FindByIdAsync(id.ToString(System.Globalization.CultureInfo.InvariantCulture))
             ?? throw new InvalidOperationException("User not found.");
-        if (enabled && !await roles.RoleExistsAsync(role) &&
-            !(await roles.CreateAsync(new IdentityRole<long>(role))).Succeeded)
+        var roleIsReady = !enabled
+            || await roles.RoleExistsAsync(role)
+            || (await roles.CreateAsync(new IdentityRole<long>(role))).Succeeded;
+        if (!roleIsReady)
             throw new InvalidOperationException("Operator role creation failed.");
         if (await users.IsInRoleAsync(user, role) != enabled)
         {

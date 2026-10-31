@@ -40,15 +40,18 @@ public static class GoCardlessTransactions
         var result = new List<ReceiptInput>();
         foreach (var transaction in payload.GetProperty("transactions").GetProperty("booked").EnumerateArray())
         {
-            var id = Text(transaction, "transactionId");
-            if (string.IsNullOrWhiteSpace(id))
-                id = Text(transaction, "internalTransactionId");
-            if (string.IsNullOrWhiteSpace(id))
+            var transactionId = Text(transaction, "transactionId");
+            if (string.IsNullOrWhiteSpace(transactionId))
+                transactionId = Text(transaction, "internalTransactionId");
+            if (string.IsNullOrWhiteSpace(transactionId))
                 throw new ValidationException("Booked transaction lacks a stable provider identifier.");
+
             var amountObject = transaction.GetProperty("transactionAmount");
-            if (!decimal.TryParse(Text(amountObject, "amount"), NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var amount) ||
-                !DateOnly.TryParseExact(Text(transaction, "bookingDate"), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var booked))
+            var hasAmount = decimal.TryParse(Text(amountObject, "amount"), NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out var amount);
+            var hasBookingDate = DateOnly.TryParseExact(Text(transaction, "bookingDate"), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var booked);
+            if (!hasAmount || !hasBookingDate)
                 throw new ValidationException("A booked transaction requires a valid amount and booking date.");
+
             var reference = Text(transaction, "remittanceInformationStructured");
             if (reference.Length == 0 && transaction.TryGetProperty("remittanceInformationStructuredArray", out var references))
             {
@@ -62,7 +65,7 @@ public static class GoCardlessTransactions
             if (transaction.TryGetProperty(amount > 0 ? "debtorAccount" : "creditorAccount", out var bankAccount))
                 counterparty = string.Join(" / ", new[] { counterparty, Text(bankAccount, "iban") }.Where(x => x.Length > 0));
             if (amount != 0)
-                result.Add(new("gocardless", account, id, amount, Text(amountObject, "currency"), booked, reference, message, counterparty));
+                result.Add(new("gocardless", account, transactionId, amount, Text(amountObject, "currency"), booked, reference, message, counterparty));
         }
         return result;
     }
@@ -77,6 +80,7 @@ public sealed class BankFeed(HttpClient http, IOptions<BankOptions> options, ISe
     {
         if (!options.Value.Enabled)
             return;
+
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
         deadline.CancelAfter(TimeSpan.FromMinutes(2));
         var accounts = options.Value.Accounts;
@@ -104,6 +108,7 @@ public sealed class BankFeed(HttpClient http, IOptions<BankOptions> options, ISe
                         await using var scope = scopes.CreateAsyncScope();
                         await scope.ServiceProvider.GetRequiredService<BillingCommands>().Import(input, deadline.Token);
                     }
+
                     await Update(account, true, "Current", ct);
                 }
                 catch (Exception error) when (!ct.IsCancellationRequested)
@@ -162,6 +167,7 @@ public sealed class BankFeed(HttpClient http, IOptions<BankOptions> options, ISe
         var state = await db.BankSyncStates.FromSqlInterpolated($"SELECT * FROM \"BankSyncStates\" WHERE \"Account\" = {account} FOR UPDATE").SingleAsync(ct);
         if (state.LastAlert > clock.GetUtcNow().AddHours(-24))
             return;
+
         var administrators = await (from assignment in db.UserRoles
                                     join role in db.Roles on assignment.RoleId equals role.Id
                                     join user in db.Users on assignment.UserId equals user.Id
@@ -171,6 +177,7 @@ public sealed class BankFeed(HttpClient http, IOptions<BankOptions> options, ISe
             await mail.Add(scheduler, Guid.NewGuid(), MailKind.BankAlert, id, ct: ct);
         if (administrators.Count > 0)
             state.LastAlert = clock.GetUtcNow();
+
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
     }

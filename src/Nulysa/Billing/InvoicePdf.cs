@@ -69,8 +69,15 @@ public sealed class InvoicePdf(AppDbContext db, IOptions<BillingOptions> options
             {
                 var output = version.StandardOutput.ReadToEndAsync(deadline.Token);
                 try
-                { await version.WaitForExitAsync(deadline.Token); }
-                catch { if (!version.HasExited) version.Kill(entireProcessTree: true); throw; }
+                {
+                    await version.WaitForExitAsync(deadline.Token);
+                }
+                catch
+                {
+                    if (!version.HasExited)
+                        version.Kill(entireProcessTree: true);
+                    throw;
+                }
                 if (version.ExitCode != 0 || !(await output).StartsWith("typst " + TypstVersion + " ", StringComparison.Ordinal))
                     throw new InvalidOperationException("The invoice renderer must be Typst " + TypstVersion + ".");
             }
@@ -87,8 +94,16 @@ public sealed class InvoicePdf(AppDbContext db, IOptions<BillingOptions> options
             var stdout = process.StandardOutput.ReadToEndAsync(ct);
             var stderr = process.StandardError.ReadToEndAsync(ct);
             try
-            { await process.WaitForExitAsync(deadline.Token); }
-            catch { if (!process.HasExited) process.Kill(entireProcessTree: true); await process.WaitForExitAsync(CancellationToken.None); throw; }
+            {
+                await process.WaitForExitAsync(deadline.Token);
+            }
+            catch
+            {
+                if (!process.HasExited)
+                    process.Kill(entireProcessTree: true);
+                await process.WaitForExitAsync(CancellationToken.None);
+                throw;
+            }
             await Task.WhenAll(stdout, stderr);
             if (process.ExitCode != 0)
                 throw new InvalidOperationException("Invoice rendering failed; verify the trusted template and payment configuration.");
@@ -96,6 +111,9 @@ public sealed class InvoicePdf(AppDbContext db, IOptions<BillingOptions> options
                 return null;
             return await File.ReadAllBytesAsync(Path.Combine(root, "invoice.pdf"), ct);
         }
-        finally { Directory.Delete(root, recursive: true); }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
     }
 }

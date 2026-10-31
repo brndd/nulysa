@@ -18,16 +18,19 @@ public sealed class UiTests : OidcTest
         await using var app = await StartProvider();
         using var client = Client();
         var anonymous = await client.GetAsync("/");
+
         Assert.Equal(HttpStatusCode.Redirect, anonymous.StatusCode);
         Assert.Equal("/Account/Login", anonymous.Headers.Location!.AbsolutePath);
         Assert.Equal(HttpStatusCode.Redirect, (await Login(client)).StatusCode);
         var html = await client.GetStringAsync("/");
+
         Assert.Contains("<h1>Member portal</h1>", html);
         Assert.Contains("Member portal — Synthetic Association", WebUtility.HtmlDecode(html));
         Assert.Contains("Powered by Nulysa", html);
         Assert.DoesNotContain("\"type\":\"server\"", html);
         Assert.DoesNotContain("\"type\":\"webassembly\"", html);
         var script = await client.GetAsync("_framework/blazor.web.js");
+
         Assert.Equal(HttpStatusCode.OK, script.StatusCode);
         Assert.Equal("text/javascript", script.Content.Headers.ContentType?.MediaType);
         Assert.Contains("Blazor", await script.Content.ReadAsStringAsync());
@@ -35,11 +38,13 @@ public sealed class UiTests : OidcTest
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsync("Account/Logout", new FormUrlEncodedContent([]))).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/")).StatusCode);
         var token = Regex.Match(html, "<input(?=[^>]*name=\"__RequestVerificationToken\")(?=[^>]*value=\"([^\"]+)\")[^>]*>");
+
         Assert.True(token.Success, html);
         var logout = await client.PostAsync("Account/Logout", new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["__RequestVerificationToken"] = WebUtility.HtmlDecode(token.Groups[1].Value)
         }));
+
         Assert.Equal(HttpStatusCode.Redirect, logout.StatusCode);
         Assert.Equal("/Account/Login", logout.Headers.Location!.OriginalString);
         Assert.Equal(HttpStatusCode.Redirect, (await client.GetAsync("/")).StatusCode);
@@ -80,6 +85,7 @@ public sealed class InteractiveUiTests : OidcTest
         await Assertions.Expect(page.GetByText("Signed in", new() { Exact = true })).ToBeVisibleAsync();
         await page.EvaluateAsync("() => window.testSockets.forEach(socket => socket.close())");
         await page.WaitForFunctionAsync("() => window.connectionDown === true");
+
         Assert.True(await page.EvaluateAsync<bool>("() => Blazor.reconnect()"));
         await button.ClickAsync();
         await Assertions.Expect(page.GetByRole(AriaRole.Status)).ToHaveTextAsync("2");
@@ -87,6 +93,7 @@ public sealed class InteractiveUiTests : OidcTest
             await db.Users.Where(x => x.Id == user.Id).ExecuteUpdateAsync(x => x.SetProperty(u => u.Admitted, false));
         await Assertions.Expect(page.GetByText("Signed out", new() { Exact = true })).ToBeVisibleAsync(new() { Timeout = 45000 });
         await page.GotoAsync(Settings["Oidc:Issuer"]!);
+
         Assert.Equal("/Account/Login", new Uri(page.Url).AbsolutePath);
     }
 }

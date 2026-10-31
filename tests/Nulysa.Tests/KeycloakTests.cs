@@ -25,6 +25,7 @@ public sealed class KeycloakTests : MembershipTest
     {
         var baseUrl = Environment.GetEnvironmentVariable("NULYSA_TEST_KEYCLOAK") ?? "http://127.0.0.1:58080";
         var uri = new Uri(baseUrl);
+
         Assert.True(uri.Scheme == "http" && uri.IsLoopback, "A disposable loopback Keycloak is required.");
         using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
         var token = await Json(await http.PostAsync(baseUrl + "/realms/master/protocol/openid-connect/token", new FormUrlEncodedContent(new Dictionary<string, string>
@@ -63,6 +64,7 @@ public sealed class KeycloakTests : MembershipTest
             var response = await http.SendAsync(request);
             if (expected == HttpStatusCode.OK)
                 return await Json(response);
+
             Assert.True(response.StatusCode == expected, await response.Content.ReadAsStringAsync());
             return default;
         }
@@ -145,6 +147,7 @@ public sealed class KeycloakTests : MembershipTest
                 // Assert the callback URL, not a load event that can precede this observer after redirects.
                 await Assertions.Expect(target).ToHaveURLAsync(new Regex("^" + Regex.Escape(callback) + "\\?"), new() { Timeout = 20000 });
                 var query = QueryHelpers.ParseQuery(new Uri(target.Url).Query);
+
                 Assert.Equal(pending.State, query["state"]);
                 var response = await Json(await http.PostAsync(issuer + "/protocol/openid-connect/token", new FormUrlEncodedContent(new Dictionary<string, string>
                 {
@@ -163,8 +166,10 @@ public sealed class KeycloakTests : MembershipTest
                     ValidAlgorithms = [SecurityAlgorithms.RsaSha256],
                     ClockSkew = TimeSpan.Zero
                 });
+
                 Assert.True(result.IsValid, result.Exception?.ToString());
                 var jwt = (JsonWebToken)result.SecurityToken;
+
                 Assert.Equal(pending.Nonce, jwt.GetClaim("nonce").Value);
                 return jwt;
             }
@@ -179,6 +184,7 @@ public sealed class KeycloakTests : MembershipTest
             var pending = await Begin(page);
             await Enter(page, Email);
             var first = await Finish(page, pending);
+
             Assert.Equal(Email, first.GetClaim("email").Value);
             var change = Guid.NewGuid();
             await Run(commands, sp => sp.GetRequiredService<AccountCommands>().RequestEmailChange(Actor(userId), userId, "changed@example.test", change));
@@ -191,13 +197,16 @@ public sealed class KeycloakTests : MembershipTest
                 pending = await Begin(changed);
                 await Enter(changed, "changed@example.test");
                 var second = await Finish(changed, pending);
+
                 Assert.Equal(first.Subject, second.Subject);
                 Assert.Equal("changed@example.test", second.GetClaim("email").Value);
             }
             var brokerUsers = await Admin(HttpMethod.Get, $"realms/{realm}/users", expected: HttpStatusCode.OK);
+
             Assert.Equal(1, brokerUsers.GetArrayLength());
             Assert.Equal(first.Subject, brokerUsers[0].GetProperty("id").GetString());
             var links = await Admin(HttpMethod.Get, $"realms/{realm}/users/{first.Subject}/federated-identity", expected: HttpStatusCode.OK);
+
             Assert.Equal("mulysa", links[0].GetProperty("identityProvider").GetString());
             Assert.Equal(user.OidcSubject, links[0].GetProperty("userId").GetString());
             await Run(commands, sp => sp.GetRequiredService<MembershipCommands>().BeginDeletion(board, userId, Guid.NewGuid(), "Manual termination"));
@@ -207,11 +216,14 @@ public sealed class KeycloakTests : MembershipTest
                 await Begin(blocked);
                 await Enter(blocked, "changed@example.test");
                 await Assertions.Expect(blocked.GetByRole(AriaRole.Alert)).ToContainTextAsync("Unable to log in");
+
                 Assert.Equal("/Account/Login", new Uri(blocked.Url).AbsolutePath);
             }
             pending = await Begin(page);
+
             Assert.Equal(first.Subject, (await Finish(page, pending)).Subject);
             await page.GotoAsync(upstream);
+
             Assert.Equal("/Account/Login", new Uri(page.Url).AbsolutePath);
         }
         finally { await Admin(HttpMethod.Delete, "realms/" + realm); }

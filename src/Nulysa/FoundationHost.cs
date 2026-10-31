@@ -127,7 +127,11 @@ public static class FoundationHost
         builder.Services.AddScoped<BillingCommands>();
         builder.Services.AddScoped<BillingQueries>();
         builder.Services.AddScoped<InvoicePdf>();
-        builder.Services.AddHttpClient<BankFeed>(client => { client.BaseAddress = new Uri("https://bankaccountdata.gocardless.com/api/v2/"); client.Timeout = TimeSpan.FromSeconds(30); });
+        builder.Services.AddHttpClient<BankFeed>(client =>
+        {
+            client.BaseAddress = new Uri("https://bankaccountdata.gocardless.com/api/v2/");
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
         builder.Services.AddOptions<BankOptions>().Bind(config.GetSection("Bank"))
             .Validate(x => x.StaleHours is >= 24 and <= 168 && (!x.Enabled || (x.SecretId.Length > 0 && x.SecretKey.Length > 0 && x.Accounts.Length > 0 && x.Accounts.All(a => Guid.TryParse(a, out _)))),
                 "Enabled bank import requires provider credentials and account IDs.").ValidateOnStart();

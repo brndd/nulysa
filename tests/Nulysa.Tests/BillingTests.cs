@@ -38,16 +38,20 @@ public sealed class BillingTests : MembershipTest
         var id = await Admit(app, board);
         var initial = await View(app, Actor(id), id);
         var account = initial.AccountId;
+
         Assert.True(initial.Membership.Active);
         Assert.Equal(10m, Assert.Single(initial.Invoices).Remaining);
         var service = await Service(app, board);
         await Run(app, sp => sp.GetRequiredService<BillingCommands>().Subscribe(board, account, service, 1, false, Guid.NewGuid()));
         var bill = Assert.Single((await View(app, board, id)).Invoices);
+
         Assert.Equal(40m, bill.Total);
         var receiptId = await Pay(app, bill.Reference, 15m, sourceId: "duplicate-safe");
+
         Assert.Equal(receiptId, await Pay(app, bill.Reference, 15m, sourceId: "duplicate-safe"));
         var partial = await View(app, board, id);
         bill = Assert.Single(partial.Invoices);
+
         Assert.Equal(10m, bill.Paid);
         Assert.Equal(5m, bill.Held);
         Assert.Equal(25m, bill.Remaining);
@@ -56,10 +60,12 @@ public sealed class BillingTests : MembershipTest
         Assert.Equal(new Balances(0, 0, 5), partial.Balances);
         await Run(app, sp => sp.GetRequiredService<BillingCommands>().CancelInvoice(board, account, bill.Invoice.Id, Guid.NewGuid(), "Cancel remaining requests"));
         var cancelled = await View(app, board, id);
+
         Assert.Equal(new Balances(5, 0, 0), cancelled.Balances);
         Assert.Single(cancelled.Coverage);
         Assert.NotNull(Assert.Single(cancelled.Invoices).Invoice.ClosedAt);
         await using var db = Context();
+
         Assert.Equal(15m, await db.Receipts.Where(x => x.State == ReceiptState.Posted).SumAsync(x => x.Amount));
         Assert.Equal(10m, await db.MoneyMovements.Where(x => x.Kind == MovementKind.LinePurchase).SumAsync(x => x.Amount));
         Assert.Equal(5m, await db.MoneyMovements.Where(x => x.Kind == MovementKind.LineToBilling).SumAsync(x => x.Amount));
@@ -81,12 +87,15 @@ public sealed class BillingTests : MembershipTest
         await Scan(app, account);
         On(7, 9);
         await Scan(app, account);
+
         Assert.False((await View(app, board, id)).Membership.Active);
         await Pay(app, reference, 10, new(2026, 7, 7));
         view = await View(app, board, id);
+
         Assert.True(view.Membership.Active);
         Assert.Contains(view.Coverage, x => x.StartsOn == new DateOnly(2026, 7, 1) && x.EndsOn == new DateOnly(2026, 8, 1));
         var renewal = view.Invoices.SelectMany(x => x.Lines).Single(x => x.Line.StartsOn == new DateOnly(2026, 7, 1)).Line;
+
         Assert.Equal(new DateOnly(2026, 7, 7), renewal.EffectiveOn);
         Assert.Equal(10m, renewal.Amount);
         On(7, 20);
@@ -96,6 +105,7 @@ public sealed class BillingTests : MembershipTest
         On(9, 15);
         await Pay(app, reference, 10);
         view = await View(app, board, id);
+
         Assert.Contains(view.Coverage, x => x.StartsOn == new DateOnly(2026, 9, 15) && x.EndsOn == new DateOnly(2026, 10, 1));
         Assert.DoesNotContain(view.Coverage, x => x.StartsOn == new DateOnly(2026, 8, 1));
         Assert.Equal(4.67m, view.Balances.BillingCredit);
@@ -123,6 +133,7 @@ public sealed class BillingTests : MembershipTest
         await Pay(app, reference, 10, new(2026, 6, 18));
         var view = await View(app, board, id);
         var line = Assert.Single(view.Invoices.SelectMany(x => x.Lines), x => x.Line.Purpose == PurchasePurpose.Resumption).Line;
+
         Assert.Equal(LineState.Fulfilled, line.State);
         Assert.Equal(4.33m, line.Amount);
         Assert.Equal(new DateOnly(2026, 6, 18), line.StartsOn);
@@ -158,6 +169,7 @@ public sealed class BillingTests : MembershipTest
         await Pay(app, reference, splitPayment ? 9 : 10, new(2026, 6, splitPayment ? 24 : 25));
         var view = await View(app, board, id);
         var returned = Assert.Single(view.Invoices.SelectMany(x => x.Lines), x => x.Line.Purpose == PurchasePurpose.Resumption).Line;
+
         Assert.Equal(LineState.Fulfilled, returned.State);
         Assert.Equal(2m, returned.Amount);
         Assert.Equal(new DateOnly(2026, 6, 25), returned.EffectiveOn);
@@ -166,6 +178,7 @@ public sealed class BillingTests : MembershipTest
         await Scan(app, account);
         view = await View(app, board, id);
         var renewal = Assert.Single(view.Invoices.SelectMany(x => x.Lines), x => x.Line.State == LineState.Open);
+
         Assert.Equal(new DateOnly(2026, 7, 1), renewal.Line.StartsOn);
         Assert.Equal(new DateOnly(2026, splitPayment ? 9 : 8, 1), renewal.Line.EndsOn);
         Assert.Equal(8m, renewal.Held);
@@ -173,6 +186,7 @@ public sealed class BillingTests : MembershipTest
         On(7, 8);
         await Scan(app, account);
         view = await View(app, board, id);
+
         Assert.True(view.Membership.Active);
         Assert.Equal(renewal.Line.EndsOn, view.Items.Single().NextOn);
         Assert.Equal(0m, (await Run(app, sp => sp.GetRequiredService<BillingQueries>().Reconcile(board))).Difference);
@@ -212,12 +226,14 @@ public sealed class BillingTests : MembershipTest
         await Pay(app, initial.Invoices[0].Reference, 10, new(2026, 6, 18));
         var view = await View(app, board, id);
         var line = Assert.Single(view.Invoices.SelectMany(x => x.Lines), x => x.Line.Purpose == PurchasePurpose.Resumption).Line;
+
         Assert.Equal(LineState.Fulfilled, line.State);
         Assert.Equal(expectedCents / 100m, line.Amount);
         Assert.Equal(new DateOnly(2026, 6, 18), line.StartsOn);
         Assert.Equal(new DateOnly(2026, 7, 1), line.EndsOn);
         Assert.Equal(10m - line.Amount, view.Balances.BillingCredit);
         var history = view.Discounts.Single(x => x.Id == discount);
+
         Assert.NotNull(history.WithdrawnAt);
         Assert.Equal(new DateOnly(2026, 8, 1), history.EndsOn);
         Assert.Equal(0m, (await Run(app, sp => sp.GetRequiredService<BillingQueries>().Reconcile(board))).Difference);
@@ -242,12 +258,14 @@ public sealed class BillingTests : MembershipTest
         On(6, 10);
         await Scan(app, account);
         var before = (await View(app, board, id)).Invoices.SelectMany(x => x.Lines).Single(x => x.Line.Benefit == Benefit.Service);
+
         Assert.Equal(30m, before.Line.Amount);
         Assert.Equal(5m, before.Held);
         Assert.Equal(LineState.Open, before.Line.State);
         await Pay(app, reference, 20, new(2026, 6, 4));
         view = await View(app, board, id);
         var line = view.Invoices.SelectMany(x => x.Lines).Single(x => x.Line.Benefit == Benefit.Service).Line;
+
         Assert.Equal(25m, line.Amount);
         Assert.Equal(new DateOnly(2026, 6, 6), line.StartsOn);
         Assert.Equal(new DateOnly(2026, 6, 6), line.EffectiveOn);
@@ -282,6 +300,7 @@ public sealed class BillingTests : MembershipTest
         await Pay(app, reference, 50, new(2026, 6, 25));
         var view = await View(app, board, id);
         var line = Assert.Single(view.Invoices.SelectMany(x => x.Lines), x => x.Line.Benefit == Benefit.Service).Line;
+
         Assert.Equal(LineState.Fulfilled, line.State);
         Assert.Equal(expectedCents / 100m, line.Amount);
         Assert.Equal(new DateOnly(2026, 6, freeDays == 0 ? 25 : 30), line.StartsOn);
@@ -293,6 +312,7 @@ public sealed class BillingTests : MembershipTest
         On(7, 8);
         await Scan(app, account);
         view = await View(app, board, id);
+
         Assert.True(Assert.Single(view.Subscriptions).Standing.Active);
         Assert.Contains(view.Coverage, x => x.Benefit == Benefit.Service && x.EndsOn == new DateOnly(2026, 8, 1));
         Assert.Equal(0m, (await Run(app, sp => sp.GetRequiredService<BillingQueries>().Reconcile(board))).Difference);
@@ -313,34 +333,42 @@ public sealed class BillingTests : MembershipTest
         On(3, 10);
         var key = Guid.NewGuid();
         var enrollment = await Run(app, sp => sp.GetRequiredService<BillingCommands>().Subscribe(board, account, service, 1, false, key));
+
         Assert.Equal(enrollment, await Run(app, sp => sp.GetRequiredService<BillingCommands>().Subscribe(board, account, service, 1, false, key)));
         view = await View(app, board, id);
         var grant = Assert.Single(view.Coverage, x => x.Source == CoverageSource.InitialFree);
+
         Assert.Equal(new DateOnly(2026, 3, 30), grant.EndsOn);
         var serviceLine = view.Invoices.SelectMany(x => x.Lines).Single(x => x.Line.Benefit == Benefit.Service).Line;
+
         Assert.Equal(new DateOnly(2026, 3, 30), serviceLine.StartsOn);
         Assert.Equal(new DateOnly(2026, 5, 1), serviceLine.EndsOn);
         Assert.Equal(new DateOnly(2026, 3, 24), serviceLine.ExpiresOn);
         On(3, 24);
         await Scan(app, account);
         view = await View(app, board, id);
+
         Assert.True(Assert.Single(view.Subscriptions).Standing.Active);
         Assert.Equal(LineState.Expired, view.Invoices.SelectMany(x => x.Lines).Single(x => x.Line.Id == serviceLine.Id).Line.State);
         On(3, 30);
         await Scan(app, account);
+
         Assert.Empty((await View(app, board, id)).Subscriptions);
         await Run(app, sp => sp.GetRequiredService<BillingCommands>().Subscribe(board, account, service, 1, false, Guid.NewGuid()));
         view = await View(app, board, id);
+
         Assert.Single(view.Coverage, x => x.Source == CoverageSource.InitialFree);
         Assert.False(Assert.Single(view.Subscriptions).Standing.Active);
         var current = view.Subscriptions[0].Enrollment.Id;
         await Run(app, sp => sp.GetRequiredService<BillingCommands>().StopService(board, account, current, true, Guid.NewGuid(), "Explicit removal"));
         await Run(app, sp => sp.GetRequiredService<BillingCommands>().Subscribe(board, account, service, 1, true, Guid.NewGuid()));
         view = await View(app, board, id);
+
         Assert.Single(view.Coverage, x => x.Source == CoverageSource.AdministratorGrant);
         current = view.Subscriptions[0].Enrollment.Id;
         await Run(app, sp => sp.GetRequiredService<BillingCommands>().StopService(Actor(id), account, current, false, Guid.NewGuid(), "Stop renewal"));
         view = await View(app, board, id);
+
         Assert.True(Assert.Single(view.Subscriptions).Standing.Active);
         Assert.All(view.Invoices.SelectMany(x => x.Lines).Where(x => x.Line.Benefit == Benefit.Service), x => Assert.NotEqual(LineState.Open, x.Line.State));
     }
@@ -364,6 +392,7 @@ public sealed class BillingTests : MembershipTest
         await Run(app, sp => sp.GetRequiredService<BillingCommands>().GrantMembershipMonths(board, account, 1, grantKey, "Volunteer compensation"));
         await Run(app, sp => sp.GetRequiredService<BillingCommands>().GrantMembershipMonths(board, account, 1, grantKey, "Volunteer compensation"));
         view = await View(app, board, id);
+
         Assert.Equal(5m, view.Balances.BillingCredit);
         Assert.Single(view.Coverage, x => x.Source == CoverageSource.AdministratorGrant);
         Assert.DoesNotContain(view.Invoices.SelectMany(x => x.Lines), x => x.Line.State == LineState.Open);
@@ -372,11 +401,13 @@ public sealed class BillingTests : MembershipTest
         await Scan(app, account);
         view = await View(app, board, id);
         var honorary = view.Invoices.SelectMany(x => x.Lines).Single(x => x.Line.StartsOn == new DateOnly(2026, 8, 1)).Line;
+
         Assert.Equal(LineState.Fulfilled, honorary.State);
         Assert.Equal(0, honorary.Amount);
         Assert.Null(honorary.EffectiveOn);
         Assert.Equal(5m, view.Balances.BillingCredit);
         await using var db = Context();
+
         Assert.Equal(2, await db.Receipts.CountAsync());
         Assert.DoesNotContain(await db.MoneyMovements.ToListAsync(), x => x.Amount <= 0);
     }
@@ -401,6 +432,7 @@ public sealed class BillingTests : MembershipTest
         var discount = await Run(app, sp => sp.GetRequiredService<BillingCommands>().AddDiscount(board, account, 1, new(2026, 7, 1), new(2026, 8, 1), DiscountKind.Percentage, 50, Guid.NewGuid(), "Future discount"));
         await Run(app, sp => sp.GetRequiredService<BillingCommands>().CreditFutureDiscount(board, account, line.Id, discount!.Value, 5, Guid.NewGuid(), "Reviewed July purchase"));
         view = await View(app, board, id);
+
         Assert.Equal(5m, view.Balances.BillingCredit);
         Assert.Equal(10m, view.Invoices.SelectMany(x => x.Lines).Single(x => x.Line.Id == line.Id).Line.Amount);
         Assert.Equal(2, view.Coverage.Count);
@@ -430,17 +462,20 @@ public sealed class BillingTests : MembershipTest
         var august = await Discount(new(2026, 8, 1), new(2026, 9, 1), 50);
         await Credit(july, 5.10m);
         await Credit(august, 5.10m);
+
         Assert.Equal(10.20m, (await View(app, board, id)).Balances.BillingCredit);
         await Assert.ThrowsAsync<ValidationException>(() => Credit(july, 5.10m));
         await Withdraw(july);
         await Withdraw(august);
         var replacement = await Discount(new(2026, 7, 1), new(2026, 9, 1), 75);
         await Credit(replacement, 5.09m);
+
         await Assert.ThrowsAsync<ValidationException>(() => Credit(replacement, 5.09m));
         await Withdraw(replacement);
         var julyFree = await Discount(new(2026, 7, 1), new(2026, 8, 1), 100);
         await Credit(julyFree, 2.55m);
         var view = await View(app, board, id);
+
         Assert.Equal(17.84m, view.Balances.BillingCredit);
         Assert.Single(view.Coverage);
         Assert.Equal(120m, Assert.Single(view.Invoices.SelectMany(x => x.Lines)).Line.Amount);
@@ -462,18 +497,28 @@ public sealed class BillingTests : MembershipTest
         async Task<bool> Transfer()
         {
             try
-            { await Run(app, sp => sp.GetRequiredService<BillingCommands>().Transfer(Actor(id), account, Guid.NewGuid(), 7, false)); return true; }
-            catch (ValidationException) { return false; }
+            {
+                await Run(app, sp => sp.GetRequiredService<BillingCommands>().Transfer(Actor(id), account, Guid.NewGuid(), 7, false));
+                return true;
+            }
+            catch (ValidationException)
+            {
+                return false;
+            }
         }
         var results = await Task.WhenAll(Transfer(), Transfer());
+
         Assert.Single(results, x => x);
         view = await View(app, board, id);
+
         Assert.Equal(new Balances(0, 3, 7), view.Balances);
         var key = Guid.NewGuid();
         await Run(app, sp => sp.GetRequiredService<BillingCommands>().Transfer(Actor(id), account, key, 3, false));
         await Run(app, sp => sp.GetRequiredService<BillingCommands>().Transfer(Actor(id), account, key, 3, false));
+
         await Assert.ThrowsAsync<ValidationException>(() => Run(app, sp => sp.GetRequiredService<BillingCommands>().Transfer(Actor(id), account, key, 2, false)));
         view = await View(app, board, id);
+
         Assert.Equal(new Balances(0, 0, 0), view.Balances);
         Assert.Equal(10m, view.Invoices[0].Paid);
     }
@@ -497,25 +542,31 @@ public sealed class BillingTests : MembershipTest
         await Run(app, sp => sp.GetRequiredService<MembershipCommands>().Restore(board, id, Guid.NewGuid(), "Verified request"));
         await Pay(app, reference, 10, sourceId: "pending-deletion");
         await using var db = Context();
+
         Assert.Equal(ReceiptState.Review, (await db.Receipts.AsNoTracking().SingleAsync(x => x.Id == receipt)).State);
         await Run(app, sp => sp.GetRequiredService<MembershipCommands>().BeginDeletion(board, id, Guid.NewGuid(), "Second termination"));
         On(6, 15);
+
         Assert.True(await Run(app, sp => sp.GetRequiredService<MembershipCommands>().Erase(id)));
         var retained = await db.BillingAccounts.AsNoTracking().SingleAsync(x => x.Id == account);
+
         Assert.Null(retained.UserId);
         Assert.Equal("New Member", retained.ClaimName);
         Assert.Equal(Email, retained.ClaimEmail);
         var financial = await Run(app, sp => sp.GetRequiredService<BillingQueries>().Account(board, account));
+
         Assert.Equal(new Balances(5, 20, 0), financial.Balances);
         Assert.Empty(await db.RecurringItems.ToListAsync());
         Assert.Empty(await db.ServiceEnrollments.ToListAsync());
         var rejoined = await Admit(app, board);
+
         Assert.NotEqual(account, (await View(app, board, rejoined)).AccountId);
         Clock.Now = DateTimeOffset.UtcNow;
         await using var web = await StartProvider();
         using var client = Client();
         await Login(client, "board@example.test");
         var retainedPage = await client.GetStringAsync("admin/billing/" + account);
+
         Assert.Contains("Retained invoice evidence", retainedPage);
         Assert.DoesNotContain("/admin/members//billing", retainedPage);
         Assert.DoesNotContain("New Member", retainedPage);
@@ -537,9 +588,14 @@ public sealed class BillingTests : MembershipTest
         var service = await Service(app, board, free: 30);
         await Run(app, sp => sp.GetRequiredService<BillingCommands>().Subscribe(board, account, service, 1, false, Guid.NewGuid()));
         if (renewalAlreadyIssued)
-        { On(6, 20); await Scan(app, account); }
+        {
+            On(6, 20);
+            await Scan(app, account);
+        }
         else
+        {
             On(6, 5);
+        }
         await Run(app, sp => sp.GetRequiredService<MembershipCommands>().BeginDeletion(board, id, Guid.NewGuid(), "Termination"));
         var cancelled = (await View(app, board, id)).Invoices.SelectMany(x => x.Lines).Where(x => x.Line.State == LineState.Cancelled).Select(x => x.Line.Id).ToList();
         On(6, 22);
@@ -547,6 +603,7 @@ public sealed class BillingTests : MembershipTest
         await Run(app, sp => sp.GetRequiredService<MembershipCommands>().Restore(board, id, restore, "Verified restoration"));
         await Run(app, sp => sp.GetRequiredService<MembershipCommands>().Restore(board, id, restore, "Verified restoration"));
         var restored = await View(app, board, id);
+
         Assert.True(restored.Membership.Active);
         Assert.Empty(restored.Subscriptions);
         Assert.Single(restored.Items);
@@ -554,14 +611,18 @@ public sealed class BillingTests : MembershipTest
         Assert.DoesNotContain(restored.Invoices.SelectMany(x => x.Lines), x => cancelled.Contains(x.Line.Id) && x.Line.State != LineState.Cancelled);
         await Scan(app, account);
         var renewal = Assert.Single((await View(app, board, id)).Invoices.SelectMany(x => x.Lines), x => x.Line.Benefit == Benefit.Membership && x.Line.State == LineState.Open).Line;
+
         Assert.Equal(new DateOnly(2026, 7, 1), renewal.StartsOn);
         Assert.Equal(new DateOnly(2026, 8, 1), renewal.EndsOn);
         On(7, 1);
+
         Assert.True((await View(app, board, id)).Membership.Active);
         On(7, 8);
         await Scan(app, account);
+
         Assert.False((await View(app, board, id)).Membership.Active);
         await Run(app, sp => sp.GetRequiredService<BillingCommands>().ResumeMembership(Actor(id), account, Guid.NewGuid()));
+
         Assert.Single((await View(app, board, id)).Items);
         Assert.Equal(0m, (await Run(app, sp => sp.GetRequiredService<BillingQueries>().Reconcile(board))).Difference);
     }
@@ -589,16 +650,20 @@ public sealed class BillingTests : MembershipTest
         await Run(app, sp => sp.GetRequiredService<MembershipCommands>().Restore(board, id, Guid.NewGuid(), "Verified restoration"));
         await Scan(app, account);
         var restored = await View(app, board, id);
+
         Assert.False(restored.Membership.Active);
         Assert.Empty(restored.Items);
         Assert.Single(restored.Coverage);
         var cancelled = Assert.Single(restored.Invoices.SelectMany(x => x.Lines), x => x.Line.State == LineState.Cancelled).Line.Id;
         var receipt = await Pay(app, reference, 10, sourceId: "restored-return");
+
         Assert.Equal(receipt, await Pay(app, reference, 10, sourceId: "restored-return"));
         var view = await View(app, board, id);
+
         Assert.Equal(automaticReturn, view.Membership.Active);
         if (!automaticReturn)
         {
+
             Assert.Empty(view.Items);
             Assert.Single(view.Coverage);
             Assert.Equal(10m, view.Balances.BillingCredit);
@@ -606,9 +671,11 @@ public sealed class BillingTests : MembershipTest
         }
         await Scan(app, account);
         view = await View(app, board, id);
+
         Assert.True(view.Membership.Active);
         Assert.Single(view.Items);
         var returned = Assert.Single(view.Invoices.SelectMany(x => x.Lines), x => x.Line.Purpose == PurchasePurpose.Resumption).Line;
+
         Assert.Equal(LineState.Fulfilled, returned.State);
         Assert.Equal(7.42m, returned.Amount);
         Assert.Equal(new DateOnly(2026, 7, 9), returned.StartsOn);
@@ -631,14 +698,17 @@ public sealed class BillingTests : MembershipTest
         var invoiceId = await Run(app, sp => sp.GetRequiredService<BillingCommands>().OneOff(board, account, Guid.NewGuid(), "Workshop", "workshop", 12.50m, new(2026, 6, 20)));
         view = await View(app, board, id);
         var one = view.Invoices.Single(x => x.Invoice.Id == invoiceId);
+
         Assert.Null(one.Invoice.BillingGroupId);
         await Pay(app, one.Reference, 15);
         view = await View(app, board, id);
+
         Assert.Equal(12.50m, view.Invoices.Single(x => x.Invoice.Id == invoiceId).Paid);
         Assert.Empty(view.Coverage);
         Assert.Equal(2.50m, view.Balances.Held);
         Assert.Equal(0, view.Balances.BillingCredit);
         var other = await Admit(app, board, "other@example.test");
+
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Run(app, sp => sp.GetRequiredService<BillingQueries>().Account(Actor(other), account)));
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Run(app, sp => sp.GetRequiredService<BillingQueries>().Review(Actor(id))));
     }
@@ -659,13 +729,20 @@ public sealed class BillingTests : MembershipTest
         var invoiceId = await Run(app, sp => sp.GetRequiredService<BillingCommands>().OneOff(board, view.AccountId, Guid.NewGuid(), "Workshop", "workshop", 12.50m, new(2026, 6, 20)));
         var receipt = await Pay(app, "missing-reference", 12.50m, new(2026, 6, 1), "workshop");
         if (delayed)
-        { On(6, 21); await Scan(app, view.AccountId); }
+        {
+            On(6, 21);
+            await Scan(app, view.AccountId);
+        }
+
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Run(app, sp => sp.GetRequiredService<BillingCommands>()
             .AssignReceipt(Actor(id), receipt, view.AccountId, null, false, Guid.NewGuid(), "Not administrator", invoiceId: invoiceId)));
+
         await Assert.ThrowsAsync<ValidationException>(() => Run(app, sp => sp.GetRequiredService<BillingCommands>()
             .AssignReceipt(board, receipt, otherView.AccountId, null, false, Guid.NewGuid(), "Wrong account", invoiceId: invoiceId)));
+
         await Assert.ThrowsAsync<ValidationException>(() => Run(app, sp => sp.GetRequiredService<BillingCommands>()
             .AssignReceipt(board, receipt, view.AccountId, view.Groups.Single().Id, false, Guid.NewGuid(), "Conflicting purpose", invoiceId: invoiceId)));
+
         await Assert.ThrowsAsync<ValidationException>(() => Run(app, sp => sp.GetRequiredService<BillingCommands>()
             .AssignReceipt(board, receipt, view.AccountId, null, false, Guid.NewGuid(), "Not a one-off", invoiceId: view.Invoices[0].Invoice.Id)));
         var key = Guid.NewGuid();
@@ -673,9 +750,11 @@ public sealed class BillingTests : MembershipTest
         {
             var error = await Assert.ThrowsAsync<ValidationException>(() => Run(app, sp => sp.GetRequiredService<BillingCommands>()
                 .AssignReceipt(board, receipt, invalidAccount, null, false, key, "Verified workshop payment", invoiceId: invoiceId)));
+
             Assert.Equal("Choose an existing financial account ID.", error.Message);
         }
         await using var db = Context();
+
         Assert.Equal(ReceiptState.Review, (await db.Receipts.AsNoTracking().SingleAsync()).State);
         Assert.Empty(await db.MoneyMovements.ToListAsync());
         Assert.False(await db.BillingOperations.AnyAsync(x => x.Id == key));
@@ -683,15 +762,18 @@ public sealed class BillingTests : MembershipTest
             .AssignReceipt(board, receipt, view.AccountId, null, false, key, "Verified workshop payment", invoiceId: target));
         await Assign(invoiceId);
         await Assign(invoiceId);
+
         await Assert.ThrowsAsync<ValidationException>(() => Assign(null));
         Assert.Equal(receipt, await Pay(app, "missing-reference", 12.50m, new(2026, 6, 1), "workshop"));
         var after = await View(app, board, id);
+
         Assert.Equal(12.50m, after.Invoices.Single(x => x.Invoice.Id == invoiceId).Paid);
         Assert.Equal(0m, after.Invoices.Single(x => x.Invoice.Id == view.Invoices[0].Invoice.Id).Paid);
         Assert.Equal(new Balances(0, 0, 0), after.Balances);
         Assert.Empty(after.Coverage);
         Assert.Equal("missing-reference", (await db.Receipts.AsNoTracking().SingleAsync()).Reference);
         var reconciliation = await Run(app, sp => sp.GetRequiredService<BillingQueries>().Reconcile(board));
+
         Assert.Equal(0m, reconciliation.Difference);
         Assert.Empty(reconciliation.InvalidLines);
         Assert.Empty(reconciliation.InvalidReceipts);
@@ -719,17 +801,20 @@ public sealed class BillingTests : MembershipTest
         On(7, 8);
         await Scan(app, account);
         view = await View(app, board, id);
+
         Assert.False(view.Membership.Active);
         Assert.False(Assert.Single(view.Subscriptions).Standing.Active);
         Assert.Equal(new DateOnly(2026, 9, 1), view.Coverage.Where(x => x.Benefit == Benefit.Service).Max(x => x.EndsOn));
         On(8, 15);
         await Pay(app, membershipReference, 10);
         view = await View(app, board, id);
+
         Assert.True(Assert.Single(view.Subscriptions).Standing.Active);
         // No intervening scan issues a renewal; dated eligibility still expires both benefits.
         On(9, 9);
         await Scan(app, account);
         view = await View(app, board, id);
+
         Assert.Empty(view.Subscriptions);
         Assert.Equal(new DateOnly(2026, 9, 1), view.Coverage.Where(x => x.Benefit == Benefit.Service).Max(x => x.EndsOn));
     }
@@ -747,22 +832,27 @@ public sealed class BillingTests : MembershipTest
         var target = await View(app, board, other);
         var receipt = await Pay(app, view.Invoices[0].Reference, 5, sourceId: "mistaken-allocation");
         await Run(app, sp => sp.GetRequiredService<BillingCommands>().UnassignReceipt(board, view.AccountId, receipt, Guid.NewGuid(), "Wrong member reference"));
+
         Assert.Equal(new Balances(0, 0, 0), (await View(app, board, id)).Balances);
         var key = Guid.NewGuid();
         var group = target.Groups.Single().Id;
         await Run(app, sp => sp.GetRequiredService<BillingCommands>().AssignReceipt(board, receipt, target.AccountId, group, false, key, "Verified member and purpose"));
         await Run(app, sp => sp.GetRequiredService<BillingCommands>().AssignReceipt(board, receipt, target.AccountId, group, false, key, "Verified member and purpose"));
+
         await Assert.ThrowsAsync<ValidationException>(() => Run(app, sp => sp.GetRequiredService<BillingCommands>().AssignReceipt(board, receipt, target.AccountId, null, false, key, "Verified member and purpose")));
         var report = await Run(app, sp => sp.GetRequiredService<BillingQueries>().Reconcile(board));
+
         Assert.Equal(5m, report.Receipts);
         Assert.Equal(5m, report.Held);
         Assert.Equal(0m, report.Difference);
         Assert.Empty(report.InvalidLines);
         Assert.Empty(report.InvalidReceipts);
         await using var db = Context();
+
         Assert.Equal(view.Invoices[0].Reference, (await db.Receipts.SingleAsync()).Reference);
         Assert.Single(await db.MoneyMovements.Where(x => x.ReversesMovementId != null).ToListAsync());
         var csv = await Run(app, sp => sp.GetRequiredService<BillingQueries>().Export(board, new(2026, 6, 1), new(2026, 7, 1)));
+
         Assert.Contains("BillingReceiptReversal", csv);
         Assert.Contains("mistaken-allocation", csv);
     }
@@ -780,12 +870,23 @@ public sealed class BillingTests : MembershipTest
             Run(app, sp => sp.GetRequiredService<MembershipCommands>().BeginDeletion(board, id, Guid.NewGuid(), "Concurrent termination")));
         await using var db = Context();
         var receipt = await db.Receipts.SingleAsync();
+
         Assert.NotNull((await db.Users.SingleAsync(x => x.Id == id)).PendingDeletionAt);
         var current = await View(app, board, id);
         if (receipt.State == ReceiptState.Posted)
-        { Assert.Equal(5m, current.Balances.BillingCredit); Assert.Single(current.Coverage); }
+        {
+
+            Assert.Equal(5m, current.Balances.BillingCredit);
+            Assert.Single(current.Coverage);
+        }
         else
-        { Assert.Equal(ReceiptState.Review, receipt.State); Assert.Equal(new Balances(0, 0, 0), current.Balances); Assert.Empty(current.Coverage); }
+        {
+
+            Assert.Equal(ReceiptState.Review, receipt.State);
+            Assert.Equal(new Balances(0, 0, 0), current.Balances);
+            Assert.Empty(current.Coverage);
+        }
+
         Assert.DoesNotContain(current.Invoices.SelectMany(x => x.Lines), x => x.Line.State == LineState.Open);
         Assert.Equal(0m, (await Run(app, sp => sp.GetRequiredService<BillingQueries>().Reconcile(board))).Difference);
     }
@@ -802,6 +903,7 @@ public sealed class BillingTests : MembershipTest
         var account = view.AccountId;
         await Run(app, sp => sp.GetRequiredService<BillingCommands>().SetPrice(board, 1, new(2026, 6, 1), 20));
         await Run(app, sp => sp.GetRequiredService<BillingCommands>().AddDiscount(board, account, 1, new(2026, 6, 1), new(3026, 6, 1), DiscountKind.Percentage, 50, Guid.NewGuid(), "Discount original quote"));
+
         Assert.Equal(5m, (await View(app, board, id)).Invoices[0].Total);
         var firstDiscount = (await View(app, board, id)).Discounts.Single().Id;
         await Run(app, sp => sp.GetRequiredService<BillingCommands>().WithdrawDiscount(board, account, firstDiscount, Guid.NewGuid(), "Honorary instead"));
@@ -810,10 +912,12 @@ public sealed class BillingTests : MembershipTest
         await Scan(app, account);
         await Scan(app, account);
         view = await View(app, board, id);
+
         Assert.True(view.Membership.Active);
         Assert.Equal(4, view.Coverage.Count);
         Assert.Empty(view.Movements);
         await using var db = Context();
+
         Assert.Empty(await db.Receipts.ToListAsync());
     }
 
@@ -833,19 +937,23 @@ public sealed class BillingTests : MembershipTest
         var view = await View(app, board, id);
         var invoice = view.Invoices[0].Invoice.Id;
         var pdf = await Run(app, sp => sp.GetRequiredService<InvoicePdf>().ForMember(Actor(id), invoice));
+
         Assert.StartsWith("%PDF-", System.Text.Encoding.ASCII.GetString(pdf[..8]));
         Assert.True(pdf.Length > 1000);
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Run(app, sp => sp.GetRequiredService<InvoicePdf>().ForMember(Actor(other), invoice)));
         await using var db = Context();
         var delivery = await db.Deliveries.SingleAsync(x => x.InvoiceId == invoice && x.Kind == MailKind.Invoice);
         await Run(app, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(delivery.Id));
+
         Assert.NotNull(Assert.Single(transport.Sent).Pdf);
         await Run(app, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(delivery.Id));
+
         Assert.Single(transport.Sent);
         var otherView = await View(app, board, other);
         var optedOut = await db.Deliveries.SingleAsync(x => x.UserId == other && x.Kind == MailKind.Invoice);
         await Run(app, sp => sp.GetRequiredService<BillingCommands>().SetEmailInvoices(Actor(other), otherView.AccountId, false, Guid.NewGuid()));
         await Run(app, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(optedOut.Id));
+
         Assert.Equal(DeliveryState.Cancelled, (await db.Deliveries.AsNoTracking().SingleAsync(x => x.Id == optedOut.Id)).State);
         var service = await Service(app, board);
         var waiting = await Admit(app, board, "stale@example.test");
@@ -854,6 +962,7 @@ public sealed class BillingTests : MembershipTest
         // A queued revision must not send the old payable quote after an invoice edit.
         await Run(app, sp => sp.GetRequiredService<BillingCommands>().Subscribe(board, waitingView.AccountId, service, 1, false, Guid.NewGuid()));
         await Run(app, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(stale.Id));
+
         Assert.Equal(DeliveryState.Cancelled, (await db.Deliveries.AsNoTracking().SingleAsync(x => x.Id == stale.Id)).State);
         Assert.Single(transport.Sent);
     }
@@ -878,6 +987,7 @@ public sealed class BillingTests : MembershipTest
         var id = await Admit(app, board);
         var view = await View(app, board, id);
         var pdf = await Run(app, sp => sp.GetRequiredService<InvoicePdf>().ForMember(Actor(id), view.Invoices[0].Invoice.Id));
+
         Assert.StartsWith("%PDF-", System.Text.Encoding.ASCII.GetString(pdf[..8]));
     }
 
@@ -893,6 +1003,7 @@ public sealed class BillingTests : MembershipTest
         var invoice = before.Invoices[0];
         await Run(app, sp => sp.GetRequiredService<BillingCommands>().ChangeInterval(Actor(id), before.AccountId, before.Items.Single().Id, 3, Guid.NewGuid()));
         var after = await View(app, board, id);
+
         Assert.Equal(invoice.Reference, after.Invoices[0].Reference);
         Assert.Equal(invoice.Total, after.Invoices[0].Total);
         Assert.Equal(invoice.Invoice.Revision, after.Invoices[0].Invoice.Revision);
@@ -901,10 +1012,12 @@ public sealed class BillingTests : MembershipTest
         await Scan(app, before.AccountId);
         var next = Assert.Single((await View(app, board, id)).Invoices, x => x.Invoice.ClosedAt is null);
         var line = Assert.Single(next.Lines).Line;
+
         Assert.Equal(new DateOnly(2026, 7, 1), line.StartsOn);
         Assert.Equal(new DateOnly(2026, 9, 1), line.EndsOn);
         Assert.NotEqual(invoice.Reference, next.Reference);
         await Pay(app, next.Reference, next.Remaining);
+
         Assert.Equal(0m, (await Run(app, sp => sp.GetRequiredService<BillingQueries>().Reconcile(board))).Difference);
     }
 
@@ -923,6 +1036,7 @@ public sealed class BillingTests : MembershipTest
         async Task Reject(FormattableString sql, string constraint)
         {
             var error = await Assert.ThrowsAsync<Npgsql.PostgresException>(() => db.Database.ExecuteSqlInterpolatedAsync(sql));
+
             Assert.Equal(constraint, error.ConstraintName);
         }
         var invoice = view.Invoices[0].Invoice;
@@ -932,6 +1046,7 @@ public sealed class BillingTests : MembershipTest
         await Reject($"INSERT INTO \"MoneyMovements\" (\"BillingAccountId\", \"OperationId\", \"Kind\", \"Amount\", \"EffectiveOn\") VALUES ({view.AccountId}, {operation.Id}, 'BillingRefund', -1, {new DateOnly(2026, 6, 1)})", "CK_Movement_Amount");
         await Reject($"INSERT INTO \"MoneyMovements\" (\"BillingAccountId\", \"OperationId\", \"Kind\", \"Amount\", \"EffectiveOn\") VALUES ({view.AccountId}, {operation.Id}, 'ReceiptToBilling', 1, {new DateOnly(2026, 6, 1)})", "CK_Movement_Receipt");
         await Reject($"INSERT INTO \"MoneyMovements\" (\"BillingAccountId\", \"OperationId\", \"Kind\", \"Amount\", \"EffectiveOn\") VALUES ({view.AccountId}, {operation.Id}, 'LinePurchase', 1, {new DateOnly(2026, 6, 1)})", "CK_Movement_Line");
+
         Assert.Empty(await db.MoneyMovements.ToListAsync());
     }
 
@@ -950,13 +1065,24 @@ public sealed class BillingTests : MembershipTest
         await Task.WhenAll(Pay(app, view.Invoices[0].Reference, 30),
             Run(app, sp => sp.GetRequiredService<BillingCommands>().StopService(board, view.AccountId, enrollment!.Value, true, Guid.NewGuid(), "Concurrent explicit removal")));
         var after = await View(app, board, id);
+
         Assert.Empty(after.Subscriptions);
         Assert.Equal(0m, after.Balances.Held);
         var line = Assert.Single(after.Invoices.SelectMany(x => x.Lines), x => x.Line.Benefit == Benefit.Service).Line;
         if (line.State == LineState.Fulfilled)
-        { Assert.Equal(0m, after.Balances.BillingCredit); Assert.Contains(after.Coverage, x => x.Benefit == Benefit.Service); }
+        {
+
+            Assert.Equal(0m, after.Balances.BillingCredit);
+            Assert.Contains(after.Coverage, x => x.Benefit == Benefit.Service);
+        }
         else
-        { Assert.Equal(LineState.Cancelled, line.State); Assert.Equal(30m, after.Balances.BillingCredit); Assert.DoesNotContain(after.Coverage, x => x.Benefit == Benefit.Service); }
+        {
+
+            Assert.Equal(LineState.Cancelled, line.State);
+            Assert.Equal(30m, after.Balances.BillingCredit);
+            Assert.DoesNotContain(after.Coverage, x => x.Benefit == Benefit.Service);
+        }
+
         Assert.Equal(0m, (await Run(app, sp => sp.GetRequiredService<BillingQueries>().Reconcile(board))).Difference);
     }
 
@@ -977,9 +1103,11 @@ public sealed class BillingTests : MembershipTest
         await Scan(app, account.Id);
         await Scan(app, account.Id);
         var view = await View(app, Actor(user.Id), user.Id);
+
         Assert.False(view.Membership.Active);
         var invoice = Assert.Single(view.Invoices);
         var line = Assert.Single(invoice.Lines).Line;
+
         Assert.Equal(LineState.Expired, line.State);
         Assert.Equal(new DateOnly(2026, 6, 15), line.ExpiresOn);
         Assert.NotNull(invoice.Invoice.ClosedAt);

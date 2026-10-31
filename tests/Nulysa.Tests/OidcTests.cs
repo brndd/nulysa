@@ -30,6 +30,7 @@ public abstract class OidcTest : DatabaseTest
         await using var scope = Maintenance.Services.CreateAsyncScope();
         var users = scope.ServiceProvider.GetRequiredService<UserManager<User>>();
         var user = new User { Email = Email, UserName = Email, EmailConfirmed = true, Admitted = true, Name = "Synthetic Member" };
+
         Assert.True((await users.CreateAsync(user, Password)).Succeeded);
         return user;
     }
@@ -69,6 +70,7 @@ public abstract class OidcTest : DatabaseTest
     {
         var html = await client.GetStringAsync("Account/Login");
         var match = Regex.Match(html, "<input(?=[^>]*name=\"__RequestVerificationToken\")(?=[^>]*value=\"([^\"]+)\")[^>]*>");
+
         Assert.True(match.Success, html);
         return await client.PostAsync("Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
         {
@@ -95,8 +97,10 @@ public abstract class OidcTest : DatabaseTest
     protected static async Task<string> Code(HttpClient client, string scope = "openid email profile offline_access")
     {
         var response = await client.GetAsync(AuthorizeUrl(scope));
+
         Assert.True(response.StatusCode == HttpStatusCode.Redirect, await response.Content.ReadAsStringAsync());
         var query = QueryHelpers.ParseQuery(response.Headers.Location!.Query);
+
         Assert.Equal("synthetic-state", query["state"]);
         Assert.True(query.ContainsKey("code"), response.Headers.Location.ToString());
         return query["code"].ToString();
@@ -125,6 +129,7 @@ public abstract class OidcTest : DatabaseTest
     protected static async Task<JsonElement> Json(HttpResponseMessage response, HttpStatusCode expected = HttpStatusCode.OK)
     {
         var text = await response.Content.ReadAsStringAsync();
+
         Assert.True(response.StatusCode == expected, $"{response.StatusCode}: {text}");
         using var json = JsonDocument.Parse(text);
         return json.RootElement.Clone();
@@ -132,6 +137,7 @@ public abstract class OidcTest : DatabaseTest
 
     protected async Task<JsonElement> Tokens(HttpClient client)
     {
+
         Assert.Equal(HttpStatusCode.Redirect, (await Login(client)).StatusCode);
         return await Json(await Redeem(client, await Code(client)));
     }
@@ -155,6 +161,7 @@ public sealed class OidcTests : OidcTest
         using var client = Client();
         var tokens = await Tokens(client);
         var discovery = await Json(await client.GetAsync(".well-known/openid-configuration"));
+
         Assert.Equal(Settings["Oidc:Issuer"], discovery.GetProperty("issuer").GetString());
         var jwks = await client.GetStringAsync(discovery.GetProperty("jwks_uri").GetString());
         var validation = await new JsonWebTokenHandler().ValidateTokenAsync(tokens.GetProperty("id_token").GetString(), new TokenValidationParameters
@@ -165,8 +172,10 @@ public sealed class OidcTests : OidcTest
             ValidAlgorithms = [SecurityAlgorithms.RsaSha256],
             ClockSkew = TimeSpan.Zero
         });
+
         Assert.True(validation.IsValid, validation.Exception?.ToString());
         var jwt = (JsonWebToken)validation.SecurityToken;
+
         Assert.Equal("synthetic-nonce", jwt.GetClaim("nonce").Value);
         Assert.Equal(user.OidcSubject, jwt.Subject);
         Assert.Equal(Email, jwt.GetClaim("email").Value);
@@ -175,10 +184,12 @@ public sealed class OidcTests : OidcTest
                 .SetProperty(u => u.NormalizedEmail, "CHANGED@EXAMPLE.TEST"));
         var changed = await Json(await Redeem(client, await Code(client)));
         var info = await UserInfo(client, changed);
+
         Assert.Equal(user.OidcSubject, info.GetProperty("sub").GetString());
         Assert.Equal("changed@example.test", info.GetProperty("email").GetString());
         var minimal = await Json(await Redeem(client, await Code(client, "openid")));
         var scoped = await UserInfo(client, minimal);
+
         Assert.Equal(["sub"], scoped.EnumerateObject().Select(x => x.Name));
     }
 
@@ -208,12 +219,15 @@ public sealed class OidcTests : OidcTest
         foreach (var name in new[] { "access_token", "id_token" })
         {
             var jwt = new JsonWebToken(narrow.GetProperty(name).GetString());
+
             Assert.False(jwt.TryGetClaim("email", out _));
             Assert.False(jwt.TryGetClaim("name", out _));
         }
+
         Assert.Equal(["sub"], (await UserInfo(client, narrow)).EnumerateObject().Select(x => x.Name));
         // A replacement refresh token retains the original grant, as required by RFC 6749 section 6.
         var restored = await Json(await Refresh(client, narrow));
+
         Assert.Equal(Email, (await UserInfo(client, restored)).GetProperty("email").GetString());
         var expanded = await client.PostAsync("connect/token", new FormUrlEncodedContent(new Dictionary<string, string>
         {
@@ -223,6 +237,7 @@ public sealed class OidcTests : OidcTest
             ["client_secret"] = Secret,
             ["scope"] = "openid private"
         }));
+
         Assert.Equal(HttpStatusCode.BadRequest, expanded.StatusCode);
     }
 
@@ -235,23 +250,28 @@ public sealed class OidcTests : OidcTest
         using var client = Client();
         await Login(client);
         var code = await Code(client);
+
         Assert.Equal(HttpStatusCode.Unauthorized, (await Redeem(client, code, "wrong")).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await Redeem(client, code, verifier: Verifier + "wrong")).StatusCode);
         foreach (var url in new[] { AuthorizeUrl(redirect: "https://unregistered.example.test/steal"), AuthorizeUrl(scope: "openid private"),
             AuthorizeUrl(method: "plain", challenge: Verifier), "connect/authorize?client_id=synthetic-broker&response_type=code&redirect_uri=" + Uri.EscapeDataString(Redirect) })
         {
             var response = await client.GetAsync(url);
+
             Assert.True(response.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Redirect);
             Assert.False(response.Headers.Location?.Host == "unregistered.example.test");
             if (response.Headers.Location is { } location)
+
                 Assert.Contains("error=", location.Query);
         }
         foreach (var grant in new[] { "password", "client_credentials", "urn:ietf:params:oauth:grant-type:device_code" })
         {
             var response = await client.PostAsync("connect/token", new FormUrlEncodedContent(new Dictionary<string, string>
             { ["grant_type"] = grant, ["client_id"] = "synthetic-broker", ["client_secret"] = Secret }));
+
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         }
+
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("connect/register")).StatusCode);
     }
 
@@ -262,18 +282,22 @@ public sealed class OidcTests : OidcTest
         await CreateClient();
         await using var app = await StartProvider();
         using var client = Client();
+
         Assert.Equal(HttpStatusCode.Redirect, (await Login(client)).StatusCode);
         foreach (var parameter in new[] { "prompt=login", "max_age=0" })
         {
             var response = await client.GetAsync(AuthorizeUrl() + "&" + parameter);
+
             Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
             Assert.Equal("/Account/Login", response.Headers.Location!.AbsolutePath);
             var query = QueryHelpers.ParseQuery(response.Headers.Location.Query);
             var returnUrl = query["ReturnUrl"].ToString();
+
             Assert.DoesNotContain("prompt=", returnUrl);
             Assert.DoesNotContain("max_age=", returnUrl);
             Assert.Equal(HttpStatusCode.Redirect, (await Login(client)).StatusCode);
             var retried = await client.GetAsync(returnUrl);
+
             Assert.Equal(HttpStatusCode.Redirect, retried.StatusCode);
             Assert.Contains("code=", retried.Headers.Location!.Query);
         }
@@ -286,10 +310,13 @@ public sealed class OidcTests : OidcTest
         await CreateClient();
         await using var app = await StartProvider();
         using var client = Client();
+
         Assert.Equal(HttpStatusCode.Redirect, (await Login(client)).StatusCode);
         var response = await client.GetAsync(AuthorizeUrl() + "&prompt=none&max_age=0");
+
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         var query = QueryHelpers.ParseQuery(response.Headers.Location!.Query);
+
         Assert.Equal("login_required", query["error"].ToString());
         Assert.Equal("synthetic-state", query["state"].ToString());
     }
@@ -301,8 +328,10 @@ public sealed class OidcTests : OidcTest
         await CreateClient();
         await using var app = await StartProvider();
         using var client = Client();
+
         Assert.Equal(HttpStatusCode.Redirect, (await Login(client)).StatusCode);
         var challenged = await client.GetAsync(AuthorizeUrl() + "&prompt=login");
+
         Assert.Equal("/Account/Login", challenged.Headers.Location!.AbsolutePath);
         Assert.NotEmpty(await Code(client));
     }
@@ -325,12 +354,15 @@ public sealed class OidcTests : OidcTest
             else
                 await db.Users.Where(x => x.Id == user.Id).ExecuteUpdateAsync(x => x.SetProperty(u => u.Admitted, false));
         }
+
         Assert.Equal(HttpStatusCode.BadRequest, (await Redeem(client, code)).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await Refresh(client, tokens)).StatusCode);
         using var infoRequest = new HttpRequestMessage(HttpMethod.Get, "connect/userinfo");
         infoRequest.Headers.Authorization = new("Bearer", tokens.GetProperty("access_token").GetString());
+
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.SendAsync(infoRequest)).StatusCode);
         var authorization = await client.GetAsync(AuthorizeUrl());
+
         Assert.Equal(HttpStatusCode.Redirect, authorization.StatusCode);
         Assert.Contains("/Account/Login", authorization.Headers.Location!.ToString());
         Assert.Equal(HttpStatusCode.Redirect, (await client.GetAsync("/")).StatusCode);
@@ -353,9 +385,15 @@ public sealed class OidcTests : OidcTest
         Clock.Now = issued.AddDays(365).AddSeconds(boundarySeconds);
         var response = await Refresh(client, tokens);
         if (!valid)
-        { Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode); return; }
+        {
+
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+            return;
+        }
+
         var renewed = await Json(response);
         Clock.Now = issued.AddDays(600);
+
         Assert.Equal(HttpStatusCode.OK, (await Refresh(client, renewed)).StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, (await Refresh(client, tokens)).StatusCode); // Rolling token was consumed.
     }
@@ -370,10 +408,12 @@ public sealed class OidcTests : OidcTest
         await Login(client);
         var code = await Code(client);
         var responses = await Task.WhenAll(Redeem(client, code), Redeem(client, code));
+
         Assert.Single(responses, x => x.StatusCode == HttpStatusCode.OK);
         Assert.Single(responses, x => x.StatusCode == HttpStatusCode.BadRequest);
         Assert.Equal(HttpStatusCode.BadRequest, (await Redeem(client, code)).StatusCode);
         await using var db = Context();
+
         Assert.Equal(1, await db.Database.SqlQuery<int>($"SELECT count(*)::integer AS \"Value\" FROM \"OpenIddictTokens\" WHERE \"Type\" = {TokenTypeIdentifiers.AccessToken}").SingleAsync());
     }
 
@@ -388,15 +428,18 @@ public sealed class OidcTests : OidcTest
         await using (var first = await StartProvider())
         {
             using var client = Client(cookies);
+
             Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsync("Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
             { ["Email"] = Email, ["Password"] = Password }))).StatusCode);
             tokens = await Tokens(client);
             keys = await client.GetStringAsync(".well-known/jwks");
+
             Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("/")).StatusCode);
             await first.StopAsync();
         }
         await using var second = await StartProvider();
         using var again = Client(cookies);
+
         Assert.Equal(HttpStatusCode.OK, (await again.GetAsync("/")).StatusCode);
         Assert.Equal(keys, await again.GetStringAsync(".well-known/jwks"));
         var refreshed = await Json(await Refresh(again, tokens));
@@ -406,6 +449,7 @@ public sealed class OidcTests : OidcTest
         await third.StartAsync();
         using var concurrent = Client(cookies);
         concurrent.BaseAddress = new Uri(internalUrl);
+
         Assert.Equal(HttpStatusCode.OK, (await concurrent.GetAsync("/")).StatusCode);
         Assert.Equal(HttpStatusCode.OK, (await Refresh(concurrent, refreshed)).StatusCode);
     }
@@ -423,12 +467,15 @@ public sealed class OidcTests : OidcTest
             UPDATE "OpenIddictTokens" SET "CreationDate" = {DateTime.UtcNow.AddDays(-4)};
             UPDATE "OpenIddictTokens" SET "ExpirationDate" = {DateTime.UtcNow.AddDays(-2)} WHERE "Type" = {TokenTypeIdentifiers.AccessToken};
             """);
+
         Assert.Equal(1, await db.Database.SqlQuery<int>($"SELECT count(*)::integer AS \"Value\" FROM \"OpenIddictTokens\" WHERE \"Type\" = {TokenTypeIdentifiers.AccessToken} AND \"ExpirationDate\" < now()").SingleAsync());
         await using var scope = app.Services.CreateAsyncScope();
         var job = ActivatorUtilities.CreateInstance<AuthenticationCleanupJob>(scope.ServiceProvider);
         await job.Execute(null!);
+
         Assert.Equal(HttpStatusCode.OK, (await Refresh(client, tokens)).StatusCode);
         var counts = await db.Database.SqlQuery<int>($"SELECT count(*)::integer AS \"Value\" FROM \"OpenIddictTokens\" WHERE \"Type\" = {TokenTypeIdentifiers.AccessToken} AND \"ExpirationDate\" < now()").SingleAsync();
+
         Assert.Equal(0, counts);
     }
 }

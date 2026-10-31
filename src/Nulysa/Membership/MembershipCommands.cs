@@ -27,12 +27,14 @@ public sealed class MembershipCommands(AppDbContext db, UserManager<User> users,
             throw new ValidationException("Invalid application key.");
         Validator.ValidateObject(input, new ValidationContext(input), true);
         input.Profile.Validate(clock.Today);
+
         var email = input.Email.Trim();
         var normalized = users.NormalizeEmail(email);
         var scheduler = await schedulers.GetScheduler(ct);
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         using var enlistment = scheduler.EnlistTransaction(tx.GetDbTransaction());
         await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({normalized}, 0))", ct);
+
         var existing = await db.Applications.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct);
         if (existing is not null)
         {
@@ -43,12 +45,14 @@ public sealed class MembershipCommands(AppDbContext db, UserManager<User> users,
                 throw new ValidationException("This request key was already used for different details.");
             return;
         }
+
         // Delivery and approval rows outlive the application, so a stale client key must not be reused.
         if (await db.Approvals.AnyAsync(x => x.Id == id, ct) || await db.Deliveries.AnyAsync(x => x.Id == id, ct))
             throw new ValidationException("This request key was already used.");
         // Same public outcome for a registered address: do not reveal the registry to anonymous callers.
         if (await db.Users.AnyAsync(x => x.NormalizedEmail == normalized, ct) || await db.Applications.AnyAsync(x => x.NormalizedEmail == normalized, ct))
             return;
+
         var application = new MembershipApplication
         {
             Id = id,
@@ -78,14 +82,20 @@ public sealed class MembershipCommands(AppDbContext db, UserManager<User> users,
         var scheduler = await schedulers.GetScheduler(ct);
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         using var enlistment = scheduler.EnlistTransaction(tx.GetDbTransaction());
+
         var application = await db.Applications.FromSqlInterpolated($"SELECT * FROM \"Applications\" WHERE \"NormalizedEmail\" = {normalized} FOR UPDATE").SingleOrDefaultAsync(ct);
-        if (application is null || application.VerifiedAt is not null || application.RejectedAt is not null ||
-            application.CreatedAt.AddHours(options.Value.UnverifiedRetentionHours) <= clock.Now ||
-            application.VerificationRequestedAt.AddMinutes(1) > clock.Now)
+        var canResend = application is not null
+            && application.VerifiedAt is null
+            && application.RejectedAt is null
+            && application.CreatedAt.AddHours(options.Value.UnverifiedRetentionHours) > clock.Now
+            && application.VerificationRequestedAt.AddMinutes(1) <= clock.Now;
+        if (!canResend)
             return;
-        application.VerificationVersion = Guid.NewGuid();
-        application.VerificationRequestedAt = clock.Now;
-        await mail.Add(scheduler, Guid.NewGuid(), MailKind.Verification, applicationId: application.Id, version: application.VerificationVersion, ct: ct);
+
+        var currentApplication = application!;
+        currentApplication.VerificationVersion = Guid.NewGuid();
+        currentApplication.VerificationRequestedAt = clock.Now;
+        await mail.Add(scheduler, Guid.NewGuid(), MailKind.Verification, applicationId: currentApplication.Id, version: currentApplication.VerificationVersion, ct: ct);
         await tx.CommitAsync(ct);
     }
 
@@ -93,14 +103,25 @@ public sealed class MembershipCommands(AppDbContext db, UserManager<User> users,
     {
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         var application = await LockApplication(id, ct);
+
         string value;
         try
-        { value = protection.CreateProtector("membership-verification-v1").Unprotect(token); }
-        catch (System.Security.Cryptography.CryptographicException) { throw new ValidationException("Invalid or expired verification link."); }
-        if (application is null || application.RejectedAt is not null || application.CreatedAt.AddHours(options.Value.UnverifiedRetentionHours) <= clock.Now ||
-            value != application.Id + ":" + application.VerificationVersion)
+        {
+            value = protection.CreateProtector("membership-verification-v1").Unprotect(token);
+        }
+        catch (System.Security.Cryptography.CryptographicException)
+        {
             throw new ValidationException("Invalid or expired verification link.");
-        application.VerifiedAt ??= clock.Now;
+        }
+
+        var isValid = application is not null
+            && application.RejectedAt is null
+            && application.CreatedAt.AddHours(options.Value.UnverifiedRetentionHours) > clock.Now
+            && value == application.Id + ":" + application.VerificationVersion;
+        if (!isValid)
+            throw new ValidationException("Invalid or expired verification link.");
+
+        application!.VerifiedAt ??= clock.Now;
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
     }
@@ -112,11 +133,13 @@ public sealed class MembershipCommands(AppDbContext db, UserManager<User> users,
         using var enlistment = scheduler.EnlistTransaction(tx.GetDbTransaction());
         var application = await LockApplication(applicationId, ct);
         await Authority.RequireAdministrator(db, actor, ct);
+
         var approval = await db.Approvals.AsNoTracking().SingleOrDefaultAsync(x => x.Id == applicationId, ct);
         if (approval is not null)
             return approval.UserId;
         if (application is not { VerifiedAt: not null, RejectedAt: null })
             throw new ValidationException("Only a verified, undecided application can be approved.");
+
         // Apply checks user and application existence in separate snapshots; serialize on the email.
         await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({application.NormalizedEmail}, 0))", ct);
         var user = new User
@@ -134,6 +157,7 @@ public sealed class MembershipCommands(AppDbContext db, UserManager<User> users,
             MatrixId = application.MatrixId
         };
         Check(await users.CreateAsync(user));
+
         var approvedAt = clock.Now;
         var joinedOn = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(approvedAt, clock.Zone).DateTime);
         db.Members.Add(new() { UserId = user.Id, JoinedOn = joinedOn });
@@ -141,6 +165,7 @@ public sealed class MembershipCommands(AppDbContext db, UserManager<User> users,
         var account = new BillingAccount { UserId = user.Id, CreatedAt = approvedAt };
         db.BillingAccounts.Add(account);
         await db.SaveChangesAsync(ct);
+
         await billing.Initialize(account, joinedOn, approvedAt, scheduler, ct);
         db.Applications.Remove(application);
         await mail.Add(scheduler, applicationId, MailKind.Welcome, user.Id, ct: ct);
@@ -157,7 +182,10 @@ public sealed class MembershipCommands(AppDbContext db, UserManager<User> users,
         using var enlistment = scheduler.EnlistTransaction(tx.GetDbTransaction());
         var application = await LockApplication(id, ct);
         await Authority.RequireAdministrator(db, actor, ct);
-        if (application is null && await db.Deliveries.AnyAsync(x => x.Id == id && x.Kind == MailKind.Rejection, ct))
+
+        var alreadyHandled = application is null
+            && await db.Deliveries.AnyAsync(x => x.Id == id && x.Kind == MailKind.Rejection, ct);
+        if (alreadyHandled)
             return;
         if (application?.RejectedAt is not null)
         {
@@ -167,6 +195,7 @@ public sealed class MembershipCommands(AppDbContext db, UserManager<User> users,
         }
         if (application is not { VerifiedAt: not null })
             throw new ValidationException("Only a verified application can be rejected.");
+
         application.RejectedAt = clock.Now;
         application.RejectionExplanation = explanation?.Trim();
         await mail.Add(scheduler, id, MailKind.Rejection, applicationId: id, ct: ct);
@@ -181,10 +210,12 @@ public sealed class MembershipCommands(AppDbContext db, UserManager<User> users,
         using var enlistment = scheduler.EnlistTransaction(tx.GetDbTransaction());
         var user = await LockUser(id, ct);
         await Authority.RequireOwnerOrAdministrator(db, actor, id, ct);
+
         if (await Repeated(operation, actor, id, "begin-deletion", reason, ct))
             return;
         if (user.PendingDeletionAt is not null)
             return;
+
         var member = await db.Members.SingleOrDefaultAsync(x => x.UserId == id, ct) ?? throw new ValidationException("This account has no membership record.");
         user.PendingDeletionAt = clock.Now;
         user.PendingEmail = null;
@@ -195,10 +226,12 @@ public sealed class MembershipCommands(AppDbContext db, UserManager<User> users,
         Check(await users.UpdateSecurityStampAsync(user));
         await tokens.RevokeBySubjectAsync(user.OidcSubject, ct);
         await authorizations.RevokeBySubjectAsync(user.OidcSubject, ct);
+
         var accountId = await db.BillingAccounts.Where(x => x.UserId == id).Select(x => x.Id).SingleAsync(ct);
         await billing.CancelForDeletion(accountId, operation, Authority.Id(actor), reason, scheduler, ct);
         await db.InitialMembershipRequests.Where(x => x.BillingAccountId == accountId && x.CancelledAt == null)
             .ExecuteUpdateAsync(x => x.SetProperty(r => r.CancelledAt, clock.Now), ct);
+
         Record(operation, actor, id, "begin-deletion", reason);
         await mail.CancelForUser(scheduler, id, ct);
         await mail.Add(scheduler, operation, MailKind.DeletionWarning, id, version: operation, ct: ct);
@@ -213,17 +246,21 @@ public sealed class MembershipCommands(AppDbContext db, UserManager<User> users,
         using var enlistment = scheduler.EnlistTransaction(tx.GetDbTransaction());
         var user = await LockUser(id, ct);
         await Authority.RequireAdministrator(db, actor, ct);
+
         if (await Repeated(operation, actor, id, "restore", reason, ct))
             return;
         if (user.PendingDeletionAt is null)
             throw new ValidationException("This account is not pending deletion.");
+
         var member = await db.Members.SingleOrDefaultAsync(x => x.UserId == id, ct) ?? throw new ValidationException("This account has no membership record.");
         user.PendingDeletionAt = null;
         member.DeletionEligibleAt = null;
         member.DeletionOperation = null;
         Check(await users.UpdateSecurityStampAsync(user));
+
         var accountId = await db.BillingAccounts.Where(x => x.UserId == id).Select(x => x.Id).SingleAsync(ct);
         await billing.RestoreMembershipBilling(accountId, operation, Authority.Id(actor), reason, ct);
+
         Record(operation, actor, id, "restore", reason);
         await mail.CancelForUser(scheduler, id, ct);
         await mail.Add(scheduler, operation, MailKind.Restoration, id, version: operation, ct: ct);
@@ -239,16 +276,22 @@ public sealed class MembershipCommands(AppDbContext db, UserManager<User> users,
         using var enlistment = scheduler.EnlistTransaction(tx.GetDbTransaction());
         if (!await db.Users.AnyAsync(x => x.Id == id, ct))
             return false;
+
         var user = await LockUser(id, ct);
         var member = await db.Members.SingleOrDefaultAsync(x => x.UserId == id, ct);
-        if (user.PendingDeletionAt is null || member?.DeletionEligibleAt is null || member.DeletionEligibleAt > clock.Now)
+        var isEligible = user.PendingDeletionAt is not null
+            && member?.DeletionEligibleAt is not null
+            && member.DeletionEligibleAt <= clock.Now;
+        if (!isEligible)
             return false;
+
         await mail.CancelForUser(scheduler, id, ct);
         db.Deliveries.RemoveRange(await db.Deliveries.Where(x => x.UserId == id).ToListAsync(ct));
         await foreach (var token in tokens.FindBySubjectAsync(user.OidcSubject, ct))
             await tokens.DeleteAsync(token, ct);
         await foreach (var authorization in authorizations.FindBySubjectAsync(user.OidcSubject, ct))
             await authorizations.DeleteAsync(authorization, ct);
+
         var accountId = await db.BillingAccounts.Where(x => x.UserId == id).Select(x => x.Id).SingleAsync(ct);
         await billing.ErasePersonalRecords(accountId, ct);
         Check(await users.DeleteAsync(user));
