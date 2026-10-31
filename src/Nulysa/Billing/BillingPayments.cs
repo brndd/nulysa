@@ -218,8 +218,13 @@ public sealed partial class BillingCommands
                 var group = facts.Groups.Single(x => x.Id == facts.Invoices.Single(i => i.Id == line.InvoiceId).BillingGroupId);
                 var period = BillingCalendar.Bridge(group.Anchor, group.IntervalMonths, effective, false);
                 var unquotedEnd = quote.Segments.Count == 0 || period.End < quote.Segments[0].Start ? period.End : quote.Segments[0].Start;
+                var discounts = facts.Discounts.Where(x => x.FeeDefinitionId == line.FeeDefinitionId).Select(x =>
+                {
+                    var end = x.WithdrawnAt is { } withdrawn ? DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(withdrawn, clock.Zone).DateTime) : x.EndsOn;
+                    return new Discount { Id = x.Id, StartsOn = x.StartsOn, EndsOn = end < x.EndsOn ? end : x.EndsOn, Kind = x.Kind, Value = x.Value };
+                }).Where(x => x.StartsOn < x.EndsOn).ToList();
                 var prefix = Pricing.Calculate(group.Anchor, group.IntervalMonths, new(effective, unquotedEnd), facts.Prices.Where(x => x.FeeDefinitionId == line.FeeDefinitionId).ToList(),
-                    facts.Discounts.Where(x => x.FeeDefinitionId == line.FeeDefinitionId).ToList(), facts.Periods(line.Benefit, line.ServiceDefinitionId));
+                    discounts, facts.Periods(line.Benefit, line.ServiceDefinitionId));
                 quote = Pricing.FromSegments(prefix.Segments.Concat(quote.Segments.Where(x => x.Start < period.End)
                     .Select(x => x with { End = x.End > period.End ? period.End : x.End })));
             }

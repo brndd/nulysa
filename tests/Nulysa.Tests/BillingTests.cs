@@ -129,6 +129,39 @@ public sealed class BillingTests : MembershipTest
         Assert.Equal(0m, (await Run(app, sp => sp.GetRequiredService<BillingQueries>().Reconcile(board))).Difference);
     }
 
+    [Theory]
+    [InlineData(false, false, 383)]
+    [InlineData(true, false, 417)]
+    [InlineData(false, true, 300)]
+    [Trait("Acceptance", "ADJ")]
+    public async Task Prequote_return_days_keep_discounts_until_the_association_local_withdrawal_date(bool withdrawBeforeQuote, bool replace, int expectedCents)
+    {
+        On(6, 1); var board = await Board(); await using var app = CommandsApp(); var id = await Admit(app, board);
+        var initial = await View(app, board, id); var account = initial.AccountId;
+        var discount = await Run(app, sp => sp.GetRequiredService<BillingCommands>().AddDiscount(board, account, 1,
+            new(2026, 6, 1), new(2026, 8, 1), DiscountKind.Percentage, 50, Guid.NewGuid(), "Approved discount"));
+        async Task Withdraw(int utcDay)
+        {
+            Clock.Now = new DateTimeOffset(2026, 6, utcDay, 22, 30, 0, TimeSpan.Zero);
+            await Run(app, sp => sp.GetRequiredService<BillingCommands>().WithdrawDiscount(board, account, discount!.Value, Guid.NewGuid(), "Discount ended"));
+        }
+        if (withdrawBeforeQuote) await Withdraw(18);
+        On(6, 20); await Scan(app, account);
+        await Run(app, sp => sp.GetRequiredService<BillingCommands>().ResumeMembership(Actor(id), account, Guid.NewGuid()));
+        if (!withdrawBeforeQuote) await Withdraw(20);
+        if (replace) await Run(app, sp => sp.GetRequiredService<BillingCommands>().AddDiscount(board, account, 1,
+            new(2026, 6, 21), new(2026, 8, 1), DiscountKind.Percentage, 25, Guid.NewGuid(), "Replacement discount"));
+        On(6, 21); await Pay(app, initial.Invoices[0].Reference, 10, new(2026, 6, 18));
+        var view = await View(app, board, id);
+        var line = Assert.Single(view.Invoices.SelectMany(x => x.Lines), x => x.Line.Purpose == PurchasePurpose.Resumption).Line;
+        Assert.Equal(LineState.Fulfilled, line.State); Assert.Equal(expectedCents / 100m, line.Amount);
+        Assert.Equal(new DateOnly(2026, 6, 18), line.StartsOn); Assert.Equal(new DateOnly(2026, 7, 1), line.EndsOn);
+        Assert.Equal(10m - line.Amount, view.Balances.BillingCredit);
+        var history = view.Discounts.Single(x => x.Id == discount);
+        Assert.NotNull(history.WithdrawnAt); Assert.Equal(new DateOnly(2026, 8, 1), history.EndsOn);
+        Assert.Equal(0m, (await Run(app, sp => sp.GetRequiredService<BillingQueries>().Reconcile(board))).Difference);
+    }
+
     [Fact]
     [Trait("Acceptance", "DATE")]
     public async Task Initial_service_uses_last_required_receipt_date_including_out_of_order_and_never_reprices_on_a_timer()
