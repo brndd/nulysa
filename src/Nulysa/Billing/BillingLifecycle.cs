@@ -87,12 +87,11 @@ public sealed partial class BillingCommands
             }
             else if (line.Benefit == Benefit.Service && line.Purpose == PurchasePurpose.Initial && clock.Today >= line.EndsOn)
             {
-                var item = facts.Items.Single(x => x.Id == line.RecurringItemId);
                 var group = facts.Groups.Single(x => x.Id == facts.Invoices.Single(i => i.Id == line.InvoiceId).BillingGroupId);
                 var period = BillingCalendar.Containing(group.Anchor, group.IntervalMonths, clock.Today);
                 var quote = Pricing.Calculate(group.Anchor, group.IntervalMonths, period, facts.Prices.Where(x => x.FeeDefinitionId == line.FeeDefinitionId).ToList(),
                     facts.Discounts.Where(x => x.FeeDefinitionId == line.FeeDefinitionId).ToList(), facts.Periods(line.Benefit, line.ServiceDefinitionId));
-                Requote(facts, operation, line, quote, period); item.NextOn = period.End;
+                Requote(facts, operation, line, quote, period);
                 // Rollover is not a new funding event; partial funds cannot buy time just by waiting.
                 if (quote.Amount == 0 && quote.Segments.Count > 0) Complete(facts, operation, line, null);
             }

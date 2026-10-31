@@ -97,6 +97,38 @@ public sealed class BillingTests : MembershipTest
         Assert.Equal(0m, (await Run(app, sp => sp.GetRequiredService<BillingQueries>().Reconcile(board))).Difference);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    [Trait("Acceptance", "DATE")]
+    public async Task Backdated_return_completion_resumes_billing_at_the_purchased_boundary(bool splitPayment)
+    {
+        On(6, 1); var board = await Board(); await using var app = CommandsApp(); var id = await Admit(app, board);
+        var initial = await View(app, board, id); var account = initial.AccountId; var reference = initial.Invoices[0].Reference;
+        On(7, 2); await Scan(app, account);
+        await Run(app, sp => sp.GetRequiredService<BillingCommands>().ResumeMembership(Actor(id), account, Guid.NewGuid()));
+        if (splitPayment)
+        {
+            await Run(app, sp => sp.GetRequiredService<BillingCommands>().ChangeInterval(Actor(id), account, initial.Items.Single().Id, 3, Guid.NewGuid()));
+            await Pay(app, reference, 1, new(2026, 6, 25));
+        }
+        On(7, 3); await Pay(app, reference, splitPayment ? 9 : 10, new(2026, 6, splitPayment ? 24 : 25));
+        var view = await View(app, board, id);
+        var returned = Assert.Single(view.Invoices.SelectMany(x => x.Lines), x => x.Line.Purpose == PurchasePurpose.Resumption).Line;
+        Assert.Equal(LineState.Fulfilled, returned.State); Assert.Equal(2m, returned.Amount);
+        Assert.Equal(new DateOnly(2026, 6, 25), returned.EffectiveOn);
+        Assert.Equal(new DateOnly(2026, 7, 1), Assert.Single(view.Items).NextOn);
+        await Scan(app, account); await Scan(app, account);
+        view = await View(app, board, id);
+        var renewal = Assert.Single(view.Invoices.SelectMany(x => x.Lines), x => x.Line.State == LineState.Open);
+        Assert.Equal(new DateOnly(2026, 7, 1), renewal.Line.StartsOn);
+        Assert.Equal(new DateOnly(2026, splitPayment ? 9 : 8, 1), renewal.Line.EndsOn); Assert.Equal(8m, renewal.Held);
+        await Pay(app, view.Invoices.Single(x => x.Invoice.Id == renewal.Line.InvoiceId).Reference, renewal.Remaining);
+        On(7, 8); await Scan(app, account); view = await View(app, board, id);
+        Assert.True(view.Membership.Active); Assert.Equal(renewal.Line.EndsOn, view.Items.Single().NextOn);
+        Assert.Equal(0m, (await Run(app, sp => sp.GetRequiredService<BillingQueries>().Reconcile(board))).Difference);
+    }
+
     [Fact]
     [Trait("Acceptance", "DATE")]
     public async Task Initial_service_uses_last_required_receipt_date_including_out_of_order_and_never_reprices_on_a_timer()
@@ -136,6 +168,11 @@ public sealed class BillingTests : MembershipTest
         Assert.Equal(new DateOnly(2026, 6, freeDays == 0 ? 25 : 30), line.StartsOn);
         Assert.Equal(new DateOnly(2026, 6, 25), line.EffectiveOn);
         Assert.Contains(await db.LineAdjustments.AsNoTracking().ToListAsync(), x => x.InvoiceLineId == line.Id);
+        Assert.Equal(line.EndsOn, view.Items.Single(x => x.ServiceEnrollmentId is not null).NextOn);
+        await Scan(app, account); await Scan(app, account);
+        On(7, 8); await Scan(app, account); view = await View(app, board, id);
+        Assert.True(Assert.Single(view.Subscriptions).Standing.Active);
+        Assert.Contains(view.Coverage, x => x.Benefit == Benefit.Service && x.EndsOn == new DateOnly(2026, 8, 1));
         Assert.Equal(0m, (await Run(app, sp => sp.GetRequiredService<BillingQueries>().Reconcile(board))).Difference);
     }
 

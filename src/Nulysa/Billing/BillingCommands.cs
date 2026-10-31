@@ -193,6 +193,11 @@ public sealed partial class BillingCommands(AppDbContext db, AssociationClock cl
             NewEnd = period.End,
             PricingJson = line.PricingJson
         });
+        if (line.RecurringItemId is { } itemId)
+        {
+            var item = facts.Items.Single(x => x.Id == itemId);
+            if (item.NextOn == line.EndsOn) item.NextOn = period.End;
+        }
         line.Amount = quote.Amount; line.StartsOn = period.Start; line.EndsOn = period.End; line.PricingJson = json;
         if (facts.Held(line) > line.Amount) Move(facts, operation, MovementKind.LineToBilling, facts.Held(line) - line.Amount, clock.Today, line.Id);
         facts.Invoices.Single(x => x.Id == line.InvoiceId).Revision++;
