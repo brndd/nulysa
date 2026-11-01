@@ -1,7 +1,8 @@
 # Billing review follow-ups
 
 Status after the implementation pass. The corrections and small cleanups below
-are implemented; 4B remains a scope decision. The standard test suite passes
+are implemented. The remaining 4B decision is resolved in favour of dated credit
+lots, and the per-balance statement is planned. The standard test suite passes
 with 150 cases.
 
 ## Decisions
@@ -96,43 +97,87 @@ Test: `Missed_membership_renewal_without_an_issued_line_sends_one_inactive_notic
   happen on the first non-grace day.
 - `One_day_renewal_grace` asserts `ExpiresOn` directly.
 
-## Remaining scope decision
+## Planned work
 
-### 4B. Receipt was already billing credit when the renewal was missed
+### 4B decision: dated credit lots
 
-A receipt imported more than `InvoiceLeadDays` before the due date becomes
-credit instead of funding a line. If no worker scan or other group match occurs
-from `due - InvoiceLeadDays` through expiry, the credit cannot rescue the missed
-renewal. With defaults this is roughly a 22-day complete outage plus an early
-payment. The money is not lost; it remains billing credit and can fund a return
-period, resubscription or manual correction.
+A full transaction ledger is necessary but not sufficient. It shows money in
+and out, but after several credits and spends a pooled balance still cannot say
+which remaining money came from which receipt. Dated credit lots add that
+attribution. Decision: implement dated credit lots as the 4B fix.
 
-A full fix is not a date lookup:
+Minimum scope:
 
-- `BillingCredit` is a single pool. The `ReceiptToBilling` movement keeps the
-  receipt date, but `AllocateCredit` does not identify credit lots and applies
-  credit with the application date.
-- SPEC 612-614 says previously available billing credit uses its application
-  effective date, not the original deposit date. Using the receipt date to
-  fund a missed renewal would change that policy.
-- If the credit was spent on another line after the expiry, retroactive
-  allocation would require reallocation/reversal. That is a ledger policy.
-- Transfers, refunds, reversals and repricing credits all affect the pool.
+- Create a lot when a receipt remainder becomes billing credit:
+  - source `ReceiptId`;
+  - `ReceivedOn`;
+  - original amount and remaining amount;
+  - billing account.
+- Keep lots global: they are ordinary billing credit and can fund any valid
+  recurring bill in the existing priority order. Do not tie them to a group;
+  that was the reservation alternative and it conflicts with the global credit
+  model.
+- Consume lots when credit is applied, transferred, refunded or reversed.
+  Recommended consumption order: oldest receipt first (FIFO by `ReceivedOn`).
+- On a missed renewal, if a lot with `ReceivedOn` before the renewal cutoff has
+  enough remaining, issue/fund the missed period retroactively and reopen an
+  automatically ended service through the existing reopen path.
+- Keep credit from transfers, line releases, repricing corrections and refunds
+  as ordinary application-date credit for now. Extending lots to every credit
+  source is a separate scope decision.
+- Handle reversals, unassignments, refunds and transfers so lot remaining never
+  exceeds the real credit balance and the journal still reconciles.
 
-Options:
+Policy details to settle during implementation:
 
-1. **Accept and document.** Recommended unless very early payments plus long
-   outages are a real requirement.
-2. **Pending receipt/reservation.** Hold an early group receipt for that group's
-   next renewal instead of general credit. New state, UI and refund/unassign
-   rules; cleanest product fix if needed.
-3. **Dated credit lots.** Track credit sources and allocate by date. General but
-   a significant ledger change.
-4. **Auto-return from credit on scan.** Start a prorated return from available
-   credit after inactivity. Changes reactivation semantics; not recommended
-   implicitly.
-5. **Issue the renewal immediately on an early receipt.** Avoids credit but
-   creates far-future invoices and turns early payment into prepayment.
+- Does lot eligibility use the renewal cutoff, the original receipt date, or the
+  replayed application date? The recommended rule is: the lot must have been
+  received before the renewal cutoff; the replay applies it at the missed
+  application date, not today.
+- FIFO versus explicit receipt allocation when a line is funded from both lots
+  and pooled credit.
+- What happens to a lot's remaining amount when its receipt is reversed or its
+  funded line is cancelled.
+- Whether purchase-balance transfers into billing credit should create a dated
+  lot at the transfer date. This is not needed for receipt-derived 4B.
+
+Reasons for choosing lots over the alternatives:
+
+- Pending receipt/reservation: group-scoped, less general, adds release/move
+  policy and a restricted-credit UI.
+- Immediate renewal on receipt: creates future invoices and interval/price/
+  cancellation lock-in.
+- Auto-return from credit: changes reactivation semantics.
+- Accept/document: leaves a known 4B gap.
+
+### Full credit and purchase balance statement
+
+Planned member/admin view derived from `MoneyMovement`; do not add a second
+mutable balance ledger. The journal remains the source of truth.
+
+Requirements:
+
+- Separate statements for billing credit and purchase balance (when enabled).
+- Running balance, amount, human-readable description, effective date and
+  recorded date; links to the receipt, invoice line, discount or reversal.
+- Transfers appear in both statements with opposite directions.
+- Keep held/funding movements separate from available balances.
+- Paginate or link to the existing full export; the member view currently shows
+  only the last 100 movements.
+- Final running balance must equal `Balances`; add a reconciliation or test for
+  that.
+- Members see their own account; administrators see all.
+- Show retired/disabled purchase balance history without offering new deposits
+  when it is disabled.
+
+### Implementation order
+
+Recommended: build the statement first, then the lots. The statement is a
+low-risk read-only projection, makes the journal data visible and gives a test
+oracle for lot accounting. It is not a hard dependency: both features derive
+from `MoneyMovement`, and lots can be implemented first if that is more
+convenient. The statement should be able to show lot source/remaining once lots
+exist.
 
 ## Remaining test gap
 
@@ -172,5 +217,6 @@ later imports and adds admin-action timestamps, as-of pricing and idempotent
 notice keys. Full event sourcing/bitemporal state would be the general answer
 but is a large project for this scale.
 
-Recommended direction: keep the targeted corrections and add a bounded as-of
-replay layer only if this class of finding keeps recurring.
+Planned direction: a derived per-balance statement over the journal, then dated
+credit lots for receipt-derived credit. Keep the reconciliation model; do not
+add a command queue or a full event-sourced rewrite for this.

@@ -1,0 +1,153 @@
+namespace Nulysa.Billing;
+
+public sealed partial class BillingCommands
+{
+    // Receipt-derived credit keeps its original date. A missed renewal may be replayed from a lot
+    // received before that renewal's cutoff, but the journal movement stays on the replay date.
+    private async Task RecoverMissedRenewalsWithLots(BillingFacts facts, BillingOperation operation, DateOnly on, CancellationToken ct)
+    {
+        if (!facts.CreditLots.Any(x => x.RemainingAmount > 0))
+            return;
+
+        var items = facts.Items
+            .Where(x => x.EndedAt is null
+                || (x.ServiceEnrollmentId is { } enrollmentId
+                    && IsAutomaticEndReason(facts.Enrollments.Single(e => e.Id == enrollmentId).EndReason)))
+            .OrderBy(x => x.MembershipId is null)
+            .ThenBy(x => x.MembershipId is null
+                ? facts.Services.Single(s => s.Id == facts.Fees.Single(f => f.Id == x.FeeDefinitionId).ServiceDefinitionId).Priority
+                : 0)
+            .ThenBy(x => x.Id)
+            .ToList();
+
+        foreach (var item in items)
+        {
+            for (var count = 0; count < 24; count++)
+            {
+                if (!facts.CreditLots.Any(x => x.RemainingAmount > 0))
+                    return;
+                if (!await RecoverOneMissedRenewal(facts, operation, item, on, ct))
+                    break;
+            }
+        }
+    }
+
+    private async Task<bool> RecoverOneMissedRenewal(BillingFacts facts, BillingOperation operation, RecurringItem item, DateOnly on, CancellationToken ct)
+    {
+        var fee = facts.Fees.Single(x => x.Id == item.FeeDefinitionId);
+        var service = fee.ServiceDefinitionId is { } serviceId ? facts.Services.Single(x => x.Id == serviceId) : null;
+        var benefit = item.MembershipId is null ? Benefit.Service : Benefit.Membership;
+        var group = facts.Groups.Single(x => x.Id == item.BillingGroupId);
+        var lastLine = facts.Lines
+            .Where(x => x.RecurringItemId == item.Id)
+            .OrderByDescending(x => x.StartsOn)
+            .ThenByDescending(x => x.Id)
+            .FirstOrDefault();
+        if (lastLine is null)
+            return false;
+
+        var line = lastLine.State is (LineState.Open or LineState.Expired)
+            && lastLine.Purpose is (PurchasePurpose.Renewal or PurchasePurpose.Alignment)
+            ? lastLine : null;
+        DateOnly nextStart;
+        DateOnly cutoff;
+        decimal amount;
+        if (line is not null)
+        {
+            nextStart = line.StartsOn;
+            cutoff = line.ExpiresOn;
+            if (cutoff > on)
+                return false;
+            amount = line.State == LineState.Open ? line.Amount - facts.Held(line) : line.Amount;
+            if (amount <= 0)
+                return false;
+            if (line.State == LineState.Expired && !CanRecover(facts, line))
+                return false;
+        }
+        else
+        {
+            if (lastLine.State is LineState.Cancelled or LineState.Open or LineState.Expired)
+                return false;
+            if (fee.Retired || service is { Retired: true })
+                return false;
+
+            nextStart = item.NextOn;
+            foreach (var period in facts.Periods(benefit, fee.ServiceDefinitionId).OrderBy(x => x.Start))
+                if (period.Start <= nextStart && nextStart < period.End)
+                    nextStart = period.End;
+            if (nextStart > on)
+                return false;
+
+            var graceDays = item.MembershipId is not null ? Settings.MembershipRenewalGraceDays : service!.RenewalGraceDays;
+            cutoff = BillingCalendar.ExclusiveExpiry(nextStart, graceDays);
+            if (cutoff > on)
+                return false;
+
+            var billingPeriod = BillingCalendar.Bridge(group.Anchor, group.IntervalMonths, nextStart, true);
+            var quote = Pricing.Calculate(group.Anchor, group.IntervalMonths, billingPeriod,
+                facts.Prices.Where(x => x.FeeDefinitionId == fee.Id).ToList(),
+                facts.Discounts.Where(x => x.FeeDefinitionId == fee.Id).ToList(),
+                facts.Periods(benefit, fee.ServiceDefinitionId));
+            amount = quote.Amount;
+            if (amount <= 0)
+                return false;
+        }
+
+        var replay = ReplayDate(facts, nextStart, cutoff, amount);
+        if (replay is null)
+            return false;
+
+        if (item.MembershipId is null)
+        {
+            var enrollment = facts.Enrollments.Single(x => x.Id == item.ServiceEnrollmentId);
+            if (enrollment.RenewalStoppedAt is not null)
+                return false;
+            if (enrollment.EndedAt is not null)
+            {
+                if (!IsAutomaticEndReason(enrollment.EndReason)
+                    || facts.Enrollments.Any(newer => newer.Id != enrollment.Id
+                        && newer.ServiceDefinitionId == enrollment.ServiceDefinitionId
+                        && newer.StartedAt >= enrollment.StartedAt)
+                    || facts.Lines.Any(x => x.ServiceEnrollmentId == enrollment.Id && x.State is LineState.Expired or LineState.Cancelled))
+                    return false;
+                ReopenService(facts, operation, enrollment, item.Id);
+            }
+            if (!facts.Membership(replay.Value).Active)
+                return false;
+        }
+
+        if (line is { State: LineState.Expired })
+            Recover(facts, operation, line);
+        else if (line is null)
+            line = await Issue(facts, operation, item, nextStart,
+                BillingCalendar.Containing(group.Anchor, group.IntervalMonths, nextStart).Start == nextStart
+                    ? PurchasePurpose.Renewal : PurchasePurpose.Alignment,
+                cutoff, ct);
+
+        var toFund = line.State == LineState.Open ? Math.Min(amount, line.Amount - facts.Held(line)) : 0;
+        if (toFund <= 0)
+            return false;
+        await Fund(facts, operation, line, toFund, replay.Value, null, ct);
+        return true;
+    }
+
+    private DateOnly? ReplayDate(BillingFacts facts, DateOnly nextStart, DateOnly cutoff, decimal amount)
+    {
+        var replay = nextStart.AddDays(-Settings.InvoiceLeadDays);
+        var remaining = amount;
+        DateOnly? latest = null;
+        foreach (var lot in facts.CreditLots.Where(x => x.RemainingAmount > 0 && x.ReceivedOn < cutoff)
+            .OrderBy(x => x.ReceivedOn).ThenBy(x => x.Id))
+        {
+            if (remaining <= 0)
+                break;
+            var used = Math.Min(lot.RemainingAmount, remaining);
+            remaining -= used;
+            latest = lot.ReceivedOn;
+        }
+        if (remaining > 0 || latest is null)
+            return null;
+        var replayed = replay > latest ? replay : latest.Value;
+        return replayed < cutoff ? replayed : null;
+    }
+}

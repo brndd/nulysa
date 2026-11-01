@@ -169,12 +169,15 @@ public sealed class BillingQueries(AppDbContext db, AssociationClock clock, IOpt
             {
                 running += entry.delta;
                 var movement = entry.movement;
+                var lot = movement.Kind == MovementKind.ReceiptToBilling && movement.ReceiptId is { } receiptId
+                    ? facts.CreditLots.Where(x => x.ReceiptId == receiptId).OrderByDescending(x => x.Id).FirstOrDefault()
+                    : null;
                 statementLines.Add(new(movement.Id, movement.EffectiveOn, operations.GetValueOrDefault(movement.OperationId)?.OccurredAt ?? default,
                     movement.Kind, entry.delta, running,
                     Describe(movement, lines.GetValueOrDefault(movement.InvoiceLineId ?? 0), receipts.GetValueOrDefault(movement.ReceiptId ?? 0),
                         discounts.GetValueOrDefault(movement.DiscountId ?? 0), movements.GetValueOrDefault(movement.ReversesMovementId ?? 0)),
                     movement.ReceiptId, movement.InvoiceLineId, lines.GetValueOrDefault(movement.InvoiceLineId ?? 0)?.InvoiceId,
-                    movement.DiscountId, movement.ReversesMovementId));
+                    movement.DiscountId, movement.ReversesMovementId, lot?.Id, lot?.OriginalAmount, lot?.RemainingAmount));
             }
             results.Add(new(balance, opening, running, inRange.Count > skip + page.Count, statementLines));
         }

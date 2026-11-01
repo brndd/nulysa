@@ -22,6 +22,7 @@ internal sealed class BillingFacts
     public required List<Invoice> Invoices { get; init; }
     public required List<InvoiceLine> Lines { get; init; }
     public required List<MoneyMovement> Movements { get; init; }
+    public required List<CreditLot> CreditLots { get; init; }
     public required List<Coverage> Coverage { get; init; }
     public required List<ServiceEnrollment> Enrollments { get; init; }
     public required List<ServiceDefinition> Services { get; init; }
@@ -46,6 +47,7 @@ internal sealed class BillingFacts
             Lines = await db.InvoiceLines.Where(x => db.Invoices.Any(i => i.Id == x.InvoiceId && i.BillingAccountId == id)).ToListAsync(ct),
             Items = await db.RecurringItems.Where(x => db.BillingGroups.Any(g => g.Id == x.BillingGroupId && g.BillingAccountId == id)).ToListAsync(ct),
             Movements = await db.MoneyMovements.Where(x => x.BillingAccountId == id).ToListAsync(ct),
+            CreditLots = await db.CreditLots.Where(x => x.BillingAccountId == id).ToListAsync(ct),
             Coverage = await db.Coverage.Where(x => x.BillingAccountId == id).ToListAsync(ct),
             Enrollments = await db.ServiceEnrollments.Where(x => x.UserId == account.UserId).ToListAsync(ct),
             Services = await db.ServiceDefinitions.ToListAsync(ct),

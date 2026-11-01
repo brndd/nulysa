@@ -75,6 +75,41 @@ public sealed partial class BillingCommands(AppDbContext db, AssociationClock cl
         var movement = new MoneyMovement { BillingAccountId = facts.Account.Id, OperationId = operation.Id, Kind = kind, Amount = amount, EffectiveOn = on, InvoiceLineId = line, ReceiptId = receipt, DiscountId = discount, ReversesMovementId = reverses };
         facts.Movements.Add(movement);
         db.MoneyMovements.Add(movement);
+        if (kind == MovementKind.ReceiptToBilling && receipt is { } receiptId)
+            AddCreditLot(facts, receiptId, on, amount);
+        else if (BillingFacts.BillingBalanceDelta(kind) < 0)
+            ConsumeCreditLots(facts, amount, kind == MovementKind.BillingReceiptReversal ? receipt : null);
+    }
+
+    private void AddCreditLot(BillingFacts facts, long receiptId, DateOnly receivedOn, decimal amount)
+    {
+        var lot = new CreditLot
+        {
+            BillingAccountId = facts.Account.Id,
+            ReceiptId = receiptId,
+            ReceivedOn = receivedOn,
+            OriginalAmount = amount,
+            RemainingAmount = amount
+        };
+        facts.CreditLots.Add(lot);
+        db.CreditLots.Add(lot);
+    }
+
+    private static void ConsumeCreditLots(BillingFacts facts, decimal amount, long? preferredReceiptId = null)
+    {
+        if (amount <= 0)
+            return;
+        var lots = facts.CreditLots.Where(x => x.RemainingAmount > 0).OrderBy(x => x.ReceivedOn).ThenBy(x => x.Id).ToList();
+        if (preferredReceiptId is { } receiptId)
+            lots = lots.Where(x => x.ReceiptId == receiptId).Concat(lots.Where(x => x.ReceiptId != receiptId)).ToList();
+        foreach (var lot in lots)
+        {
+            if (amount <= 0)
+                break;
+            var used = Math.Min(lot.RemainingAmount, amount);
+            lot.RemainingAmount -= used;
+            amount -= used;
+        }
     }
 
     private void Grant(BillingFacts facts, BillingOperation operation, Benefit benefit, long? service, Period period, CoverageSource source, string origin, long? line = null)
@@ -306,6 +341,8 @@ public sealed partial class BillingCommands(AppDbContext db, AssociationClock cl
         var balances = facts.Balances;
         if (balances.BillingCredit < 0 || balances.PurchaseBalance < 0 || facts.Lines.Any(x => facts.Held(x) < 0 || (x.State != LineState.Open && facts.Held(x) != 0)))
             throw new InvalidOperationException("Journal reconciliation failed.");
+        if (facts.CreditLots.Sum(x => x.RemainingAmount) > balances.BillingCredit)
+            throw new InvalidOperationException("Credit lot reconciliation failed.");
         await db.SaveChangesAsync(ct);
     }
 }

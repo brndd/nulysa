@@ -134,6 +134,16 @@ public sealed class MoneyMovement
     public long? ReversesMovementId { get; set; }
 }
 
+public sealed class CreditLot
+{
+    public long Id { get; set; }
+    public long BillingAccountId { get; set; }
+    public long ReceiptId { get; set; }
+    public DateOnly ReceivedOn { get; set; }
+    public decimal OriginalAmount { get; set; }
+    public decimal RemainingAmount { get; set; }
+}
+
 public sealed class Coverage
 {
     public long Id { get; set; }

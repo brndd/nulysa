@@ -135,6 +135,16 @@ public static class BillingMapping
             e.Property(x => x.InputHash).HasMaxLength(64);
             e.Property(x => x.Reason).HasMaxLength(1000);
         });
+        builder.Entity<CreditLot>(e =>
+        {
+            e.HasOne<BillingAccount>().WithMany().HasForeignKey(x => x.BillingAccountId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<Receipt>().WithMany().HasForeignKey(x => x.ReceiptId).OnDelete(DeleteBehavior.Restrict);
+            e.Property(x => x.OriginalAmount).HasPrecision(18, 2);
+            e.Property(x => x.RemainingAmount).HasPrecision(18, 2);
+            e.HasIndex(x => new { x.BillingAccountId, x.ReceivedOn });
+            e.ToTable(t => t.HasCheckConstraint("CK_CreditLot_Amount",
+                "\"OriginalAmount\" > 0 AND \"RemainingAmount\" >= 0 AND \"RemainingAmount\" <= \"OriginalAmount\""));
+        });
         builder.Entity<MoneyMovement>(e =>
         {
             e.HasOne<BillingAccount>().WithMany().HasForeignKey(x => x.BillingAccountId).OnDelete(DeleteBehavior.Restrict);

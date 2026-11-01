@@ -37,6 +37,7 @@
                     @if (line.InvoiceLineId is { } lineId) { <span>line #@lineId</span> }
                     @if (line.DiscountId is { } discountId) { <span>discount #@discountId</span> }
                     @if (line.ReversesMovementId is { } reversalId) { <a href="#movement-@reversalId">reverses #@reversalId</a> }
+                    @if (line.LotId is { } lotId) { <span>lot #@lotId (@line.LotOriginalAmount?.ToString("0.00") original, @line.LotRemaining?.ToString("0.00") remaining)</span> }
                 </td>
             </tr>
         }

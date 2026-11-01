@@ -459,6 +459,43 @@ namespace Nulysa.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Nulysa.Billing.CreditLot", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("BillingAccountId")
+                        .HasColumnType("bigint");
+
+                    b.Property<decimal>("OriginalAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<long>("ReceiptId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateOnly>("ReceivedOn")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("RemainingAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReceiptId");
+
+                    b.HasIndex("BillingAccountId", "ReceivedOn");
+
+                    b.ToTable("CreditLots", t =>
+                        {
+                            t.HasCheckConstraint("CK_CreditLot_Amount", "\"OriginalAmount\" > 0 AND \"RemainingAmount\" >= 0 AND \"RemainingAmount\" <= \"OriginalAmount\"");
+                        });
+                });
+
             modelBuilder.Entity("Nulysa.Billing.Discount", b =>
                 {
                     b.Property<long>("Id")
@@ -1746,6 +1783,21 @@ namespace Nulysa.Data.Migrations
                         .WithMany()
                         .HasForeignKey("ServiceDefinitionId")
                         .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Nulysa.Billing.CreditLot", b =>
+                {
+                    b.HasOne("Nulysa.Billing.BillingAccount", null)
+                        .WithMany()
+                        .HasForeignKey("BillingAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Nulysa.Billing.Receipt", null)
+                        .WithMany()
+                        .HasForeignKey("ReceiptId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Nulysa.Billing.Discount", b =>

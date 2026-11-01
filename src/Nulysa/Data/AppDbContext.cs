@@ -32,6 +32,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<InvoiceLine> InvoiceLines => Set<InvoiceLine>();
     public DbSet<Receipt> Receipts => Set<Receipt>();
+    public DbSet<CreditLot> CreditLots => Set<CreditLot>();
     public DbSet<MoneyMovement> MoneyMovements => Set<MoneyMovement>();
     public DbSet<Coverage> Coverage => Set<Coverage>();
     public DbSet<BillingOperation> BillingOperations => Set<BillingOperation>();

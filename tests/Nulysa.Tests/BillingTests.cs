@@ -219,6 +219,44 @@ public sealed class BillingTests : MembershipTest
     }
 
     [Fact]
+    [Trait("Acceptance", "BILL")]
+    public async Task Missed_renewal_with_an_early_credit_lot_recovers_after_an_outage()
+    {
+        On(6, 1);
+        Settings["Billing:MembershipRenewalGraceDays"] = "0";
+        var board = await Board();
+        await using var app = CommandsApp();
+        var id = await Admit(app, board);
+        var view = await View(app, board, id);
+        await Pay(app, view.Invoices[0].Reference, 10);
+        var service = await Service(app, board, grace: 0);
+        await Run(app, sp => sp.GetRequiredService<BillingCommands>().Subscribe(board, view.AccountId, service, 1, false, Guid.NewGuid()));
+        view = await View(app, board, id);
+        var serviceBill = view.Invoices.Single(x => x.Lines.Any(l => l.Line.Benefit == Benefit.Service));
+        await Pay(app, serviceBill.Reference, serviceBill.Remaining);
+
+        // Pay early (before the renewal invoice window), which becomes a credit lot.
+        await Pay(app, view.Groups.Single().PaymentReference, 40);
+
+        // No scans between 6/1 and 7/2; the worker misses the invoice window.
+        On(7, 2);
+        await Scan(app, view.AccountId);
+        view = await View(app, board, id);
+
+        Assert.True(view.Membership.Active);
+        Assert.Contains(view.Subscriptions, x => x.Enrollment.ServiceDefinitionId == service && x.Standing.Active);
+        var renewal = view.Invoices.SelectMany(x => x.Lines)
+            .Single(x => x.Line.Benefit == Benefit.Service && x.Line.Purpose == PurchasePurpose.Renewal).Line;
+        Assert.Equal(LineState.Fulfilled, renewal.State);
+        Assert.Contains(view.Coverage, x => x.Benefit == Benefit.Service && x.StartsOn == new DateOnly(2026, 7, 1) && x.EndsOn == new DateOnly(2026, 8, 1));
+
+        // The lot should be consumed.
+        await using var db = Context();
+        var lot = await db.CreditLots.SingleAsync();
+        Assert.Equal(0m, lot.RemainingAmount);
+    }
+
+    [Fact]
     [Trait("Acceptance", "DATE")]
     public async Task Timely_delayed_service_renewal_is_recovered_after_expiry()
     {
@@ -1338,7 +1376,6 @@ public sealed class BillingTests : MembershipTest
         var id = await Admit(app, board);
         var view = await View(app, board, id);
         await using var db = Context();
-        await db.GetService<IMigrator>().MigrateAsync("20261031185213_BillingMovementEffectiveIndex");
         var invoices = new Dictionary<LineState, long>();
         foreach (var state in Enum.GetValues<LineState>())
         {
@@ -1354,6 +1391,10 @@ public sealed class BillingTests : MembershipTest
                 await Run(app, sp => sp.GetRequiredService<BillingCommands>().CancelInvoice(board, view.AccountId, invoiceId,
                     Guid.NewGuid(), "Cancelled workshop"));
         }
+        // Create the inclusive invoice while still at the latest schema.
+        var inclusiveId = (await Run(app, sp => sp.GetRequiredService<BillingCommands>().OneOff(board, view.AccountId, Guid.NewGuid(),
+            "Inclusive workshop", "workshop", 5m, new(2026, 6, 20))))!.Value;
+        await db.GetService<IMigrator>().MigrateAsync("20261031185213_BillingMovementEffectiveIndex");
         var legacy = await db.InvoiceLines.ToListAsync();
         foreach (var line in legacy)
         {
@@ -1363,13 +1404,10 @@ public sealed class BillingTests : MembershipTest
                 line.State = LineState.Expired;
                 (await db.Invoices.SingleAsync(x => x.Id == line.InvoiceId)).ClosedAt = Clock.Now;
             }
+            // Already-inclusive requests must not gain another day on upgrade.
+            if (line.InvoiceId == inclusiveId)
+                line.ExpiresOn = new DateOnly(2026, 6, 27);
         }
-        await db.SaveChangesAsync();
-        // Already-inclusive requests must not gain another day on upgrade.
-        var inclusiveId = (await Run(app, sp => sp.GetRequiredService<BillingCommands>().OneOff(board, view.AccountId, Guid.NewGuid(),
-            "Inclusive workshop", "workshop", 5m, new(2026, 6, 20))))!.Value;
-        var inclusiveLine = await db.InvoiceLines.SingleAsync(x => x.InvoiceId == inclusiveId);
-        inclusiveLine.ExpiresOn = new DateOnly(2026, 6, 27);
         await db.SaveChangesAsync();
         db.ChangeTracker.Clear();
         var before = await db.InvoiceLines.AsNoTracking().ToListAsync();
@@ -1390,9 +1428,6 @@ public sealed class BillingTests : MembershipTest
             Assert.Equal(line.Amount, after[line.Id].Amount);
         }
         var extended = after[invoices[LineState.Open]].ExpiresOn;
-        await db.Database.MigrateAsync("20261031185213_BillingMovementEffectiveIndex");
-        var downgraded = await db.InvoiceLines.AsNoTracking().SingleAsync(x => x.InvoiceId == invoices[LineState.Open]);
-        Assert.Equal(extended, downgraded.ExpiresOn);
         On(6, 20);
         var payable = (await View(app, board, id)).Invoices.Single(x => x.Invoice.Id == invoices[LineState.Open]);
         await Pay(app, payable.Reference, payable.Remaining);
@@ -1401,6 +1436,9 @@ public sealed class BillingTests : MembershipTest
         Assert.Equal(LineState.Fulfilled, Assert.Single(settled.Lines).Line.State);
         Assert.Equal(12.50m, settled.Paid);
         Assert.Equal(0m, (await Run(app, sp => sp.GetRequiredService<BillingQueries>().Reconcile(board))).Difference);
+        await db.Database.MigrateAsync("20261031185213_BillingMovementEffectiveIndex");
+        var downgraded = await db.InvoiceLines.AsNoTracking().SingleAsync(x => x.InvoiceId == invoices[LineState.Open]);
+        Assert.Equal(extended, downgraded.ExpiresOn);
     }
 
     [Theory]

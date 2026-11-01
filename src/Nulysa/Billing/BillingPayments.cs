@@ -238,6 +238,7 @@ public sealed partial class BillingCommands
 
             // Overpayment remains billing credit; it never disappears from the journal.
             Move(billingFacts, operation, MovementKind.ReceiptToBilling, remaining, receipt.ReceivedOn, receipt: receipt.Id);
+            await RecoverMissedRenewalsWithLots(billingFacts, operation, clock.Today, ct);
             await Expire(billingFacts, operation, scheduler, ct, notifyInactiveWithoutLine: true);
             await AllocateCredit(billingFacts, operation, clock.Today, ct);
         }

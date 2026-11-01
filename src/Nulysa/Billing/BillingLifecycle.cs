@@ -37,6 +37,7 @@ public sealed partial class BillingCommands
         // A scan is a wake-up; logical purchase keys and persisted dates prevent replayed cycles.
         var operation = (await Operation(facts, Guid.NewGuid(), "due-work", new { on = clock.Today }, null, "Dated billing maintenance", ct))!;
         await IssueDueRenewals(facts, operation, clock.Today, null, ct);
+        await RecoverMissedRenewalsWithLots(facts, operation, clock.Today, ct);
 
         await Expire(facts, operation, scheduler, ct, notifyInactiveWithoutLine: true);
         await AllocateCredit(facts, operation, clock.Today, ct);
