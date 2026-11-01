@@ -114,6 +114,8 @@ public sealed class BillingTests : MembershipTest
         view = await View(app, board, id);
         var serviceBill = view.Invoices.Single(x => x.Lines.Any(l => l.Line.Benefit == Benefit.Service));
         await Pay(app, serviceBill.Reference, serviceBill.Remaining);
+        view = await View(app, board, id);
+        Assert.Contains(view.Forecasts, x => x.Description == "Door");
         await Run(app, sp => sp.GetRequiredService<BillingCommands>().ConfigureService(board, service,
             new("door", "Door", false, 0, 0, 10, "door", Retired: true)));
         view = await View(app, board, id);
