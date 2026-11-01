@@ -13,6 +13,10 @@ WebAssembly client or global interactive circuit.
 
 - [Specification](AGENTS/SPEC.md): authoritative requirements and policy status.
 - [Architecture and slices](AGENTS/ARCHITECTURE.md): module boundaries and S0–S6 gates.
+- [UI design](AGENTS/UI_DESIGN.md): portal/admin layouts, responsive behaviour,
+  light/dark themes, association stylesheets and UI delivery plan.
+- [UI foundation](docs/ui.md): implemented shell, appearance preferences and local
+  association stylesheet configuration; later task/workflow redesign remains planned.
 - [Billing](AGENTS/BILLING_DESIGN.md), [services](AGENTS/SERVICE_DESIGN.md),
   [policy examples](AGENTS/POLICY_REVIEW.md), [remaining work](AGENTS/OPEN_QUESTIONS.md).
 - [Foundation evidence and limits](docs/foundations.md),

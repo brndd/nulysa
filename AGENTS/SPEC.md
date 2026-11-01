@@ -45,6 +45,10 @@ replacement should behave.
   configuration and package pins still require implementation/verification.
   The ASP.NET Core S0 implementation and its independent acceptance evidence are in
   [the foundation status](../docs/foundations.md).
+- [UI_DESIGN.md](UI_DESIGN.md) records the agreed member-portal and administration
+  UI direction, responsive/accessibility patterns, association themes and phased
+  delivery. Detailed engineering proposals are distinguished from agreed direction;
+  it does not replace this specification's domain policies.
 
 ## 1. Purpose and constraints
 
@@ -71,6 +75,13 @@ replacement should behave.
   make the whole application interactive. WebAssembly, Auto render mode and a
   separate client project are not initial scope. This replaces the Razor Pages/HTMX
   direction; it does not change domain policies or require a separate frontend API.
+- Provide a responsive member portal and a distinct board-administration workspace,
+  with consistent public/account pages. Support association branding and trusted
+  deployment stylesheets, with Default and Tampere Hacklab themes, each offering
+  light/dark variants and a system-following colour-mode choice. Tampere Hacklab's
+  theme uses its black-and-yellow/orange visual direction; exact palette/assets
+  require confirmation. See [the UI design](UI_DESIGN.md) for the reviewed layout,
+  navigation, accessibility and implementation direction.
 - Use PostgreSQL for development, production and database tests, with containerized
   production deployment. The .NET application and worker may run directly on the
   host against a local PostgreSQL container; a fully containerized development

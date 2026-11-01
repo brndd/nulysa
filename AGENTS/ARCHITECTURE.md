@@ -44,6 +44,13 @@ commands. There is no assumed generic replacement for Django admin.
 
 ### Confirmed UI rendering contract
 
+- [UI_DESIGN.md](UI_DESIGN.md) records the agreed responsive portal/administration
+  layouts, shared account-page styling and association-theme direction. Use Default
+  and Tampere Hacklab themes with independent light/dark/system mode selection,
+  semantic CSS tokens and trusted local stylesheet overrides. Bootstrap 5.3 CSS
+  with a small theme layer is the initial styling direction, not a requirement for
+  global interactivity. Its UI increment precedes S3 without renumbering S3–S6 or
+  expanding later domain-feature scope.
 - Static SSR is the default, not global interactivity. Ordinary pages/forms do not
   require a persistent circuit. Interactive Server is opt-in for a page or component;
   a shelf-selection grid is an example, not a requirement to build storage early.

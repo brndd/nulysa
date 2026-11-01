@@ -1,0 +1,16 @@
+@page
+@model Nulysa.Pages.AppearanceModel
+@{ ViewData["Title"] = "Appearance"; }
+<h1>Appearance</h1>
+<p>Choose how this portal looks on this browser. Your choice does not change association identity or account permissions.</p>
+@if (Model.Saved) { <p role="status">Appearance saved.</p> }
+<form method="post">
+    <div asp-validation-summary="All" role="alert"></div>
+    <p><label asp-for="Theme">Theme</label>
+        <select asp-for="Theme"><option value="association">Association default</option><option value="default">Default</option><option value="tampere-hacklab">Tampere Hacklab</option></select></p>
+    <p><label asp-for="Mode">Colour mode</label>
+        <select asp-for="Mode"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></p>
+    <p>System follows your device's light or dark preference.</p>
+    <button type="submit">Save appearance</button>
+</form>
+<p><a href="/">Return to portal</a> · <a href="/Account/Login">Log in</a></p>

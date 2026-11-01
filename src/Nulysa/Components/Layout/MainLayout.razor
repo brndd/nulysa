@@ -1,13 +1,77 @@
 @inherits LayoutComponentBase
 @inject IConfiguration Configuration
+@inject NavigationManager Navigation
 
-<header><a href="/">@Configuration["Association:Name"]</a></header>
-<AuthorizeView><Authorized><nav aria-label="Member self-service"><a href="/profile">Profile</a> · <a href="/billing">Payments and services</a></nav></Authorized></AuthorizeView>
-<AuthorizeView Policy="Administrator">
-    <Authorized><nav aria-label="Board administration"><a href="/admin/members">Member registry</a> · <a href="/admin/applications">Application review</a> · <a href="/admin/payments">Payments and accounting</a> · <a href="/admin/billing-configuration">Fees and services</a></nav></Authorized>
+<a class="skip-link" href="#main-content">Skip to content</a>
+<div class="navigation-container">
+<header class="site-header">
+    <AuthorizeView>
+        <Authorized>
+            <button type="button" class="navigation-toggle secondary-action" hidden aria-label="Menu" aria-expanded="false" aria-controls="portal-navigation">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false">
+                    <path d="M3 6h18M3 12h18M3 18h18" />
+                </svg>
+            </button>
+        </Authorized>
+    </AuthorizeView>
+    <a class="association-name" href="/">@Configuration["Association:Name"]</a>
+    <span class="workspace-label">@Workspace</span>
+    <a href="/Appearance">Appearance</a>
+</header>
+<AuthorizeView>
+    <Authorized>
+        <div class="portal-shell">
+                <aside id="portal-navigation" class="sidebar">
+                    @if (Workspace == "Administration")
+                    {
+                        <nav aria-label="Board administration">
+                            <span class="nav-heading">Administration</span>
+                            <NavLink href="/admin/members">Member registry</NavLink>
+                            <NavLink href="/admin/applications">Application review</NavLink>
+                            <NavLink href="/admin/payments">Payments and accounting</NavLink>
+                            <NavLink href="/admin/billing-configuration">Fees and services</NavLink>
+                        </nav>
+                    }
+                    else if (Workspace == "System Console")
+                    {
+                        <nav aria-label="System administration"><NavLink href="/system-console">System Console</NavLink></nav>
+                    }
+                    else
+                    {
+                        <nav aria-label="Member self-service">
+                            <span class="nav-heading">Member portal</span>
+                            <NavLink href="/" Match="NavLinkMatch.All">Overview</NavLink>
+                            <NavLink href="/billing">Payments and services</NavLink>
+                            <NavLink href="/profile">My details</NavLink>
+                        </nav>
+                    }
+                    <nav class="workspace-navigation" aria-label="Workspaces">
+                        @if (Workspace != "Member portal") { <a href="/">Member portal</a> }
+                        <AuthorizeView Policy="Administrator" Context="board">
+                            <Authorized>@if (Workspace != "Administration") { <a href="/admin/members">Administration</a> }</Authorized>
+                        </AuthorizeView>
+                        <AuthorizeView Policy="Superuser" Context="sysop">
+                            <Authorized>@if (Workspace != "System Console") { <a href="/system-console">System Console</a> }</Authorized>
+                        </AuthorizeView>
+                    </nav>
+                    <form method="post" action="/Account/Logout" data-enhance="false" class="logout-form">
+                        <AntiforgeryToken />
+                        <button type="submit" class="secondary-action">Log out</button>
+                    </form>
+                </aside>
+            <main id="main-content" class="page-content" tabindex="-1">@Body</main>
+        </div>
+    </Authorized>
+    <NotAuthorized><main id="main-content" class="public-content" tabindex="-1">@Body</main></NotAuthorized>
 </AuthorizeView>
-<AuthorizeView Policy="Superuser">
-    <Authorized><nav aria-label="System administration"><a href="/system-console">System Console</a></nav></Authorized>
-</AuthorizeView>
-<main>@Body</main>
-<footer><small>Powered by Nulysa</small></footer>
+</div>
+<footer class="site-footer"><small>Powered by Nulysa</small></footer>
+
+@code {
+    private string Workspace => Navigation.ToBaseRelativePath(Navigation.Uri) switch
+    {
+        var path when path.StartsWith("admin/", StringComparison.OrdinalIgnoreCase) => "Administration",
+        var path when path.StartsWith("system-console", StringComparison.OrdinalIgnoreCase) => "System Console",
+        _ => "Member portal"
+    };
+}

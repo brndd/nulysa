@@ -11,6 +11,58 @@ namespace Nulysa.Tests;
 public sealed class UiTests : OidcTest
 {
     [Fact]
+    public async Task Appearance_is_shared_by_account_and_portal_and_posts_require_antiforgery()
+    {
+        await CreateUser();
+        Settings["Appearance:DefaultTheme"] = "tampere-hacklab";
+        await using var app = await StartProvider();
+        using var client = Client();
+        var login = await client.GetStringAsync("/Account/Login");
+        Assert.Contains("data-theme=\"tampere-hacklab\"", login);
+        Assert.Contains("/styles/site.css", login);
+        foreach (var asset in new[] { "/styles/site.css", "/scripts/appearance.js", "/vendor/bootstrap/bootstrap.min.css" })
+            Assert.Equal(HttpStatusCode.OK, (await client.GetAsync(asset)).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsync("/Appearance", new FormUrlEncodedContent([]))).StatusCode);
+
+        var html = await client.GetStringAsync("/Appearance");
+        var token = Regex.Match(html, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
+        Assert.NotEmpty(token);
+        var invalid = await client.PostAsync("/Appearance", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Theme"] = "https://example.test/evil.css",
+            ["Mode"] = "dark",
+            ["__RequestVerificationToken"] = WebUtility.HtmlDecode(token)
+        }));
+        Assert.Contains("Choose a listed theme", await invalid.Content.ReadAsStringAsync());
+        var saved = await client.PostAsync("/Appearance", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Theme"] = "default",
+            ["Mode"] = "dark",
+            ["__RequestVerificationToken"] = WebUtility.HtmlDecode(token)
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, saved.StatusCode);
+        Assert.Contains("data-mode=\"dark\"", await client.GetStringAsync("/Account/Login"));
+        await Login(client);
+        var portal = await client.GetStringAsync("/");
+        Assert.Contains("data-theme=\"default\"", portal);
+        Assert.Contains("data-mode=\"dark\"", portal);
+        Assert.Contains("Skip to content", portal);
+        Assert.DoesNotContain("\"type\":\"server\"", portal);
+        html = await client.GetStringAsync("/Appearance");
+        token = Regex.Match(html, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
+        var reset = await client.PostAsync("/Appearance", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Theme"] = "association",
+            ["Mode"] = "system",
+            ["__RequestVerificationToken"] = WebUtility.HtmlDecode(token)
+        }));
+        Assert.Equal(HttpStatusCode.Redirect, reset.StatusCode);
+        var restored = await client.GetStringAsync("/");
+        Assert.Contains("data-theme=\"tampere-hacklab\"", restored);
+        Assert.Contains("data-mode=\"system\"", restored);
+    }
+
+    [Fact]
     public async Task Portal_is_static_SSR_with_branding_and_an_antiforgery_protected_HTTP_logout()
     {
         await CreateUser();

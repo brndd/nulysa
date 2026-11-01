@@ -1,9 +1,11 @@
+@inject Microsoft.Extensions.Options.IOptions<AppearanceOptions> Options
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="@appearance.Theme" data-mode="@appearance.Mode">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <base href="/" />
+    <AppearanceAssets />
     <HeadOutlet />
 </head>
 <body>
@@ -11,3 +13,10 @@
     <script src="_framework/blazor.web.js"></script>
 </body>
 </html>
+
+@code {
+    [CascadingParameter] public HttpContext HttpContext { get; set; } = null!;
+    private Appearance appearance = new("default", "system");
+
+    protected override void OnInitialized() => appearance = Appearance.Read(HttpContext, Options.Value);
+}

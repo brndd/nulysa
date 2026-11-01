@@ -51,7 +51,7 @@ public static class FoundationHost
         app.Use(async (context, next) =>
         {
             context.Response.Headers["Referrer-Policy"] = "no-referrer";
-            if (context.User.Identity?.IsAuthenticated == true || context.Request.Path.StartsWithSegments("/Account") || context.Request.Path.StartsWithSegments("/apply"))
+            if (context.User.Identity?.IsAuthenticated == true || context.Request.Path.StartsWithSegments("/Account") || context.Request.Path.StartsWithSegments("/apply") || context.Request.Path.StartsWithSegments("/Appearance"))
             {
                 // Antiforgery warns unless both directives are present; keep this the canonical pair.
                 context.Response.Headers.CacheControl = "no-cache, no-store";
@@ -102,6 +102,8 @@ public static class FoundationHost
         var config = builder.Configuration;
         var development = builder.Environment.IsDevelopment();
         _ = TimeZoneInfo.FindSystemTimeZoneById(config["Association:TimeZone"] ?? "Europe/Helsinki");
+        builder.Services.AddOptions<AppearanceOptions>().Bind(config.GetSection("Appearance"))
+            .Validate(options => options.IsValid(), "Appearance requires a known default theme and a local CSS path.").ValidateOnStart();
         var concurrency = config.GetValue("Worker:Concurrency", 4);
         if (concurrency is < 1 or > 32)
             throw new InvalidOperationException("Worker:Concurrency must be between 1 and 32.");

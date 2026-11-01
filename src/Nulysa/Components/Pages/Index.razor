@@ -4,9 +4,8 @@
 
 <PageTitle>Member portal — @Configuration["Association:Name"]</PageTitle>
 <h1>Member portal</h1>
-<p><a href="/profile">My details and email</a> · <a href="/resign">Resign</a></p>
-<p><a href="/billing">View invoices, payment standing, balances and services</a></p>
-<form method="post" action="/Account/Logout" data-enhance="false">
-    <AntiforgeryToken />
-    <button type="submit">Log out</button>
-</form>
+<p class="page-intro">Your membership, payments and association services in one place.</p>
+<div class="overview-links">
+    <a href="/billing"><strong>Payments and services</strong><span>View bills, payment standing, balances and service renewals.</span></a>
+    <a href="/profile"><strong>My details</strong><span>Keep your contact details and email address up to date.</span></a>
+</div>

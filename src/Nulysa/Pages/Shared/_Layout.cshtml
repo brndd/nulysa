@@ -1,14 +1,18 @@
 @inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+@inject Microsoft.Extensions.Options.IOptions<Nulysa.Components.AppearanceOptions> AppearanceOptions
+@{ var appearance = Nulysa.Components.Appearance.Read(Context, AppearanceOptions.Value); }
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="@appearance.Theme" data-mode="@appearance.Mode">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>@ViewData["Title"] — @Configuration["Association:Name"]</title>
+    <component type="typeof(Nulysa.Components.AppearanceAssets)" render-mode="Static" />
 </head>
 <body>
-    <header><a href="/">@Configuration["Association:Name"]</a></header>
-    <main>@RenderBody()</main>
-    <footer><small>Powered by Nulysa</small></footer>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <header class="site-header"><a class="association-name" href="/">@Configuration["Association:Name"]</a><a href="/Appearance">Appearance</a></header>
+    <main id="main-content" class="public-content" tabindex="-1">@RenderBody()</main>
+    <footer class="site-footer"><small>Powered by Nulysa</small></footer>
 </body>
 </html>

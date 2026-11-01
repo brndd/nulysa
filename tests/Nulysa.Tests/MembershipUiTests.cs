@@ -221,7 +221,7 @@ public sealed class MembershipBrowserTests : MembershipTest
         await memberPage.GetByLabel("Confirm password", new() { Exact = true }).FillAsync(Password);
         await memberPage.GetByRole(AriaRole.Button, new() { Name = "Set password", Exact = true }).ClickAsync();
         await LoginPage(memberPage, Email);
-        await memberPage.GetByRole(AriaRole.Link, new() { Name = "My details and email" }).ClickAsync();
+        await memberPage.GetByRole(AriaRole.Link, new() { Name = "My details", Exact = true }).ClickAsync();
         await Assertions.Expect(memberPage).ToHaveTitleAsync("Member details — Synthetic Membership Association");
         await memberPage.GetByLabel("Name", new() { Exact = true }).FillAsync("Changed Browser Name");
         await memberPage.GetByRole(AriaRole.Button, new() { Name = "Save details" }).ClickAsync();
@@ -248,7 +248,8 @@ public sealed class MembershipBrowserTests : MembershipTest
         await memberPage.GetByLabel("Confirm password", new() { Exact = true }).FillAsync(Password);
         await memberPage.GetByRole(AriaRole.Button, new() { Name = "Set password", Exact = true }).ClickAsync();
         await LoginPage(memberPage, "browser-changed@example.test");
-        await memberPage.GetByRole(AriaRole.Link, new() { Name = "Resign", Exact = true }).ClickAsync();
+        await memberPage.GetByRole(AriaRole.Link, new() { Name = "My details", Exact = true }).ClickAsync();
+        await memberPage.GetByRole(AriaRole.Link, new() { Name = "Resign and request account deletion", Exact = true }).ClickAsync();
         await memberPage.GetByLabel("I understand and want to resign now.").CheckAsync();
         await memberPage.GetByRole(AriaRole.Button, new() { Name = "Resign and begin account deletion" }).ClickAsync();
         await Assertions.Expect(memberPage).ToHaveURLAsync(root + "Account/Login");
