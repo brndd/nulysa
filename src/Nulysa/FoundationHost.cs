@@ -129,6 +129,7 @@ public static class FoundationHost
         builder.Services.AddScoped<MembershipMaintenance>();
         builder.Services.AddScoped<BillingCommands>();
         builder.Services.AddScoped<BillingQueries>();
+        builder.Services.AddScoped<MemberPortalQueries>();
         builder.Services.AddScoped<InvoicePdf>();
         builder.Services.AddHttpClient<BankFeed>(client =>
         {
@@ -214,6 +215,7 @@ public static class FoundationHost
             builder.Services.AddScoped<IAuthorizationHandler, SuperuserAuthorizationHandler>();
             builder.Services.AddScoped<SchedulerDiagnostics>();
             builder.Services.AddRazorPages();
+            builder.Services.AddScoped<UiFeedback>();
             builder.Services.AddRazorComponents().AddInteractiveServerComponents();
             builder.Services.AddCascadingAuthenticationState();
             builder.Services.AddScoped<AuthenticationStateProvider, AccountAuthenticationStateProvider>();

@@ -53,14 +53,14 @@ public sealed class BillingQueries(AppDbContext db, AssociationClock clock, IOpt
         return View(await BillingFacts.Load(db, account.Id, ct, options.Value.MembershipRenewalGraceDays), invoice);
     }
 
-    public async Task<BillingView?> Member(ClaimsPrincipal actor, long userId, int skip = 0, int take = 0, CancellationToken ct = default)
+    public async Task<BillingView?> Member(ClaimsPrincipal actor, long userId, int skip = 0, int take = 0, CancellationToken ct = default, bool newestFirst = false)
     {
         await Authority.RequireOwnerOrAdministrator(db, actor, userId, ct);
         var account = await db.BillingAccounts.AsNoTracking().SingleOrDefaultAsync(x => x.UserId == userId, ct);
-        return account is null ? null : await Account(actor, account.Id, skip, take, ct);
+        return account is null ? null : await Account(actor, account.Id, skip, take, ct, newestFirst);
     }
 
-    public async Task<BillingView> Account(ClaimsPrincipal actor, long accountId, int skip = 0, int take = 0, CancellationToken ct = default)
+    public async Task<BillingView> Account(ClaimsPrincipal actor, long accountId, int skip = 0, int take = 0, CancellationToken ct = default, bool newestFirst = false)
     {
         var account = await db.BillingAccounts.AsNoTracking().SingleAsync(x => x.Id == accountId, ct);
         if (account.UserId is { } id)
@@ -115,7 +115,7 @@ public sealed class BillingQueries(AppDbContext db, AssociationClock clock, IOpt
             facts.Items.Where(x => x.EndedAt is null).ToList(), facts.Groups, subscriptions,
             facts.Movements.OrderByDescending(x => x.Id).Take(100).ToList(), facts.Coverage, facts.Discounts, operations, forecasts, facts.Services)
         {
-            Statements = await StatementsFor(facts, null, null, skip, take, ct)
+            Statements = await StatementsFor(facts, null, null, skip, take, ct, newestFirst)
         };
     }
 
@@ -136,7 +136,7 @@ public sealed class BillingQueries(AppDbContext db, AssociationClock clock, IOpt
         DateOnly? to = null, int skip = 0, int take = 0, CancellationToken ct = default)
         => (await Statements(actor, accountId, from, to, skip, take, ct)).Single(x => x.Balance == balance);
 
-    private async Task<List<BalanceStatement>> StatementsFor(BillingFacts facts, DateOnly? from, DateOnly? to, int skip, int take, CancellationToken ct)
+    private async Task<List<BalanceStatement>> StatementsFor(BillingFacts facts, DateOnly? from, DateOnly? to, int skip, int take, CancellationToken ct, bool newestFirst = false)
     {
         if (from is not null && to is not null && to <= from)
             throw new System.ComponentModel.DataAnnotations.ValidationException("Choose an end date after the start date.");
@@ -183,8 +183,11 @@ public sealed class BillingQueries(AppDbContext db, AssociationClock clock, IOpt
                 .ToList();
             var opening = from is { } start ? ordered.Where(x => x.movement.EffectiveOn < start).Sum(x => x.delta) : 0;
             var inRange = ordered.Where(x => (from is null || x.movement.EffectiveOn >= from) && (to is null || x.movement.EffectiveOn < to)).ToList();
-            var page = inRange.Skip(skip).Take(take > 0 ? take : int.MaxValue).ToList();
-            var running = opening + inRange.Take(skip).Sum(x => x.delta);
+            var limit = take > 0 ? take : int.MaxValue;
+            var remaining = Math.Max(0, inRange.Count - skip);
+            var offset = newestFirst ? Math.Max(0, remaining - limit) : skip;
+            var page = inRange.Skip(offset).Take(newestFirst ? Math.Min(limit, remaining) : limit).ToList();
+            var running = opening + inRange.Take(offset).Sum(x => x.delta);
             var pageOpening = running;
             var statementLines = new List<StatementLineView>();
             foreach (var entry in page)
@@ -199,6 +202,9 @@ public sealed class BillingQueries(AppDbContext db, AssociationClock clock, IOpt
                     movement.ReceiptId, movement.InvoiceLineId, lines.GetValueOrDefault(movement.InvoiceLineId ?? 0)?.InvoiceId,
                     movement.DiscountId, movement.ReversesMovementId, lot?.Id, lot?.OriginalAmount, lot?.RemainingAmount));
             }
+            // Calculate running balances chronologically before reversing presentation order.
+            if (newestFirst)
+                statementLines.Reverse();
             results.Add(new(balance, pageOpening, running, inRange.Count > skip + page.Count, statementLines));
         }
         return results;

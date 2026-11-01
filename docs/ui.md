@@ -1,4 +1,4 @@
-# UI foundation
+# Member UI and foundation
 
 The first UI deliverable adds a responsive shell and shared presentation without
 changing membership/billing commands or database schema. The complete direction
@@ -19,17 +19,42 @@ and remaining deliverables are in [the UI design](../AGENTS/UI_DESIGN.md).
 - Local Bootstrap 5.3.8 CSS and its MIT licence; no runtime CDN/font dependency or
   global interactive circuit. Small local JavaScript handles native-control colour
   mode and mobile navigation across enhanced navigation.
-- Basic styling of existing forms/tables and a simpler portal landing page.
-- The first member-task increment separates `/services` (membership, subscriptions,
-  intervals and forecasts), `/billing` (bills), `/balances` (available/allocated
-  funds, deposits and explicit transfers) and `/billing/history` (paged statements).
-  Existing `/billing` and `/services` links remain valid but now open distinct tasks.
+- Homepage membership standing/grace/inactivity, up to five outstanding bill links
+  with access to the full list, and pending email verification. Its audience-scoped
+  query reuses membership evaluation without loading the full money journal.
+- `/services` covers membership, subscriptions, intervals and forecasts. All member
+  money tasks live on **Payments** at `/billing`; there are no separate balances or
+  transaction-history routes/sidebar items.
+- Payments prioritises a prominent outstanding-bills box, then one current-balance
+  summary. Deposit instructions and transfers are secondary expandable tools.
+  Previous bills are collapsed initially and paged separately, newest first, ten
+  at a time by default. Transaction history has its own boxed area, balance selector
+  and independent ten-row paging. Its newest-first display preserves the correct
+  chronological running balances. Neither pager removes outstanding bills or
+  changes the other history's page.
 - `/billing/invoices/{id}` provides an authorised bill-detail view, item funding,
   bank-transfer instructions for open remaining amounts and PDF access. Closed or
   fully funded bills do not request payment. Displayed bill periods include their
   final day; domain dates remain exclusive.
 - The board's existing `/admin/members/{id}/billing` combined view remains available
   until its separate workflow redesign. All writes still use existing commands.
+- Compact member bill summaries; item-level funding stays on bill detail.
+  History uses readable movement titles, with internal IDs/recording timestamps in
+  expandable details. Available credit and allocated funds remain distinct.
+- A review/confirm step for member service subscription, stop-renewal, membership
+  return and balance transfers. A preview does not write or reserve funds. Final
+  commands recheck authority, eligibility and availability with the original retry
+  key. Interval changes retain their simpler save workflow and show their effective
+  timing. Service base prices are explicitly distinguished from actual prorated/
+  discounted bill amounts.
+- Profile sections for personal details, verified email change, existing invoice-
+  email preferences, password reset, privacy contact and resignation. Payments links
+  to profile communication settings rather than duplicating that form. Required notices cannot be disabled;
+  newsletter preferences remain part of S3, not a nonfunctional placeholder.
+- One-use success notices after completed changes, stored through protected cookie
+  TempData rather than trusting a success query string. No success is shown for a
+  preview or rejected command. Resignation includes waiting/batch timing, loss of
+  access, prepaid-time and remaining-credit consequences.
 
 The themes use the confirmed logo colours `#000000` and `#F9FB4C` as references,
 not an exclusive palette. The light variant deliberately adjusts yellow. No logo
@@ -98,14 +123,19 @@ Fast tests cover preference validation, local-path restrictions, default fallbac
 antiforgery, static rendering and shared account/portal appearance. Targeted Chromium
 tests cover all four theme/mode combinations, OS mode changes, mobile menu/keyboard
 dismissal, enhanced navigation, narrow-page overflow and no-script appearance forms.
-Existing membership and billing browser journeys are retained.
+Existing membership and billing browser journeys also exercise preview-before-write,
+confirmed transfers, one-use feedback, profile preferences and mobile forms. Portal
+query tests compare summary standing with the billing evaluator and verify audience
+and deletion gates. Additional checks cover independent history paging, default
+ten-item limits and correct running balances in newest-first views. These checks
+do not constitute a full accessibility audit.
 
-UI2 has begun with the task/page split and bill details. Actual homepage
-standing/action-needed summaries, further profile/preferences work and more compact
-bill/history presentation remain. The existing aggregate billing query still loads
-the account's financial facts; page separation is not a claim of new query-level
-pagination or a performance rewrite. UI3 will reorganise board workflows and replace numeric-ID-oriented
-operations. UI4 completes broader accessibility/localisation/visual validation;
-basic tests here are not a WCAG compliance claim. Existing pages still use English,
-and administration/history may need further task and mobile refinements.
+UI2's member experience is delivered for the currently implemented membership and
+billing features. The shared billing pages still use the existing account aggregate;
+their UI pagination is not a claim of query-level financial pagination or a complete
+performance rewrite. Homepage and profile-email queries avoid that aggregate.
+UI3 will reorganise board workflows and replace numeric-ID-oriented operations.
+UI4 completes broader accessibility/localisation/visual validation; basic tests here
+are not a WCAG compliance claim. Existing pages still use English, and complex
+administration/history can receive further refinements during that validation.
 Communications, access/training and interactive storage remain their later slices.

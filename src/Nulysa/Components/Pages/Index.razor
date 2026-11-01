@@ -1,12 +1,57 @@
 @page "/"
 @attribute [Authorize]
 @inject IConfiguration Configuration
+@using Nulysa.Billing
+@inject MemberPortalQueries Queries
+@inject AuthenticationStateProvider Authentication
 
 <PageTitle>Member portal — @Configuration["Association:Name"]</PageTitle>
 <h1>Member portal</h1>
 <p class="page-intro">Your membership, payments and association services in one place.</p>
+@if (overview is not null)
+{
+    @if (overview.Membership is { } membership)
+    {
+        <section class="status-panel" aria-labelledby="standing-heading">
+            <h2 id="standing-heading">Your membership</h2>
+            <p><strong>@(membership.Active ? "Active" : "Inactive")</strong> — @membership.Description</p>
+            @if (membership.Until is { } end) { <p>This standing applies through @end.AddDays(-1).ToString("d MMM yyyy").</p> }
+            @if (!membership.Active) { <p>You are still a member. Billing is paused; you do not owe fees for inactive months. <a href="/services">Review membership return options</a>.</p> }
+            else if (membership.IsRenewalGrace) { <p>Membership remains active during grace. <a href="/billing">Review your membership payment before grace ends</a>.</p> }
+        </section>
+    }
+    else { <p class="status-panel">No membership billing account is available. Contact an administrator if you need help.</p> }
+    @if (overview.PendingEmail is not null || overview.Bills.Count > 0)
+    {
+        <section aria-labelledby="attention-heading">
+            <h2 id="attention-heading">Needs your attention</h2>
+            @if (overview.PendingEmail is not null) { <p>New email awaiting verification: @overview.PendingEmail. <a href="/profile#email">Review email change</a>.</p> }
+            <ul class="attention-list">
+                @foreach (var bill in overview.Bills)
+                {
+                    <li><a href="@($"/billing/invoices/{bill.Id}")">View bill #@bill.Id and payment instructions</a>
+                        @if (bill.DueOn is { } due) { <span> · Pay by @due.ToString("d MMM yyyy")</span> }
+                    </li>
+                }
+            </ul>
+            @if (overview.HasMoreBills) { <p><a href="/billing">View all bills</a></p> }
+            <p>Bank payments appear after confirmation and processing. A bill can remain open for an optional service even when membership is paid.</p>
+        </section>
+    }
+    else if (overview.Membership is { Active: true, IsRenewalGrace: false }) { <p>No payments or email changes need your attention.</p> }
+}
 <div class="overview-links">
     <a href="/services"><strong>Membership and services</strong><span>Review membership standing, coverage and service renewals.</span></a>
-    <a href="/billing"><strong>Bills and payments</strong><span>View bills, payment instructions and PDFs.</span></a>
+    <a href="/billing"><strong>Payments</strong><span>Review outstanding bills, balances and transaction history.</span></a>
     <a href="/profile"><strong>My details</strong><span>Keep your contact details and email address up to date.</span></a>
 </div>
+
+@code {
+    private PortalOverview? overview;
+    [CascadingParameter] private HttpContext HttpContext { get; set; } = null!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        overview = await Queries.Overview((await Authentication.GetAuthenticationStateAsync()).User, HttpContext.RequestAborted);
+    }
+}

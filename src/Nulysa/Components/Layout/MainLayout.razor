@@ -2,7 +2,7 @@
 @inject IConfiguration Configuration
 @inject NavigationManager Navigation
 
-<a class="skip-link" href="#main-content">Skip to content</a>
+<a class="skip-link" href="@(Navigation.Uri.Split('#')[0] + "#main-content")">Skip to content</a>
 <div class="navigation-container">
 <header class="site-header">
     <AuthorizeView>
@@ -43,8 +43,8 @@
                             <NavLink href="/" Match="NavLinkMatch.All">Overview</NavLink>
                             <NavLink href="/services">Membership &amp; services</NavLink>
                             <NavLink href="/billing">Payments</NavLink>
-                            <NavLink href="/balances">Balances</NavLink>
                             <NavLink href="/profile">My details</NavLink>
+                            <a href="/profile#communications">Communication preferences</a>
                         </nav>
                     }
                     <nav class="workspace-navigation" aria-label="Workspaces">

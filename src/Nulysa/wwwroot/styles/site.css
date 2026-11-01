@@ -140,11 +140,38 @@ dt { margin-top: .75rem; }
 .status-panel, .payment-instructions { padding: 1.25rem; margin: 1.25rem 0; border: 1px solid var(--nulysa-border); border-radius: var(--nulysa-radius); background: var(--nulysa-surface); }
 .status-panel p:last-child { margin-bottom: 0; }
 .payment-reference { font-family: ui-monospace, monospace; user-select: all; overflow-wrap: anywhere; }
+.success-notice { padding: 1rem; border: 1px solid var(--nulysa-focus); border-radius: var(--nulysa-radius); background: var(--nulysa-surface); }
+.danger-panel { padding: 1.25rem; margin: 1.5rem 0; border: 2px solid var(--nulysa-danger); border-radius: var(--nulysa-radius); background: var(--nulysa-surface); }
+.danger-panel h2, .danger-panel h3 { color: var(--nulysa-danger); }
+button.danger-action { background: var(--nulysa-surface); color: var(--nulysa-danger); border: 2px solid var(--nulysa-danger); }
+details { margin: .5rem 0; }
+summary { cursor: pointer; padding: .5rem 0; }
+section[id] { scroll-margin-top: 1rem; }
+.attention-list li { padding: .5rem 0; }
+.payment-panel { padding: 1.25rem; margin: 1.25rem 0; border: 1px solid var(--nulysa-border); border-radius: var(--nulysa-radius); background: var(--nulysa-surface); }
+.payment-panel > h2:first-child { margin-top: 0; }
+.payment-panel > summary { font-size: 1.3rem; font-weight: 700; }
+.payment-attention { border-inline-start: 5px solid var(--nulysa-focus); box-shadow: 0 0 0 1px var(--nulysa-focus); }
+.bill-summary { display: flex; justify-content: space-between; gap: 1.5rem; padding: 1rem 0; border-top: 1px solid var(--nulysa-border); }
+.bill-summary h3 { margin-top: 0; }
+.bill-summary p:last-child { margin-bottom: 0; }
+.bill-summary-actions { display: grid; align-content: start; gap: .5rem; flex-shrink: 0; }
+.balance-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr)); gap: 1rem; }
+.balance-cards > div { padding: 1rem; border: 1px solid var(--nulysa-border); border-radius: var(--nulysa-radius); }
+.balance-cards h3 { margin-top: 0; }
+.balance-amount { font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.balance-note { display: block; color: var(--nulysa-secondary); }
+.payment-tools { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: 1rem; align-items: start; }
+.payment-tools .payment-panel { margin: 0; }
+.section-pagination { display: flex; align-items: center; flex-wrap: wrap; gap: 1rem; margin-top: 1rem; }
+.section-pagination a { padding: .5rem; }
+.section-navigation a[aria-current="page"] { background: var(--nulysa-muted); color: var(--nulysa-text); font-weight: 650; }
 .overview-links { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: 1rem; max-width: 65rem; margin: 2rem 0; }
 .overview-links a { display: grid; gap: .5rem; padding: 1.5rem; background: var(--nulysa-surface); border: 1px solid var(--nulysa-border); border-radius: var(--nulysa-radius); text-decoration: none; }
 .overview-links a:hover { border-color: var(--nulysa-focus); }
 .overview-links span { color: var(--nulysa-secondary); }
 @media (max-width: 767px) {
+    .bill-summary { flex-direction: column; gap: .75rem; }
     .site-header { padding: 1rem; gap: .5rem 1rem; }
     .workspace-label { width: 100%; order: 3; font-size: .85rem; }
     .portal-shell { display: block; }

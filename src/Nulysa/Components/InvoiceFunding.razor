@@ -6,7 +6,7 @@
     <tbody>
     @foreach (var row in Invoice.Lines)
     {
-        <tr><td>@row.Line.Description<br />@row.Line.StartsOn.ToString("d MMM yyyy") – @row.Line.EndsOn.AddDays(-1).ToString("d MMM yyyy")</td><td>@row.Line.State</td><td>@row.Line.Amount.ToString("0.00")</td><td>@row.Held.ToString("0.00")</td><td>@row.Remaining.ToString("0.00")</td></tr>
+        <tr><td>@row.Line.Description<br />@row.Line.StartsOn.ToString("d MMM yyyy") – @row.Line.EndsOn.AddDays(-1).ToString("d MMM yyyy")</td><td>@Status(row)</td><td>@row.Line.Amount.ToString("0.00")</td><td>@row.Held.ToString("0.00")</td><td>@row.Remaining.ToString("0.00")</td></tr>
     }
     </tbody>
 </table>
@@ -14,4 +14,11 @@
 
 @code {
     [Parameter, EditorRequired] public InvoiceView Invoice { get; set; } = null!;
+    private static string Status(LineView row) => row.Line.State switch
+    {
+        LineState.Fulfilled => "Completed",
+        LineState.Expired => "Expired",
+        LineState.Cancelled => "Cancelled",
+        _ => row.Held > 0 ? "Partly funded" : "Awaiting payment"
+    };
 }

@@ -43,16 +43,18 @@ public sealed class MembershipFormTests : MembershipTest
         await using var app = await StartProvider();
         using var client = Client();
         await Login(client);
-        var empty = await client.GetStringAsync("billing/history");
+        var empty = await client.GetStringAsync("billing");
         Assert.Contains("Closing balance: 0.00 EUR", empty);
         Assert.DoesNotContain("@if", empty);
         Assert.DoesNotContain("showing a page", empty);
 
         await Run(commands, sp => sp.GetRequiredService<BillingCommands>().Import(new("test", "association", "statement-display", 100, "EUR",
             DateOnly.FromDateTime(Clock.Now.DateTime), view.Invoices[0].Reference)));
-        var paged = await client.GetStringAsync("billing/history?pageSize=1");
+        var paged = await client.GetStringAsync("billing?balance=allocated&pageSize=1");
         Assert.DoesNotContain("@if", paged);
         Assert.Contains("showing a page", paged);
+        Assert.Contains("Balance at end of this page", paged);
+        Assert.Contains(">Current balances</h2>", paged);
 
         using var administrator = Client();
         await Login(administrator, "board@example.test");
@@ -80,10 +82,15 @@ public sealed class MembershipFormTests : MembershipTest
         Assert.Contains("<h1>Membership and services</h1>", services);
         Assert.DoesNotContain("<h2>Issued bills</h2>", services);
         var bills = await client.GetStringAsync("billing");
-        Assert.Contains("<h1>Bills</h1>", bills);
+        Assert.Contains("<h1>Payments</h1>", bills);
         Assert.DoesNotContain("<h2>Billing intervals</h2>", bills);
-        Assert.Contains("<h1>Balances</h1>", await client.GetStringAsync("balances"));
-        Assert.Contains("<h1>Transaction history</h1>", await client.GetStringAsync("billing/history"));
+        Assert.Contains(">Current balances</h2>", bills);
+        Assert.DoesNotContain("<h3>Allocated to unfinished bills</h3>", bills);
+        Assert.Contains("class=\"balance-note\"", bills);
+        Assert.DoesNotContain("Available purchase balance", bills);
+        Assert.Contains(">Transaction history</h2>", bills);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("balances")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("billing/history")).StatusCode);
         var forbidden = await client.GetAsync($"billing/invoices/{otherView.Invoices[0].Invoice.Id}");
         Assert.Equal(HttpStatusCode.Forbidden, forbidden.StatusCode);
         Assert.DoesNotContain(otherView.Invoices[0].Reference, await forbidden.Content.ReadAsStringAsync());
@@ -133,6 +140,20 @@ public sealed class MembershipFormTests : MembershipTest
             ["Action.Key"] = Guid.NewGuid().ToString(),
             ["Action.Id"] = enrollment!.Value.ToString(),
             ["Action.Name"] = "stop"
+        }));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Null((await db.ServiceEnrollments.AsNoTracking().SingleAsync(x => x.Id == enrollment)).RenewalStoppedAt);
+        var review = await response.Content.ReadAsStringAsync();
+        var reviewToken = Regex.Match(review, "<input(?=[^>]*name=\"__RequestVerificationToken\")(?=[^>]*value=\"([^\"]+)\")[^>]*>").Groups[1].Value;
+        var key = Regex.Match(review, "<input(?=[^>]*name=\"Action.Key\")(?=[^>]*value=\"([^\"]+)\")[^>]*>").Groups[1].Value;
+        response = await member.PostAsync("services", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["_handler"] = "confirm-action",
+            ["__RequestVerificationToken"] = WebUtility.HtmlDecode(reviewToken),
+            ["Action.Key"] = key,
+            ["Action.Id"] = enrollment!.Value.ToString(),
+            ["Action.Name"] = "stop",
+            ["Action.Confirmed"] = "true"
         }));
         var stopped = await db.ServiceEnrollments.AsNoTracking().SingleAsync(x => x.Id == enrollment);
 
@@ -234,7 +255,7 @@ public sealed class MembershipFormTests : MembershipTest
         Assert.DoesNotContain("PasswordHash", html);
         Assert.True((await client.GetAsync("profile")).Headers.CacheControl?.NoStore);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsync("billing", new FormUrlEncodedContent([]))).StatusCode);
-        Assert.Contains("Issued bills", await client.GetStringAsync("billing"));
+        Assert.Contains("Outstanding bills", await client.GetStringAsync("billing"));
         Assert.Equal("/Account/AccessDenied", (await client.GetAsync("admin/payments")).Headers.Location!.AbsolutePath);
         Assert.Equal("/Account/AccessDenied", (await client.GetAsync("admin/billing-configuration")).Headers.Location!.AbsolutePath);
     }
@@ -301,12 +322,30 @@ public sealed class MembershipBrowserTests : MembershipTest
         await LoginPage(memberPage, Email);
         await memberPage.GetByRole(AriaRole.Link, new() { Name = "My details", Exact = true }).ClickAsync();
         await Assertions.Expect(memberPage).ToHaveTitleAsync("Member details — Synthetic Membership Association");
+        await memberPage.GetByLabel("Name", new() { Exact = true }).FillAsync("Unsaved draft name");
+        foreach (var (label, section) in new[] { ("Personal details", "personal"), ("Email", "email"), ("Communication preferences", "communications"), ("Account and privacy", "account") })
+        {
+            await memberPage.GetByRole(AriaRole.Navigation, new() { Name = "Account settings", Exact = true })
+                .GetByRole(AriaRole.Link, new() { Name = label, Exact = true }).ClickAsync();
+            await Assertions.Expect(memberPage).ToHaveURLAsync(root + "profile#" + section);
+            await Assertions.Expect(memberPage.Locator("section#" + section)).ToBeInViewportAsync();
+            await Assertions.Expect(memberPage.GetByLabel("Name", new() { Exact = true })).ToHaveValueAsync("Unsaved draft name");
+        }
         await memberPage.GetByLabel("Name", new() { Exact = true }).FillAsync("Changed Browser Name");
         await memberPage.GetByRole(AriaRole.Button, new() { Name = "Save details" }).ClickAsync();
         await Assertions.Expect(memberPage.GetByLabel("Name", new() { Exact = true })).ToHaveValueAsync("Changed Browser Name");
+        await Assertions.Expect(memberPage.GetByRole(AriaRole.Status)).ToHaveTextAsync("Personal details saved.");
+        await memberPage.GetByLabel("Email invoice PDFs").UncheckAsync();
+        await memberPage.GetByRole(AriaRole.Button, new() { Name = "Save communication preferences" }).ClickAsync();
+        await Assertions.Expect(memberPage.GetByRole(AriaRole.Status)).ToContainTextAsync("Communication preferences saved");
+        await Assertions.Expect(memberPage.GetByLabel("Email invoice PDFs")).Not.ToBeCheckedAsync();
+        await memberPage.SetViewportSizeAsync(375, 812);
+        Assert.True(await memberPage.EvaluateAsync<bool>("document.documentElement.scrollWidth <= innerWidth"));
+        await memberPage.SetViewportSizeAsync(1280, 800);
         await memberPage.GetByLabel("New email", new() { Exact = true }).FillAsync("browser-changed@example.test");
         await memberPage.GetByRole(AriaRole.Button, new() { Name = "Send verification to new address" }).ClickAsync();
         await Assertions.Expect(memberPage.GetByText("Awaiting verification: browser-changed@example.test")).ToBeVisibleAsync();
+        await Assertions.Expect(memberPage.GetByRole(AriaRole.Status)).ToContainTextAsync("Verification email queued");
         var change = await db.Deliveries.Where(x => x.UserId == id && x.Kind == MailKind.EmailChange).Select(x => x.Id).SingleAsync();
         await Run(commands, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(change));
         await memberPage.GotoAsync(Regex.Match(transport.Sent[^1].Text, @"https?://\S+").Value);

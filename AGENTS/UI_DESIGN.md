@@ -15,11 +15,12 @@ delivery slices; they are not instructions to implement future features now.
 
 The first UI foundation increment now implements the shared responsive shell,
 two light/dark themes, browser appearance preferences and a local stylesheet hook.
-See [implementation scope and configuration](../docs/ui.md). Task-specific page
-redesign has begun with distinct member services/bills/balances/history pages and
-authorised bill details. Homepage summaries, board workflows, expanded theme tokens
-and broader localisation/accessibility work remain later increments; this document
-describes the target, not completed UI1–UI4 scope.
+See [implementation scope and configuration](../docs/ui.md). The member slice now
+includes services and a unified Payments page, authorised bill details,
+homepage standing/attention summaries, compact bills/readable history, profile and
+invoice-email settings, action confirmations and success feedback. Board workflows,
+expanded theme tokens and broader localisation/accessibility work remain later
+increments; this document describes the target, not completed UI1–UI4 scope.
 
 ## 1. Goals and boundaries
 
@@ -106,10 +107,9 @@ its initial implementation remains read-only.
 
 - Use real links and durable URLs for pages and section tabs. Filters, sorting and
   pagination belong in query parameters where practical.
-- Preserve useful bookmarks and email links during page splits; decide aliases or
-  redirects explicitly. `/billing` and `/services` currently share a page; their
-  final routing is an implementation decision, not a reason to preserve one giant
-  screen.
+- `/services` handles membership/services; `/billing` is the single member Payments
+  page. Separate `/balances` and `/billing/history` routes were removed during
+  active development; no compatibility aliases or redirects are required.
 - Use breadcrumbs on deeper administration/member/payment/storage pages, not
   automatically on every shallow member page.
 - Returning from a record preserves the originating search/filter where practical.
@@ -215,6 +215,25 @@ Outstanding requests precede history; each bill has a detail view. Member-facing
 wording can use ordinary **Bills**, while preserving advance-payment/no-debt policy.
 Keep distinct billing groups/references/schedules rather than flattening everything
 into one payable total.
+
+Keep all money tasks on the Payments page, with this information flow:
+
+1. Prominent outstanding-bills box, showing all current requests without paging
+   them away when browsing history. Keep the no-debt distinction explicit.
+2. One current-balance summary: available billing credit, purchase balance when
+   enabled, and separately allocated funds. Do not repeat this summary in history.
+3. Secondary expandable deposit/transfer tools, when enabled.
+4. A previous-bills box, initially collapsed, with its own newest-first pagination
+   (default ten). Opening it through in-page navigation reveals the contents.
+5. A transaction-history box with a balance selector and independent newest-first
+   pagination (default ten rows). Calculate running balances chronologically before
+   reversing display order. Historical page-end balances are not current availability.
+
+Use separate URL parameters and in-section paging controls for the two histories.
+Paging one must not page the other or remove the outstanding requests/current
+balances above. Keep the page responsive and static SSR; independent list paging
+does not require making the whole page interactive. Invoice-email settings live
+under profile communication preferences, linked from Payments.
 
 Bill detail presents:
 
@@ -708,7 +727,7 @@ These do not reopen agreed direction or block foundation work:
   logo colours above are reference points, not an exclusive or exact-match UI palette.
 - Final CSS tokens/hooks, configuration names and stylesheet packaging, with a
   concise operator-facing example.
-- Routes/aliases and page splits preserving working links/account flows.
+- Route and page refinements; active development does not require old-link compatibility.
 - Initial translations and UI language/fallback details, without hard-coding a
   permanently Finnish/English-only model.
 - Final status wording and attention thresholds where existing policy leaves them

@@ -79,7 +79,8 @@ confirm the verification link printed by the worker (also spooled at
 always printed to the console; set `Mail__Transport=Smtp` plus `Mail__Host`,
 `Mail__Port` and `Mail__FromEmail` to send it as well.
 Approval queues password setup; `/profile` and `/resign` provide self-service.
-Use `/billing` for invoices/services and `/admin/payments` for bank review/exports.
+Use `/services` for membership/subscriptions, `/billing` for all member payments,
+balances and history, and `/admin/payments` for bank review/exports.
 Configure real prices and bank details before any deployment approvals; no production
 prices are seeded. Use synthetic data only. See the [S1 walkthrough](docs/membership.md)
 and [S2 walkthrough](docs/billing.md).

@@ -3,6 +3,7 @@
 @attribute [Authorize]
 @using Nulysa.Accounts
 @using Nulysa.Membership
+@using Nulysa.Billing
 @using System.ComponentModel.DataAnnotations
 @using System.Security.Claims
 @inject MembershipQueries Queries
@@ -11,6 +12,10 @@
 @inject AuthenticationStateProvider Authentication
 @inject NavigationManager Navigation
 @inject IConfiguration Configuration
+@inject MemberPortalQueries PortalQueries
+@inject BillingCommands Billing
+@inject Nulysa.Components.UiFeedback Feedback
+@inject Microsoft.Extensions.Options.IOptions<BillingOptions> Options
 
 <PageTitle>Member details — @Configuration["Association:Name"]</PageTitle>
 <h1>Member details</h1>
@@ -19,15 +24,24 @@
     <p>Member #@details.Id · Joined @details.JoinedOn · Login email: @details.Email</p>
     <p><a href="@(Id is null ? "/billing" : $"/admin/members/{details.Id}/billing")">Payment standing, invoices, coverage and services</a></p>
     @if (error is not null) { <p role="alert">@error</p> }
+    @if (notice is not null) { <p role="status" class="success-notice">@notice</p> }
     @if (details.PendingDeletionAt is null)
     {
+        <nav class="section-navigation" aria-label="Account settings">
+            <a href="@(PageUrl + "#personal")">Personal details</a><a href="@(PageUrl + "#email")">Email</a><a href="@(PageUrl + "#communications")">Communication preferences</a>
+            @if (Id is null) { <a href="@(PageUrl + "#account")">Account and privacy</a> }
+        </nav>
+        <section id="personal" aria-labelledby="personal-heading">
+        <h2 id="personal-heading">Personal details</h2>
         <EditForm Model="Input" method="post" FormName="profile" OnSubmit="Save">
             <DataAnnotationsValidator /><ValidationSummary />
             <Nulysa.Components.ProfileFields Input="Input!" Prefix="Input" />
             <button type="submit">Save details</button>
         </EditForm>
-        <h2>Change login email</h2>
-        <p>The current address remains in use until the new address is verified. Your identity and SSO subject will not change.</p>
+        </section>
+        <section id="email" aria-labelledby="email-heading">
+        <h2 id="email-heading">Change login email</h2>
+        <p>The current address remains in use until the new address is verified. Changing email does not create a new account or break SSO sign-in.</p>
         @if (details.PendingEmail is not null) { <p>Awaiting verification: @details.PendingEmail</p> }
         <EditForm Model="EmailInput" method="post" FormName="email" OnValidSubmit="ChangeEmail">
             <DataAnnotationsValidator /><ValidationSummary />
@@ -35,7 +49,34 @@
             <p><label for="new-email">New email</label> <InputText id="new-email" @bind-Value="EmailInput.Email" type="email" required maxlength="256" /></p>
             <button type="submit">Send verification to new address</button>
         </EditForm>
-        @if (Id is null) { <p><a href="/resign">Resign and request account deletion</a></p> }
+        </section>
+        <section id="communications" aria-labelledby="communications-heading">
+            <h2 id="communications-heading">Communication preferences</h2>
+            <p>Required security, membership, grace and deletion notices cannot be disabled. Bills remain available in the portal even if you turn off invoice emails.</p>
+            @if (emailSettings is not null)
+            {
+                <EditForm Model="EmailPreference" method="post" FormName="profile-invoice-preference" OnValidSubmit="SavePreference">
+                    <DataAnnotationsValidator /><ValidationSummary />
+                    <input type="hidden" name="EmailPreference.Key" value="@EmailPreference!.Key" />
+                    <p><InputCheckbox id="email-invoices" @bind-Value="EmailPreference.Enabled" /> <label for="email-invoices">Email invoice PDFs</label></p>
+                    <button>Save communication preferences</button>
+                </EditForm>
+            }
+            else { <p>No billing email preference is available for this account.</p> }
+        </section>
+        @if (Id is null)
+        {
+            <section id="account" aria-labelledby="account-heading">
+                <h2 id="account-heading">Account and privacy</h2>
+                <p><a href="/Account/ForgotPassword">Reset your password</a> · <a href="/Appearance">Appearance settings</a></p>
+                <p>For personal-data access, correction or erasure requests, contact the association's administrators.
+                    @if (!string.IsNullOrWhiteSpace(Options.Value.ContactEmail)) { <a href="@($"mailto:{Options.Value.ContactEmail}")">@Options.Value.ContactEmail</a> }
+                </p>
+                <div class="danger-panel"><h3>End your membership</h3><p>Resignation immediately blocks login and services and starts account deletion, even if you have paid for future time.</p>
+                    <a href="/resign">Resign and request account deletion</a>
+                </div>
+            </section>
+        }
     }
     else
     {
@@ -65,6 +106,7 @@ else
 }
 
 @code {
+    private string PageUrl => Navigation.Uri.Split('#')[0];
     public sealed class EmailChangeInput
     {
         [Required, EmailAddress, StringLength(256)] public string Email { get; set; } = "";
@@ -77,32 +119,64 @@ else
         [Range(typeof(bool), "true", "true", ErrorMessage = "Confirm the membership action.")] public bool Confirmed { get; set; }
         public Guid Operation { get; set; } = Guid.NewGuid();
     }
+    public sealed class InvoicePreferenceInput
+    {
+        public Guid Key { get; set; } = Guid.NewGuid();
+        public bool Enabled { get; set; }
+    }
     [Parameter] public long? Id { get; set; }
     [SupplyParameterFromForm(FormName = "profile")] public ProfileInput? Input { get; set; }
     [SupplyParameterFromForm(FormName = "email")] public EmailChangeInput? EmailInput { get; set; }
     [SupplyParameterFromForm(FormName = "lifecycle")] public LifecycleInput? Lifecycle { get; set; }
+    [SupplyParameterFromForm(FormName = "profile-invoice-preference")] public InvoicePreferenceInput? EmailPreference { get; set; }
     [CascadingParameter] private HttpContext HttpContext { get; set; } = null!;
     private MemberDetails? details;
     private ClaimsPrincipal actor = null!;
     private string? error;
+    private string? notice;
+    private InvoiceEmailSettings? emailSettings;
     protected override async Task OnInitializedAsync()
     {
         actor = (await Authentication.GetAuthenticationStateAsync()).User;
+        notice = Feedback.Read(HttpContext);
         if (Id is not null && !await Queries.IsAdministrator(actor)) { HttpContext.Response.StatusCode = 403; return; }
         details = await Queries.Details(actor, Id ?? Authority.Id(actor));
         if (details is null) return;
+        emailSettings = await PortalQueries.EmailSettings(actor, details.Id, HttpContext.RequestAborted);
+        EmailPreference ??= new() { Enabled = emailSettings?.Enabled ?? true };
         Input ??= details.Profile; EmailInput ??= new(); Lifecycle ??= new() { Action = details.PendingDeletionAt is null ? "terminate" : "restore" };
     }
     private async Task Save()
     {
         if (details is null) return;
-        try { await Accounts.UpdateProfile(actor, details!.Id, Input!); Navigation.NavigateTo(Navigation.Uri); }
+        try
+        {
+            await Accounts.UpdateProfile(actor, details!.Id, Input!);
+            Feedback.Save(HttpContext, "Personal details saved.");
+            Navigation.NavigateTo(Navigation.Uri);
+        }
         catch (ValidationException ex) { error = ex.Message; }
     }
     private async Task ChangeEmail()
     {
         if (details is null) return;
-        try { await Accounts.RequestEmailChange(actor, details!.Id, EmailInput!.Email, EmailInput.Operation); Navigation.NavigateTo(Navigation.Uri); }
+        try
+        {
+            await Accounts.RequestEmailChange(actor, details!.Id, EmailInput!.Email, EmailInput.Operation);
+            Feedback.Save(HttpContext, "Verification email queued. Your current address stays in use until verification succeeds.");
+            Navigation.NavigateTo(Navigation.Uri);
+        }
+        catch (ValidationException ex) { error = ex.Message; }
+    }
+    private async Task SavePreference()
+    {
+        if (emailSettings is null) return;
+        try
+        {
+            await Billing.SetEmailInvoices(actor, emailSettings.AccountId, EmailPreference!.Enabled, EmailPreference.Key);
+            Feedback.Save(HttpContext, "Communication preferences saved. Required notices remain enabled.");
+            Navigation.NavigateTo(Navigation.Uri);
+        }
         catch (ValidationException ex) { error = ex.Message; }
     }
     private async Task ChangeLifecycle()
