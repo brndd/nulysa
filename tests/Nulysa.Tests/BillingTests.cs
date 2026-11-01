@@ -1691,6 +1691,25 @@ public sealed class BillingTests : MembershipTest
     }
 
     [Fact]
+    public async Task Bill_detail_queries_enforce_ownership_and_return_current_funding()
+    {
+        var board = await Board();
+        await using var app = CommandsApp();
+        var id = await Admit(app, board);
+        var other = await Admit(app, board, "other@example.test");
+        var view = await View(app, board, id);
+        var invoiceId = view.Invoices[0].Invoice.Id;
+
+        var detail = await Run(app, sp => sp.GetRequiredService<BillingQueries>().InvoiceForMember(Actor(id), invoiceId));
+
+        Assert.Equal(view.Invoices[0].Reference, detail.Reference);
+        Assert.Equal(view.Invoices[0].Remaining, detail.Remaining);
+        Assert.NotEmpty(detail.Lines);
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Run(app, sp => sp.GetRequiredService<BillingQueries>().InvoiceForMember(Actor(other), invoiceId)));
+        await Assert.ThrowsAsync<KeyNotFoundException>(() => Run(app, sp => sp.GetRequiredService<BillingQueries>().InvoiceForMember(Actor(id), long.MaxValue)));
+    }
+
+    [Fact]
     public async Task Typst_renders_generic_barcode_invoice_and_mail_checks_revision_preference_and_ownership()
     {
         Settings["Billing:Iban"] = "FI2112345600000785";

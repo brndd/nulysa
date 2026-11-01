@@ -22,6 +22,9 @@ public sealed class AppearanceBrowserTests : OidcTest
         await page.GetByLabel("Password", new() { Exact = true }).FillAsync(Password);
         await page.GetByRole(AriaRole.Button, new() { Name = "Log in", Exact = true }).ClickAsync();
         await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Member portal" })).ToBeVisibleAsync();
+        var heading = page.GetByRole(AriaRole.Heading, new() { Name = "Member portal" });
+        await Assertions.Expect(heading).ToBeFocusedAsync();
+        await Assertions.Expect(heading).ToHaveCSSAsync("outline-style", "none");
         var menu = page.GetByRole(AriaRole.Button, new() { Name = "Menu", Exact = true });
         await Assertions.Expect(page.Locator(".site-header .navigation-toggle")).ToBeVisibleAsync();
         await Assertions.Expect(menu.Locator("svg[aria-hidden='true']")).ToHaveCountAsync(1);
@@ -32,6 +35,7 @@ public sealed class AppearanceBrowserTests : OidcTest
         await Assertions.Expect(page.GetByRole(AriaRole.Navigation, new() { Name = "Member self-service" })).ToBeVisibleAsync();
         await menu.PressAsync("Escape");
         await Assertions.Expect(menu).ToBeFocusedAsync();
+        await Assertions.Expect(menu).ToHaveCSSAsync("outline-style", "solid");
         await Assertions.Expect(menu).ToHaveAttributeAsync("aria-expanded", "false");
 
         foreach (var theme in new[] { "default", "tampere-hacklab" })
@@ -67,6 +71,9 @@ public sealed class AppearanceBrowserTests : OidcTest
         await menu.ClickAsync();
         await page.GetByRole(AriaRole.Link, new() { Name = "My details", Exact = true }).First.ClickAsync();
         await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Member details", Exact = true })).ToBeVisibleAsync();
+        var detailsHeading = page.GetByRole(AriaRole.Heading, new() { Name = "Member details", Exact = true });
+        await Assertions.Expect(detailsHeading).ToBeFocusedAsync();
+        await Assertions.Expect(detailsHeading).ToHaveCSSAsync("outline-style", "none");
         await Assertions.Expect(menu).ToHaveAttributeAsync("aria-expanded", "false");
         await page.SetViewportSizeAsync(1280, 800);
         await Assertions.Expect(menu).ToBeHiddenAsync();

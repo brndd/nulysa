@@ -1,5 +1,7 @@
 @page "/billing"
 @page "/services"
+@page "/balances"
+@page "/billing/history"
 @page "/admin/members/{UserId:long}/billing"
 @attribute [Authorize]
 @using System.ComponentModel.DataAnnotations
@@ -11,56 +13,90 @@
 @inject BillingCommands Commands
 @inject AuthenticationStateProvider Authentication
 @inject NavigationManager Navigation
+@inject IConfiguration Configuration
 @inject Microsoft.Extensions.Options.IOptions<BillingOptions> Options
 
-<PageTitle>Payments and services</PageTitle>
-<h1>Payments and services</h1>
+<PageTitle>@Title</PageTitle>
+<h1>@Title</h1>
+@if (UserId is null)
+{
+    <nav class="section-navigation" aria-label="Membership and payments">
+        <NavLink href="/services">Membership &amp; services</NavLink>
+        <NavLink href="/billing" Match="NavLinkMatch.All">Bills</NavLink>
+        <NavLink href="/balances">Balances</NavLink>
+        <NavLink href="/billing/history">Transaction history</NavLink>
+    </nav>
+}
 @if (error is not null) { <p role="alert">@error</p> }
 @if (view is not null)
 {
-    <p>Member #@view.UserId · Financial account #@view.AccountId</p>
-    <p><strong>@view.Membership.Description</strong> @if (view.Membership.Until is { } until) { <span>until @until</span> }</p>
-    <p>Unpaid requests expire; they are not debt. Period end dates are exclusive.</p>
+    @if (UserId is not null) { <p>Member #@view.UserId · Financial account #@view.AccountId</p> }
+    <div class="status-panel">
+        <strong>Membership: @view.Membership.Description</strong>
+        @if (view.Membership.Until is { } until) { <p>This standing applies through @until.AddDays(-1).ToString("d MMM yyyy").</p> }
+        @if (!view.Membership.Active) { <p>You are still a member. Membership billing is paused. <a href="/services">Review your membership return options</a>.</p> }
+    </div>
+    @if (ShowBalances)
+    {
     <dl><dt>Available billing credit</dt><dd>@Money(view.Balances.BillingCredit) EUR — automatically used for recurring bills</dd>
-        <dt>Available purchase balance</dt><dd>@Money(view.Balances.PurchaseBalance) EUR</dd><dt>Held for unfinished purchases</dt><dd>@Money(view.Balances.Held) EUR</dd></dl>
-    @if (!view.Membership.Active)
+        @if (Options.Value.PurchaseBalanceEnabled) { <dt>Available purchase balance</dt><dd>@Money(view.Balances.PurchaseBalance) EUR — for explicit purchases, not automatically used for bills</dd> }
+        <dt>Allocated to unfinished bills</dt><dd>@Money(view.Balances.Held) EUR — already committed, not available to transfer</dd></dl>
+    }
+    @if (ShowServices && !view.Membership.Active)
     {
         <EditForm Model="Action" method="post" FormName="billing-action" OnSubmit="Submit">
             <input type="hidden" name="Action.Key" value="@Action!.Key" /><button name="Action.Name" value="resume">Request membership return period</button>
         </EditForm>
         @if (!Options.Value.AutomaticMembershipReactivation) { <p>An administrator must approve the return request.</p> }
     }
-    @if (Options.Value.PurchaseBalanceEnabled)
+    @if (ShowBalances && Options.Value.PurchaseBalanceEnabled)
     {
-        <p>Deliberate purchase deposit reference: <strong>@view.DepositReference</strong>. Deposits become available only after bank confirmation; they do not buy services automatically.</p>
+        <h2>Add purchase funds</h2>
+        <dl><dt>Recipient</dt><dd>@Configuration["Association:Name"]</dd>
+            <dt>IBAN</dt><dd class="payment-reference">@Options.Value.Iban</dd>
+            <dt>Purchase-deposit reference</dt><dd class="payment-reference">@view.DepositReference</dd></dl>
+        <p>Use this reference only for deliberate purchase deposits, not to pay a bill. Deposits become available after bank confirmation; they do not buy services or reserve storage automatically.</p>
+        <h2>Transfer available funds</h2>
         <EditForm Model="Transfer" method="post" FormName="transfer" OnValidSubmit="TransferFunds">
             <DataAnnotationsValidator /><ValidationSummary /><input type="hidden" name="Transfer.Key" value="@Transfer!.Key" />
             <p><label for="transfer-amount">Amount (EUR)</label> <InputNumber id="transfer-amount" @bind-Value="Transfer.Amount" step="0.01" /></p>
-            <p><InputCheckbox id="transfer-direction" @bind-Value="Transfer.ToPurchase" /> <label for="transfer-direction">Move billing credit to purchase balance (unchecked: purchase balance to billing credit)</label></p>
+            <p><label for="transfer-direction">From / to</label>
+                <InputSelect id="transfer-direction" @bind-Value="Transfer.ToPurchase">
+                    <option value="false">Purchase balance → billing credit</option>
+                    <option value="true">Billing credit → purchase balance</option>
+                </InputSelect></p>
             <p>Moving money into billing credit immediately funds valid recurring bills. Held or spent money cannot be transferred back.</p>
             <button>Transfer available funds</button>
         </EditForm>
     }
+    @if (ShowBills)
+    {
     <EditForm Model="Preference" method="post" FormName="invoice-preference" OnSubmit="SavePreference">
         <input type="hidden" name="Preference.Key" value="@Preference!.Key" />
         <InputCheckbox id="email-invoices" @bind-Value="Preference.Enabled" /> <label for="email-invoices">Email invoice PDFs</label> <button>Save preference</button>
     </EditForm>
-    <h2>Issued payment requests</h2>
-    @foreach (var invoice in view.Invoices)
+    <h2>Issued bills</h2>
+    <p>Unpaid requests expire; they are not debt. Membership and optional services are funded independently.</p>
+    @if (view.Invoices.Count == 0) { <p>No bills have been issued.</p> }
+    @foreach (var invoice in view.Invoices.OrderBy(x => x.Invoice.ClosedAt is not null).ThenBy(x => x.Invoice.DueOn))
     {
         <section>
             <h3>Invoice #@invoice.Invoice.Id — @(invoice.Invoice.ClosedAt is null ? "Open" : "Closed")</h3>
+            <p><a href="@($"/billing/invoices/{invoice.Invoice.Id}")">View bill and payment instructions</a></p>
             <p><a href="@($"/billing/invoices/{invoice.Invoice.Id}/pdf")">Download current PDF</a> · Reference: @invoice.Reference @if (invoice.Invoice.DueOn is { } due) { <span>· Pay by @due</span> }</p>
-            <table><caption>Invoice #@invoice.Invoice.Id funding</caption><thead><tr><th>Purchase / period</th><th>Status</th><th>Charge EUR</th><th>Held EUR</th><th>Remaining EUR</th></tr></thead><tbody>
-            @foreach (var row in invoice.Lines) { <tr><td>#@row.Line.Id @row.Line.Description · @row.Line.StartsOn–@row.Line.EndsOn</td><td>@row.Line.State</td><td>@Money(row.Line.Amount)</td><td>@Money(row.Held)</td><td>@Money(row.Remaining)</td></tr> }
-            </tbody></table><p>Completed: @Money(invoice.Paid) EUR · Held: @Money(invoice.Held) EUR · Remaining: <strong>@Money(invoice.Remaining) EUR</strong></p>
+            <Nulysa.Components.InvoiceFunding Invoice="invoice" />
         </section>
     }
+    }
+    @if (ShowServices)
+    {
     <h2>Services</h2>
     @foreach (var subscription in view.Subscriptions)
     {
         <section><h3>@subscription.Name</h3>
-            <p>@subscription.Standing.Description · until @subscription.Standing.Until</p>
+            <p>@subscription.Standing.Description
+                @if (subscription.Standing.Until is { } end) { <span>through @end.AddDays(-1).ToString("d MMM yyyy")</span> }
+            </p>
             <EditForm Model="Action" method="post" FormName="@($"stop-{subscription.Enrollment.ServiceDefinitionId}")" OnSubmit="Submit">
                 <input type="hidden" name="Action.Key" value="@Action!.Key" /><input type="hidden" name="Action.Id" value="@subscription.Enrollment.Id" />
                 <button name="Action.Name" value="stop">Stop renewal; keep remaining covered time</button>
@@ -99,6 +135,10 @@
     <h2>Forecasts — not issued invoices</h2>
     <ul>@foreach (var forecast in view.Forecasts) { <li>@forecast.Description · @forecast.Start–@forecast.End · @Money(forecast.Amount) EUR · @forecast.Months months</li> }</ul>
     <h2>Coverage</h2><ul>@foreach (var coverage in view.Coverage.OrderByDescending(x => x.StartsOn)) { <li>@coverage.Benefit @(view.Services.SingleOrDefault(x => x.Id == coverage.ServiceDefinitionId)?.Name) · @coverage.StartsOn–@coverage.EndsOn · @coverage.Source</li> }</ul>
+    <p>Coverage and forecast period end dates above are exclusive.</p>
+    }
+    @if (ShowHistory)
+    {
     <h2>Balance statements</h2>
     <p>Running statements are derived from the immutable journal. Transfers appear in both available balances; held/funding movements are kept separate.</p>
     @foreach (var statement in view.Statements)
@@ -111,7 +151,9 @@
         if (!showStatement) { continue; }
 
         <h3>@StatementTitle(statement.Balance)</h3>
-        <p>Closing balance: @Money(statement.ClosingBalance) EUR@if (statement.HasMore) { <span> · showing a page; administrators can export the full journal from Payments and accounting</span> }</p>
+        <p>Closing balance: @Money(statement.ClosingBalance) EUR
+            @if (statement.HasMore) { <span> · showing a page; administrators can export the full journal from Payments and accounting</span> }
+        </p>
         <table><thead><tr><th>Effective</th><th>Recorded</th><th>Description</th><th>Amount EUR</th><th>Running balance EUR</th><th>Source</th></tr></thead><tbody>
         @foreach (var line in statement.Lines)
         {
@@ -135,11 +177,18 @@
             @if (view.Statements.Any(x => x.HasMore)) { <a href="@Navigation.GetUriWithQueryParameter("page", Page + 1)">Next</a> }
         </p>
     }
+    }
     @if (board) { <p><a href="@($"/admin/billing/{view.AccountId}")">Financial adjustments and one-off invoices</a></p> }
 }
 else { <p>No billing account is available.</p> }
 
 @code {
+    private string Path => Navigation.ToBaseRelativePath(Navigation.Uri).Split('?', '#')[0].Trim('/').ToLowerInvariant();
+    private bool ShowServices => UserId is not null || Path == "services";
+    private bool ShowBills => UserId is not null || Path == "billing";
+    private bool ShowBalances => UserId is not null || Path == "balances";
+    private bool ShowHistory => UserId is not null || Path == "billing/history";
+    private string Title => UserId is not null ? "Payments and services" : ShowServices ? "Membership and services" : ShowBalances ? "Balances" : ShowHistory ? "Transaction history" : "Bills";
     public sealed class ActionInput { public Guid Key { get; set; } = Guid.NewGuid(); public string Name { get; set; } = ""; public long Id { get; set; } public int Months { get; set; } = 1; public bool Grant { get; set; } }
     public sealed class TransferInput { public Guid Key { get; set; } = Guid.NewGuid(); [Range(typeof(decimal), "0.01", "999999999")] public decimal Amount { get; set; } public bool ToPurchase { get; set; } }
     public sealed class PreferenceInput { public Guid Key { get; set; } = Guid.NewGuid(); public bool Enabled { get; set; } }
@@ -154,7 +203,14 @@ else { <p>No billing account is available.</p> }
     protected override async Task OnInitializedAsync()
     {
         actor = (await Authentication.GetAuthenticationStateAsync()).User;
-        try { view = await Queries.Member(actor, UserId ?? Authority.Id(actor), skip: (Page - 1) * PageSize, take: PageSize); services = await Queries.Services(actor); }
+        Page = Math.Clamp(Page, 1, 1_000_000);
+        PageSize = Math.Clamp(PageSize, 1, 100);
+        try
+        {
+            view = await Queries.Member(actor, UserId ?? Authority.Id(actor), skip: (Page - 1) * PageSize, take: PageSize);
+            if (ShowServices)
+                services = await Queries.Services(actor);
+        }
         catch (UnauthorizedAccessException) { HttpContext.Response.StatusCode = 403; return; }
         board = HttpContext.User.IsInRole("Administrator");
         Action ??= new(); Transfer ??= new(); Preference ??= new() { Enabled = view?.EmailInvoices ?? true };

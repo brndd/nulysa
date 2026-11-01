@@ -20,6 +20,16 @@ and remaining deliverables are in [the UI design](../AGENTS/UI_DESIGN.md).
   global interactive circuit. Small local JavaScript handles native-control colour
   mode and mobile navigation across enhanced navigation.
 - Basic styling of existing forms/tables and a simpler portal landing page.
+- The first member-task increment separates `/services` (membership, subscriptions,
+  intervals and forecasts), `/billing` (bills), `/balances` (available/allocated
+  funds, deposits and explicit transfers) and `/billing/history` (paged statements).
+  Existing `/billing` and `/services` links remain valid but now open distinct tasks.
+- `/billing/invoices/{id}` provides an authorised bill-detail view, item funding,
+  bank-transfer instructions for open remaining amounts and PDF access. Closed or
+  fully funded bills do not request payment. Displayed bill periods include their
+  final day; domain dates remain exclusive.
+- The board's existing `/admin/members/{id}/billing` combined view remains available
+  until its separate workflow redesign. All writes still use existing commands.
 
 The themes use the confirmed logo colours `#000000` and `#F9FB4C` as references,
 not an exclusive palette. The light variant deliberately adjusts yellow. No logo
@@ -90,9 +100,12 @@ tests cover all four theme/mode combinations, OS mode changes, mobile menu/keybo
 dismissal, enhanced navigation, narrow-page overflow and no-script appearance forms.
 Existing membership and billing browser journeys are retained.
 
-UI2 will split member billing/services tasks and add actual standing/action-needed
-summaries. UI3 will reorganise board workflows and replace numeric-ID-oriented
+UI2 has begun with the task/page split and bill details. Actual homepage
+standing/action-needed summaries, further profile/preferences work and more compact
+bill/history presentation remain. The existing aggregate billing query still loads
+the account's financial facts; page separation is not a claim of new query-level
+pagination or a performance rewrite. UI3 will reorganise board workflows and replace numeric-ID-oriented
 operations. UI4 completes broader accessibility/localisation/visual validation;
 basic tests here are not a WCAG compliance claim. Existing pages still use English,
-retain their original task structure and may need page-specific mobile refinements.
+and administration/history may need further task and mobile refinements.
 Communications, access/training and interactive storage remain their later slices.

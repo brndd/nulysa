@@ -13,4 +13,4 @@
     <p>System follows your device's light or dark preference.</p>
     <button type="submit">Save appearance</button>
 </form>
-<p><a href="/">Return to portal</a> · <a href="/Account/Login">Log in</a></p>
+<p><a href="/">Return to portal</a>@if (User.Identity?.IsAuthenticated != true) { <span> · <a href="/Account/Login">Log in</a></span> }</p>

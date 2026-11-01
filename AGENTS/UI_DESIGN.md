@@ -16,8 +16,10 @@ delivery slices; they are not instructions to implement future features now.
 The first UI foundation increment now implements the shared responsive shell,
 two light/dark themes, browser appearance preferences and a local stylesheet hook.
 See [implementation scope and configuration](../docs/ui.md). Task-specific page
-redesign, expanded theme tokens and broader localisation/accessibility work remain
-later increments; this document describes the target, not completed UI1–UI4 scope.
+redesign has begun with distinct member services/bills/balances/history pages and
+authorised bill details. Homepage summaries, board workflows, expanded theme tokens
+and broader localisation/accessibility work remain later increments; this document
+describes the target, not completed UI1–UI4 scope.
 
 ## 1. Goals and boundaries
 

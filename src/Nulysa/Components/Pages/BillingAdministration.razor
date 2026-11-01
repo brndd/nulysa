@@ -26,7 +26,9 @@
     @foreach (var statement in view.Statements)
     {
         <h3>@StatementTitle(statement.Balance)</h3>
-        <p>Closing balance: @statement.ClosingBalance.ToString("0.00") EUR@if (statement.HasMore) { <span> · showing a page</span> }</p>
+        <p>Closing balance: @statement.ClosingBalance.ToString("0.00") EUR
+            @if (statement.HasMore) { <span> · showing a page</span> }
+        </p>
         <table><thead><tr><th>Effective</th><th>Recorded</th><th>Description</th><th>Amount EUR</th><th>Running balance EUR</th><th>Source</th></tr></thead><tbody>
         @foreach (var line in statement.Lines)
         {
@@ -79,7 +81,7 @@
         <button>Apply reviewed adjustment</button>
     </EditForm>
     <h2>Discounts</h2><ul>@foreach (var discount in view.Discounts) { <li>#@discount.Id · fee #@discount.FeeDefinitionId · @discount.Kind @discount.Value · @discount.StartsOn–@discount.EndsOn · @(discount.WithdrawnAt is null ? "Current" : "Withdrawn")</li> }</ul>
-    <h2>Command history</h2><ul>@foreach (var operation in view.History) { <li>@operation.OccurredAt.ToString("u") · @operation.Kind · actor #@operation.ActorId · @operation.Reason · @operation.Id</li> }</ul>
+    <h2>Command history</h2><ul>@foreach (var operation in view.History) { <li>@operation.OccurredAt.ToString("u") · @operation.Kind · @(operation.ActorId is { } actorId ? $"actor #{actorId}" : "System") · @operation.Reason · @operation.Id</li> }</ul>
 }
 
 @code {

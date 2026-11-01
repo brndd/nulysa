@@ -90,6 +90,8 @@ body { margin: 0; font-family: system-ui, sans-serif; line-height: 1.6; }
 a { color: var(--nulysa-link); text-underline-offset: .18em; }
 a:hover { text-decoration-thickness: .15em; }
 :focus-visible { outline: 3px solid var(--nulysa-focus); outline-offset: 3px; }
+/* Navigation focuses the heading for assistive technology, not as a control. */
+h1[tabindex="-1"]:focus { outline: none; }
 h1 { font-size: clamp(1.8rem, 3vw, 2.3rem); margin-bottom: 1.25rem; font-weight: 700; }
 h2 { font-size: 1.4rem; margin: 2rem 0 1rem; }
 h3 { font-size: 1.15rem; margin: 1.5rem 0 .75rem; }
@@ -132,6 +134,12 @@ th { background: var(--nulysa-muted); text-align: left; }
 caption { color: var(--nulysa-secondary); caption-side: top; }
 dt { margin-top: .75rem; }
 .page-intro { color: var(--nulysa-secondary); max-width: 42rem; }
+.section-navigation { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1.5rem; }
+.section-navigation a { padding: .6rem .85rem; border: 1px solid var(--nulysa-border); border-radius: var(--nulysa-radius); text-decoration: none; }
+.section-navigation a.active { background: var(--nulysa-muted); color: var(--nulysa-text); font-weight: 650; }
+.status-panel, .payment-instructions { padding: 1.25rem; margin: 1.25rem 0; border: 1px solid var(--nulysa-border); border-radius: var(--nulysa-radius); background: var(--nulysa-surface); }
+.status-panel p:last-child { margin-bottom: 0; }
+.payment-reference { font-family: ui-monospace, monospace; user-select: all; overflow-wrap: anywhere; }
 .overview-links { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: 1rem; max-width: 65rem; margin: 2rem 0; }
 .overview-links a { display: grid; gap: .5rem; padding: 1.5rem; background: var(--nulysa-surface); border: 1px solid var(--nulysa-border); border-radius: var(--nulysa-radius); text-decoration: none; }
 .overview-links a:hover { border-color: var(--nulysa-focus); }

@@ -1,0 +1,17 @@
+@using Nulysa.Billing
+
+<table tabindex="0" aria-label="Invoice funding details">
+    <caption>Invoice #@Invoice.Invoice.Id funding · periods include both displayed dates</caption>
+    <thead><tr><th scope="col">Purchase / period</th><th scope="col">Status</th><th scope="col">Charge EUR</th><th scope="col">Allocated EUR</th><th scope="col">Remaining EUR</th></tr></thead>
+    <tbody>
+    @foreach (var row in Invoice.Lines)
+    {
+        <tr><td>@row.Line.Description<br />@row.Line.StartsOn.ToString("d MMM yyyy") – @row.Line.EndsOn.AddDays(-1).ToString("d MMM yyyy")</td><td>@row.Line.State</td><td>@row.Line.Amount.ToString("0.00")</td><td>@row.Held.ToString("0.00")</td><td>@row.Remaining.ToString("0.00")</td></tr>
+    }
+    </tbody>
+</table>
+<p>Completed: @Invoice.Paid.ToString("0.00") EUR · Allocated: @Invoice.Held.ToString("0.00") EUR · Remaining: <strong>@Invoice.Remaining.ToString("0.00") EUR</strong></p>
+
+@code {
+    [Parameter, EditorRequired] public InvoiceView Invoice { get; set; } = null!;
+}

@@ -1,0 +1,50 @@
+@page "/billing/invoices/{InvoiceId:long}"
+@attribute [Authorize]
+@using Nulysa.Billing
+@inject BillingQueries Queries
+@inject AuthenticationStateProvider Authentication
+@inject IConfiguration Configuration
+@inject Microsoft.Extensions.Options.IOptions<BillingOptions> Options
+
+<PageTitle>Bill details</PageTitle>
+<h1>Bill details</h1>
+<p><a href="/billing">Back to bills</a> · <a href="/services">Membership and services</a></p>
+@if (error is not null) { <p role="alert">@error</p> }
+@if (invoice is not null)
+{
+    <h2>Invoice #@invoice.Invoice.Id</h2>
+    <p>@(invoice.Invoice.ClosedAt is null ? "Open payment request" : "Closed payment request")</p>
+    <InvoiceFunding Invoice="invoice" />
+    @if (invoice.Invoice.ClosedAt is null && invoice.Remaining > 0)
+    {
+        <section class="payment-instructions" aria-labelledby="payment-heading">
+            <h2 id="payment-heading">Pay by bank transfer</h2>
+            <dl><dt>Recipient</dt><dd>@Configuration["Association:Name"]</dd>
+                <dt>IBAN</dt><dd class="payment-reference">@Options.Value.Iban</dd>
+                <dt>Reference</dt><dd class="payment-reference">@invoice.Reference</dd>
+                <dt>Remaining amount</dt><dd>@invoice.Remaining.ToString("0.00") EUR</dd>
+                @if (invoice.Invoice.DueOn is { } due) { <dt>Pay by</dt><dd>@due.ToString("d MMM yyyy")</dd> }
+            </dl>
+            <p>Use this bill's reference, not your purchase-deposit reference. Bank transfers appear after confirmation and processing; access may not update immediately.</p>
+            <p>Unpaid requests expire; they are not debt. A paid membership line remains paid even if another item is unfinished.</p>
+        </section>
+    }
+    else { <p>No payment is requested for this bill.</p> }
+    <p><a href="@($"/billing/invoices/{InvoiceId}/pdf")">Download current PDF</a></p>
+}
+
+@code {
+    [Parameter] public long InvoiceId { get; set; }
+    [CascadingParameter] private HttpContext HttpContext { get; set; } = null!;
+    private InvoiceView? invoice;
+    private string? error;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        invoice = null;
+        error = null;
+        try { invoice = await Queries.InvoiceForMember((await Authentication.GetAuthenticationStateAsync()).User, InvoiceId, HttpContext.RequestAborted); }
+        catch (UnauthorizedAccessException) { HttpContext.Response.StatusCode = 403; error = "You cannot view this bill."; }
+        catch (KeyNotFoundException) { HttpContext.Response.StatusCode = 404; error = "Bill not found."; }
+    }
+}

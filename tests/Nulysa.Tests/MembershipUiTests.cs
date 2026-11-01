@@ -13,6 +13,84 @@ namespace Nulysa.Tests;
 public sealed class MembershipFormTests : MembershipTest
 {
     [Fact]
+    public async Task Billing_history_labels_automatic_operations_as_System_and_preserves_actor_ids()
+    {
+        var board = await Board();
+        await using var commands = CommandsApp();
+        var id = await Admit(commands, board);
+        var view = (await Run(commands, sp => sp.GetRequiredService<BillingQueries>().Member(board, id)))!;
+        await Run(commands, sp => sp.GetRequiredService<BillingCommands>().SetEmailInvoices(board, view.AccountId, false, Guid.NewGuid()));
+        await using var app = await StartProvider();
+        using var administrator = Client();
+        await Login(administrator, "board@example.test");
+
+        var html = WebUtility.HtmlDecode(await administrator.GetStringAsync($"admin/billing/{view.AccountId}"));
+
+        Assert.Contains("admission · System · Initial membership request", html);
+        Assert.Contains($"actor #{Nulysa.Accounts.Authority.Id(board)}", html);
+        Assert.DoesNotContain("actor # ·", html);
+    }
+
+    [Fact]
+    public async Task Statement_paging_hints_render_conditionally_instead_of_exposing_Razor_source()
+    {
+        var board = await Board();
+        await using var commands = CommandsApp();
+        var id = await Admit(commands, board);
+        var token = await PasswordToken(commands, id);
+        await Run(commands, sp => sp.GetRequiredService<Nulysa.Accounts.AccountCommands>().SetPassword(id, token, Password));
+        var view = (await Run(commands, sp => sp.GetRequiredService<BillingQueries>().Member(board, id)))!;
+        await using var app = await StartProvider();
+        using var client = Client();
+        await Login(client);
+        var empty = await client.GetStringAsync("billing/history");
+        Assert.Contains("Closing balance: 0.00 EUR", empty);
+        Assert.DoesNotContain("@if", empty);
+        Assert.DoesNotContain("showing a page", empty);
+
+        await Run(commands, sp => sp.GetRequiredService<BillingCommands>().Import(new("test", "association", "statement-display", 100, "EUR",
+            DateOnly.FromDateTime(Clock.Now.DateTime), view.Invoices[0].Reference)));
+        var paged = await client.GetStringAsync("billing/history?pageSize=1");
+        Assert.DoesNotContain("@if", paged);
+        Assert.Contains("showing a page", paged);
+
+        using var administrator = Client();
+        await Login(administrator, "board@example.test");
+        var admin = await administrator.GetStringAsync($"admin/billing/{view.AccountId}");
+        Assert.Contains("Closing balance:", admin);
+        Assert.DoesNotContain("@if", admin);
+        Assert.DoesNotContain("showing a page", admin);
+    }
+
+    [Fact]
+    public async Task Member_tasks_are_separate_and_bill_routes_do_not_expose_another_members_details()
+    {
+        var board = await Board();
+        await using var commands = CommandsApp();
+        var id = await Admit(commands, board);
+        var other = await Admit(commands, board, "other@example.test");
+        var token = await PasswordToken(commands, id);
+        await Run(commands, sp => sp.GetRequiredService<Nulysa.Accounts.AccountCommands>().SetPassword(id, token, Password));
+        var otherView = (await Run(commands, sp => sp.GetRequiredService<BillingQueries>().Member(board, other)))!;
+        await using var app = await StartProvider();
+        using var client = Client();
+        await Login(client);
+
+        var services = await client.GetStringAsync("services");
+        Assert.Contains("<h1>Membership and services</h1>", services);
+        Assert.DoesNotContain("<h2>Issued bills</h2>", services);
+        var bills = await client.GetStringAsync("billing");
+        Assert.Contains("<h1>Bills</h1>", bills);
+        Assert.DoesNotContain("<h2>Billing intervals</h2>", bills);
+        Assert.Contains("<h1>Balances</h1>", await client.GetStringAsync("balances"));
+        Assert.Contains("<h1>Transaction history</h1>", await client.GetStringAsync("billing/history"));
+        var forbidden = await client.GetAsync($"billing/invoices/{otherView.Invoices[0].Invoice.Id}");
+        Assert.Equal(HttpStatusCode.Forbidden, forbidden.StatusCode);
+        Assert.DoesNotContain(otherView.Invoices[0].Reference, await forbidden.Content.ReadAsStringAsync());
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"billing/invoices/{long.MaxValue}")).StatusCode);
+    }
+
+    [Fact]
     public async Task Retired_subscriptions_keep_member_stop_and_administrator_removal_controls()
     {
         var board = await Board();
@@ -35,7 +113,7 @@ public sealed class MembershipFormTests : MembershipTest
         using var member = Client();
         await Login(member);
 
-        var html = await member.GetStringAsync("billing");
+        var html = await member.GetStringAsync("services");
 
         Assert.Contains("<h3>Retired door</h3>", html);
         Assert.Contains("Service Retired door", html);
@@ -48,7 +126,7 @@ public sealed class MembershipFormTests : MembershipTest
 
         Assert.Contains("Remove immediately", adminHtml);
         var antiforgery = Regex.Match(html, "<input(?=[^>]*name=\"__RequestVerificationToken\")(?=[^>]*value=\"([^\"]+)\")[^>]*>");
-        var response = await member.PostAsync("billing", new FormUrlEncodedContent(new Dictionary<string, string>
+        var response = await member.PostAsync("services", new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["_handler"] = $"stop-{service}",
             ["__RequestVerificationToken"] = WebUtility.HtmlDecode(antiforgery.Groups[1].Value),
@@ -156,7 +234,7 @@ public sealed class MembershipFormTests : MembershipTest
         Assert.DoesNotContain("PasswordHash", html);
         Assert.True((await client.GetAsync("profile")).Headers.CacheControl?.NoStore);
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsync("billing", new FormUrlEncodedContent([]))).StatusCode);
-        Assert.Contains("Issued payment requests", await client.GetStringAsync("billing"));
+        Assert.Contains("Issued bills", await client.GetStringAsync("billing"));
         Assert.Equal("/Account/AccessDenied", (await client.GetAsync("admin/payments")).Headers.Location!.AbsolutePath);
         Assert.Equal("/Account/AccessDenied", (await client.GetAsync("admin/billing-configuration")).Headers.Location!.AbsolutePath);
     }

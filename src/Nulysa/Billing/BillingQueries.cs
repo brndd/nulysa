@@ -40,6 +40,19 @@ public sealed record BillingView(long AccountId, long? UserId, string DepositRef
 
 public sealed class BillingQueries(AppDbContext db, AssociationClock clock, IOptions<BillingOptions> options)
 {
+    public async Task<InvoiceView> InvoiceForMember(ClaimsPrincipal actor, long invoiceId, CancellationToken ct = default)
+    {
+        var invoice = await db.Invoices.AsNoTracking().SingleOrDefaultAsync(x => x.Id == invoiceId, ct)
+            ?? throw new KeyNotFoundException("Bill not found.");
+        var account = await db.BillingAccounts.AsNoTracking().SingleAsync(x => x.Id == invoice.BillingAccountId, ct);
+        if (account.UserId is { } userId)
+            await Authority.RequireOwnerOrAdministrator(db, actor, userId, ct);
+        else
+            await Authority.RequireAdministrator(db, actor, ct);
+
+        return View(await BillingFacts.Load(db, account.Id, ct, options.Value.MembershipRenewalGraceDays), invoice);
+    }
+
     public async Task<BillingView?> Member(ClaimsPrincipal actor, long userId, int skip = 0, int take = 0, CancellationToken ct = default)
     {
         await Authority.RequireOwnerOrAdministrator(db, actor, userId, ct);

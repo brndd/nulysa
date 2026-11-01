@@ -25,6 +25,7 @@ public sealed class UiTests : OidcTest
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsync("/Appearance", new FormUrlEncodedContent([]))).StatusCode);
 
         var html = await client.GetStringAsync("/Appearance");
+        Assert.Contains("href=\"/Account/Login\"", html);
         var token = Regex.Match(html, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
         Assert.NotEmpty(token);
         var invalid = await client.PostAsync("/Appearance", new FormUrlEncodedContent(new Dictionary<string, string>
@@ -49,6 +50,8 @@ public sealed class UiTests : OidcTest
         Assert.Contains("Skip to content", portal);
         Assert.DoesNotContain("\"type\":\"server\"", portal);
         html = await client.GetStringAsync("/Appearance");
+        Assert.DoesNotContain("href=\"/Account/Login\"", html);
+        Assert.Contains("Return to portal", html);
         token = Regex.Match(html, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
         var reset = await client.PostAsync("/Appearance", new FormUrlEncodedContent(new Dictionary<string, string>
         {
