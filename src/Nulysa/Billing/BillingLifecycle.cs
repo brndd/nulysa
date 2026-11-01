@@ -1,5 +1,8 @@
 using System.ComponentModel.DataAnnotations;
+using System.Globalization;
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
@@ -33,9 +36,9 @@ public sealed partial class BillingCommands
 
         // A scan is a wake-up; logical purchase keys and persisted dates prevent replayed cycles.
         var operation = (await Operation(facts, Guid.NewGuid(), "due-work", new { on = clock.Today }, null, "Dated billing maintenance", ct))!;
-        await IssueDueRenewals(facts, operation, clock.Today, null, null, ct);
+        await IssueDueRenewals(facts, operation, clock.Today, null, ct);
 
-        await Expire(facts, operation, scheduler, ct);
+        await Expire(facts, operation, scheduler, ct, notifyInactiveWithoutLine: true);
         await AllocateCredit(facts, operation, clock.Today, ct);
         await Finish(facts, scheduler, true, ct);
 
@@ -53,7 +56,7 @@ public sealed partial class BillingCommands
         await tx.CommitAsync(ct);
     }
 
-    private async Task IssueDueRenewals(BillingFacts facts, BillingOperation operation, DateOnly on, DateOnly? through,
+    private async Task IssueDueRenewals(BillingFacts facts, BillingOperation operation, DateOnly on,
         long? groupId, CancellationToken ct)
     {
         foreach (var item in facts.Items.Where(x => x.EndedAt is null).OrderBy(x => x.MembershipId is null).ToList())
@@ -85,8 +88,6 @@ public sealed partial class BillingCommands
 
                 if (nextStart > on.AddDays(Settings.InvoiceLeadDays))
                     break;
-                if (through is { } limit && nextStart > limit)
-                    break;
 
                 var previousLine = facts.Lines.Where(x => x.RecurringItemId == item.Id).OrderByDescending(x => x.Id).FirstOrDefault();
                 var previousPeriodHasGap = previousLine is { State: LineState.Expired or LineState.Cancelled }
@@ -117,8 +118,10 @@ public sealed partial class BillingCommands
         }
     }
 
-    private async Task Expire(BillingFacts facts, BillingOperation operation, IScheduler scheduler, CancellationToken ct, HashSet<long>? preserved = null)
+    private async Task Expire(BillingFacts facts, BillingOperation operation, IScheduler scheduler, CancellationToken ct, HashSet<long>? preserved = null,
+        bool notifyInactiveWithoutLine = false)
     {
+        var hadOpenMembershipLine = facts.Lines.Any(x => x.Benefit == Benefit.Membership && x.State == LineState.Open);
         foreach (var line in facts.Lines.Where(x => x.State == LineState.Open).ToList())
         {
             if (preserved?.Contains(line.Id) == true)
@@ -164,6 +167,15 @@ public sealed partial class BillingCommands
                 Complete(facts, operation, line, null);
         }
 
+        // The open-line loop cannot notify a membership that never received a renewal line.
+        if (notifyInactiveWithoutLine
+            && !hadOpenMembershipLine
+            && facts.Account.UserId is { } userId
+            && facts.Membership(clock.Today) is { Active: false, InactiveSince: { } inactiveSince }
+            && !facts.Lines.Any(x => x.Benefit == Benefit.Membership && x.ExpiresOn == inactiveSince && x.ExpiryNotifiedAt is not null))
+            await mail.Add(scheduler, StableGuid($"membership-inactive:{facts.Account.Id}:{inactiveSince.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}"),
+                MailKind.MembershipInactive, userId, ct: ct);
+
         foreach (var enrollment in facts.Enrollments.Where(x => x.EndedAt is null).ToList())
         {
             if (facts.Lines.Any(x => x.ServiceEnrollmentId == enrollment.Id && preserved?.Contains(x.Id) == true))
@@ -177,11 +189,17 @@ public sealed partial class BillingCommands
             if (hasRemainingCoverage || hasValidInitial || !graceExpired)
                 continue;
 
-            var serviceFee = facts.Fees.Single(x => x.ServiceDefinitionId == enrollment.ServiceDefinitionId);
+            var serviceFee = facts.Fees.SingleOrDefault(x => x.ServiceDefinitionId == enrollment.ServiceDefinitionId);
             var endReason = enrollment.RenewalStoppedAt is not null ? "stopped"
-                : serviceFee.Retired ? "service-retired" : "nonpayment";
+                : serviceFee?.Retired == true ? "service-retired" : "nonpayment";
             EndService(facts, operation, enrollment, endReason, LineState.Expired);
         }
+    }
+
+    private static Guid StableGuid(string value)
+    {
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(value));
+        return new Guid(hash.AsSpan(0, 16));
     }
 
     private void EndService(BillingFacts facts, BillingOperation operation, ServiceEnrollment enrollment, string cause, LineState lineState)

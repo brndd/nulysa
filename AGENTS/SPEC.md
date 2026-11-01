@@ -566,7 +566,7 @@ bringing forward membership's grace or expiry.
 | --- | --- | --- |
 | Invoice sent | Due date minus 14 days | Invoice/payment notice. |
 | Invoice becomes overdue; grace begins | Day after due date | Grace-start notice; membership remains active. |
-| Grace ends | Due date plus 7 days | Grace-end notice; membership becomes inactive the following day and membership billing pauses. |
+| Grace ends | Due date plus 7 days (last grace day) | On the following day, send the inactive notice; membership becomes inactive and membership billing pauses. |
 | Membership terminated by administrator | Manual decision, not a timer | Mark account for deletion and send final warning; no separate retained terminated state. |
 
 Unfunded requests expire under the nonpayment rules without leaving collectible

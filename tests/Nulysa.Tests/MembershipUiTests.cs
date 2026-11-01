@@ -77,15 +77,56 @@ public sealed class MembershipFormTests : MembershipTest
         using var client = Client();
         await Login(client, "board@example.test");
         var html = await client.GetStringAsync("admin/billing-configuration?service=" + service);
+        string Value(string id) => Regex.Match(html, $"<input(?=[^>]*id=\"{id}\")(?=[^>]*value=\"([^\"]*)\")[^>]*>").Groups[1].Value;
 
-        Assert.Contains("value=\"door\"", html);
-        Assert.Contains("value=\"Door\"", html);
-        Assert.Contains("value=\"space\"", html);
-        Assert.Contains("value=\"21\"", html);
-        Assert.Contains("value=\"5\"", html);
-        Assert.Contains("value=\"7\"", html);
-        Assert.Contains("checked", html);
+        Assert.Equal(service.ToString(), Value("service-id"));
+        Assert.Equal("door", Value("service-code"));
+        Assert.Equal("Door", Value("service-name"));
+        Assert.Equal("space", Value("category"));
+        Assert.Equal("21", Value("free-days"));
+        Assert.Equal("5", Value("grace-days"));
+        Assert.Equal("7", Value("priority"));
+        Assert.Matches("<input(?=[^>]*id=\"service-id\")(?=[^>]*readonly)[^>]*>", html);
+        Assert.Matches("<input(?=[^>]*id=\"service-code\")(?=[^>]*readonly)[^>]*>", html);
+        Assert.Matches("<input(?=[^>]*id=\"self-subscribe\")(?=[^>]*checked)[^>]*>", html);
         Assert.Matches("<option[^>]*(value=\"active\"[^>]*selected|selected[^>]*value=\"active\")", html);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("admin/billing-configuration?service=abc")).StatusCode);
+    }
+
+    [Fact]
+    public async Task Billing_configuration_edits_a_service_without_duplicating_it()
+    {
+        var board = await Board();
+        await using var commands = CommandsApp();
+        var service = await Run(commands, sp => sp.GetRequiredService<BillingCommands>().ConfigureService(board, null,
+            new("door", "Door", true, 21, 5, 7, "space")));
+        await using var app = await StartProvider();
+        using var client = Client();
+        await Login(client, "board@example.test");
+        var html = await client.GetStringAsync("admin/billing-configuration?service=" + service);
+        var antiforgery = Regex.Match(html, "<input(?=[^>]*name=\"__RequestVerificationToken\")(?=[^>]*value=\"([^\"]+)\")[^>]*>");
+        var response = await client.PostAsync("admin/billing-configuration", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["_handler"] = "service-definition",
+            ["__RequestVerificationToken"] = WebUtility.HtmlDecode(antiforgery.Groups[1].Value),
+            ["Service.Id"] = service.ToString(),
+            ["Service.Code"] = "door",
+            ["Service.Name"] = "Door renamed",
+            ["Service.Category"] = "space",
+            ["Service.SelfSubscribe"] = "true",
+            ["Service.FreeDays"] = "21",
+            ["Service.GraceDays"] = "5",
+            ["Service.Priority"] = "7",
+            ["Service.Retirement"] = "retired"
+        }));
+        await using var db = Context();
+        var edited = await db.ServiceDefinitions.SingleAsync(x => x.Id == service);
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal("Door renamed", edited.Name);
+        Assert.True(edited.Retired);
+        Assert.True((await db.Fees.SingleAsync(x => x.ServiceDefinitionId == service)).Retired);
+        Assert.Equal(1, await db.ServiceDefinitions.CountAsync());
     }
 
     [Fact]

@@ -4,6 +4,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Nulysa.Accounts;
+using Nulysa.Services;
 using Quartz;
 
 namespace Nulysa.Billing;
@@ -193,11 +194,14 @@ public sealed partial class BillingCommands
                 .Where(x => x.State == LineState.Open && receipt.ReceivedOn < x.ExpiresOn && LineIsInDestination(x))
                 .Select(x => x.Id)
                 .ToHashSet();
-            await Expire(billingFacts, operation, scheduler, ct, timelyLineIds);
+            await Expire(billingFacts, operation, scheduler, ct, timelyLineIds, notifyInactiveWithoutLine: true);
 
             // A timely receipt can settle a renewal the worker has not issued yet.
             if (groupId is { } matchedGroup)
-                await IssueDueRenewals(billingFacts, operation, receipt.ReceivedOn, receipt.ReceivedOn, matchedGroup, ct);
+            {
+                ReopenEndedServicesForTimelyReceipt(billingFacts, operation, receipt.ReceivedOn, matchedGroup);
+                await IssueDueRenewals(billingFacts, operation, receipt.ReceivedOn, matchedGroup, ct);
+            }
 
             var needsMembershipResumption = groupId is not null
                 && Settings.AutomaticMembershipReactivation
@@ -234,12 +238,51 @@ public sealed partial class BillingCommands
 
             // Overpayment remains billing credit; it never disappears from the journal.
             Move(billingFacts, operation, MovementKind.ReceiptToBilling, remaining, receipt.ReceivedOn, receipt: receipt.Id);
-            await Expire(billingFacts, operation, scheduler, ct);
+            await Expire(billingFacts, operation, scheduler, ct, notifyInactiveWithoutLine: true);
             await AllocateCredit(billingFacts, operation, clock.Today, ct);
         }
 
         await Finish(billingFacts, scheduler, false, ct);
         await tx.CommitAsync(ct);
+    }
+
+    private static bool IsAutomaticEndReason(string? reason) => reason is "nonpayment" or "service-retired";
+
+    private void ReopenEndedServicesForTimelyReceipt(BillingFacts facts, BillingOperation operation, DateOnly receivedOn, long groupId)
+    {
+        var enrollmentIds = facts.Enrollments
+            .Where(x => x.EndedAt is not null
+                && x.EndReason == "nonpayment"
+                && x.RenewalStoppedAt is null
+                && facts.Items.Any(item => item.ServiceEnrollmentId == x.Id && item.BillingGroupId == groupId)
+                && !facts.Lines.Any(line => line.ServiceEnrollmentId == x.Id && line.State is LineState.Expired or LineState.Cancelled)
+                && !facts.Enrollments.Any(newer => newer.Id != x.Id
+                    && newer.ServiceDefinitionId == x.ServiceDefinitionId
+                    && newer.StartedAt >= x.StartedAt)
+                && !facts.Services.Single(service => service.Id == x.ServiceDefinitionId).Retired
+                && facts.Fees.SingleOrDefault(fee => fee.ServiceDefinitionId == x.ServiceDefinitionId) is { Retired: false }
+                && facts.ServiceGraceEnd(x, receivedOn) is { } cutoff
+                && receivedOn < cutoff
+                && facts.Membership(receivedOn).Active)
+            .Select(x => x.Id)
+            .ToList();
+
+        foreach (var id in enrollmentIds)
+            ReopenService(facts, operation, facts.Enrollments.Single(x => x.Id == id));
+    }
+
+    private void ReopenService(BillingFacts facts, BillingOperation operation, ServiceEnrollment enrollment, long? recurringItemId = null)
+    {
+        var wasEnded = enrollment.EndedAt is not null;
+        enrollment.EndedAt = null;
+        enrollment.EndReason = null;
+        var items = recurringItemId is { } id
+            ? facts.Items.Where(x => x.Id == id)
+            : facts.Items.Where(x => x.ServiceEnrollmentId == enrollment.Id).OrderByDescending(x => x.Id).Take(1);
+        foreach (var item in items)
+            item.EndedAt = null;
+        if (wasEnded)
+            db.ServiceChanges.Add(new() { ServiceEnrollmentId = enrollment.Id, OperationId = operation.Id, Action = "timely-receipt-correction" });
     }
 
     private bool CanRecover(BillingFacts facts, InvoiceLine line)
@@ -262,7 +305,7 @@ public sealed partial class BillingCommands
         {
             var enrollment = facts.Enrollments.Single(x => x.Id == id);
             var enrollmentClosed = enrollment.RenewalStoppedAt is not null
-                || (enrollment.EndedAt is not null && enrollment.EndReason != "nonpayment");
+                || (enrollment.EndedAt is not null && !IsAutomaticEndReason(enrollment.EndReason));
             var newerEnrollmentExists = facts.Enrollments.Any(x => x.Id != id
                 && x.ServiceDefinitionId == enrollment.ServiceDefinitionId
                 && x.StartedAt >= enrollment.StartedAt);
@@ -291,15 +334,7 @@ public sealed partial class BillingCommands
 
         line.State = LineState.Open;
         if (line.ServiceEnrollmentId is { } enrollmentId)
-        {
-            var enrollment = facts.Enrollments.Single(x => x.Id == enrollmentId);
-            enrollment.EndedAt = null;
-            enrollment.EndReason = null;
-
-            var item = facts.Items.Single(x => x.Id == line.RecurringItemId);
-            item.EndedAt = null;
-            db.ServiceChanges.Add(new() { ServiceEnrollmentId = enrollmentId, OperationId = operation.Id, Action = "timely-receipt-correction" });
-        }
+            ReopenService(facts, operation, facts.Enrollments.Single(x => x.Id == enrollmentId), line.RecurringItemId);
 
         var release = facts.Movements
             .Where(x => x.InvoiceLineId == line.Id && x.Kind == MovementKind.LineToBilling)

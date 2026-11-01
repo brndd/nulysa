@@ -41,11 +41,11 @@
     <p><label for="grace-days">Renewal grace days after the due date (zero allowed)</label> <InputNumber id="grace-days" @bind-Value="Service.GraceDays" /></p>
     <p><label for="priority">Funding order after membership (lower first)</label> <InputNumber id="priority" @bind-Value="Service.Priority" /></p>
     <p><label for="service-retirement">Retirement</label>
-        <select id="service-retirement" name="Service.Retirement" @bind="Service!.Retirement">
+        <InputSelect id="service-retirement" @bind-Value="Service!.Retirement">
             <option value="leave" selected="@(Service!.Retirement == "leave")">Leave unchanged</option>
             <option value="retired" selected="@(Service!.Retirement == "retired")">Retired (hidden from members and new subscriptions)</option>
             <option value="active" selected="@(Service!.Retirement == "active")">Active</option>
-        </select></p><button>Save service definition</button>
+        </InputSelect></p><button>Save service definition</button>
 </EditForm>
 
 @code {
@@ -57,7 +57,7 @@
         [Range(0, 365)] public int GraceDays { get; set; } = 7; [Range(0, int.MaxValue)] public int Priority { get; set; } = 100;
         public string Retirement { get; set; } = "leave";
     }
-    [SupplyParameterFromQuery(Name = "service")] public long? ServiceId { get; set; }
+    [SupplyParameterFromQuery(Name = "service")] public string? ServiceQuery { get; set; }
     [SupplyParameterFromForm(FormName = "price")] public PriceInput? Price { get; set; }
     [SupplyParameterFromForm(FormName = "service-definition")] public ServiceForm? Service { get; set; }
     private ClaimsPrincipal actor = null!; private List<FeeDefinition> fees = []; private List<FeePrice> prices = []; private List<ServiceDefinition> services = []; private string? error;
@@ -70,7 +70,7 @@
         fees = await Queries.Fees(actor);
         services = await Queries.AllServices(actor);
         prices = await Queries.Prices(actor);
-        if (isNewForm && ServiceId is { } id && services.SingleOrDefault(x => x.Id == id) is { } existing)
+        if (isNewForm && long.TryParse(ServiceQuery, out var id) && services.SingleOrDefault(x => x.Id == id) is { } existing)
         {
             var fee = fees.SingleOrDefault(x => x.ServiceDefinitionId == id);
             Service = new ServiceForm

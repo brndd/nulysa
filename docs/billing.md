@@ -83,7 +83,7 @@ variables use `__` in place of `:`. Timing is in association-local calendar days
 | `Billing:Bic`, `Billing:Bank`, `Billing:BusinessId`, `Billing:ContactEmail`, `Billing:Address:0`… | Payee information printed on invoices; association name uses `Association:Name`. |
 | `Billing:DefaultIntervalMonths` | 1; initial membership period. |
 | `Billing:AllowedIntervals:0`… | Integer months 1–12 by default; allowed values 1–120. |
-| `Billing:InvoiceLeadDays` | 14. |
+| `Billing:InvoiceLeadDays` | 14; minimum 7 days of advance notice for renewal invoices. |
 | `Billing:InitialMembershipGraceDays` | 14, no additional renewal grace on initial nonpayment. |
 | `Billing:MembershipRenewalGraceDays` | 7 days after the due date, zero allowed. |
 | `Billing:ServicePaymentWindowDays` | 14; independent from initial free coverage. |

@@ -138,7 +138,7 @@ public static class FoundationHost
                 "Enabled bank import requires provider credentials and account IDs.").ValidateOnStart();
         builder.Services.AddOptions<BillingOptions>().Bind(config.GetSection("Billing"))
             .Validate(x => x.AllowedIntervals.Length > 0 && x.AllowedIntervals.All(i => i is >= 1 and <= 120) && x.AllowedIntervals.Contains(x.DefaultIntervalMonths) &&
-                x.InvoiceLeadDays is >= 0 and <= 365 && x.InitialMembershipGraceDays is >= 1 and <= 365 &&
+                x.InvoiceLeadDays is >= 7 and <= 365 && x.InitialMembershipGraceDays is >= 1 and <= 365 &&
                 x.MembershipRenewalGraceDays is >= 0 and <= 365 && x.ServicePaymentWindowDays is >= 1 and <= 365 &&
                 (x.TemplateDirectory is null || Path.IsPathFullyQualified(x.TemplateDirectory)) &&
                 BillingOptions.TemplatesExist(x.TemplateDirectory) && BillingOptions.TypstAvailable(x.TypstPath),

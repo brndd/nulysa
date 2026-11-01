@@ -239,6 +239,9 @@ public sealed partial class BillingCommands
         await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(72134504)", ct);
         await Authority.RequireAdministrator(db, actor, ct);
 
+        var fee = await db.Fees.SingleOrDefaultAsync(x => x.Id == feeId, ct);
+        if (fee is null || fee.Retired)
+            throw new ValidationException("Select an active fee.");
         var existingPrices = await db.FeePrices.Where(x => x.FeeDefinitionId == feeId).ToListAsync(ct);
         if (existingPrices.Any(x => x.EffectiveOn == effectiveOn))
             throw new ValidationException("A price already exists for this date. Add a new dated price; issued quotes remain unchanged.");

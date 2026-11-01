@@ -68,6 +68,14 @@ public sealed class BillingTests : MembershipTest
         await Pay(app, serviceBill.Reference, serviceBill.Remaining);
         await Run(app, sp => sp.GetRequiredService<BillingCommands>().ConfigureService(board, service,
             new("door", "Door", false, 0, 0, 10, "door", Retired: true)));
+        view = await View(app, board, id);
+        await using (var db = Context())
+        {
+            var serviceFee = await db.Fees.SingleAsync(x => x.ServiceDefinitionId == service);
+            Assert.DoesNotContain(view.Forecasts, x => x.Description == "Door");
+            await Assert.ThrowsAsync<ValidationException>(() =>
+                Run(app, sp => sp.GetRequiredService<BillingCommands>().SetPrice(board, serviceFee.Id, new(2026, 6, 1), 40)));
+        }
         On(6, 20);
         await Scan(app, view.AccountId);
         view = await View(app, board, id);
@@ -87,6 +95,216 @@ public sealed class BillingTests : MembershipTest
         Assert.Empty(view.Subscriptions);
         await using var after = Context();
         Assert.Contains(await after.ServiceChanges.ToListAsync(), x => x.Action == "service-retired");
+    }
+
+    [Fact]
+    [Trait("Acceptance", "SVC")]
+    public async Task Retiring_a_service_keeps_an_issued_renewal_recoverable_by_a_timely_receipt()
+    {
+        On(6, 1);
+        Settings["Billing:MembershipRenewalGraceDays"] = "0";
+        var board = await Board();
+        await using var app = CommandsApp();
+        var id = await Admit(app, board);
+        var view = await View(app, board, id);
+        await Pay(app, view.Invoices[0].Reference, 10);
+        var service = await Service(app, board, grace: 0);
+        await Run(app, sp => sp.GetRequiredService<BillingCommands>().Subscribe(board, view.AccountId, service, 1, false, Guid.NewGuid()));
+        view = await View(app, board, id);
+        var serviceBill = view.Invoices.Single(x => x.Lines.Any(l => l.Line.Benefit == Benefit.Service));
+        await Pay(app, serviceBill.Reference, serviceBill.Remaining);
+        On(6, 20);
+        await Scan(app, view.AccountId);
+        view = await View(app, board, id);
+        var renewalInvoice = view.Invoices.Single(x => x.Invoice.ClosedAt is null);
+        await Run(app, sp => sp.GetRequiredService<BillingCommands>().ConfigureService(board, service,
+            new("door", "Door", false, 0, 0, 10, "door", Retired: true)));
+        On(7, 2);
+        await Scan(app, view.AccountId);
+        view = await View(app, board, id);
+
+        Assert.DoesNotContain(view.Subscriptions, x => x.Enrollment.ServiceDefinitionId == service);
+        await using (var db = Context())
+            Assert.Equal("service-retired", (await db.ServiceEnrollments.SingleAsync(x => x.ServiceDefinitionId == service)).EndReason);
+
+        await Pay(app, renewalInvoice.Reference, 40, new(2026, 7, 1));
+        view = await View(app, board, id);
+        var renewal = view.Invoices.SelectMany(x => x.Lines)
+            .Single(x => x.Line.Benefit == Benefit.Service && x.Line.Purpose == PurchasePurpose.Renewal).Line;
+
+        Assert.Equal(LineState.Fulfilled, renewal.State);
+        Assert.Contains(view.Coverage, x => x.Benefit == Benefit.Service && x.StartsOn == new DateOnly(2026, 7, 1) && x.EndsOn == new DateOnly(2026, 8, 1));
+        Assert.Contains(view.Subscriptions, x => x.Enrollment.ServiceDefinitionId == service && x.Standing.Active);
+        Assert.Equal(new Balances(0, 0, 0), view.Balances);
+    }
+
+    [Fact]
+    [Trait("Acceptance", "DATE")]
+    public async Task Pre_due_receipt_after_worker_outage_reopens_service_and_membership()
+    {
+        On(6, 1);
+        Settings["Billing:MembershipRenewalGraceDays"] = "0";
+        var board = await Board();
+        await using var app = CommandsApp();
+        var id = await Admit(app, board);
+        var view = await View(app, board, id);
+        await Pay(app, view.Invoices[0].Reference, 10);
+        var service = await Service(app, board, grace: 0);
+        await Run(app, sp => sp.GetRequiredService<BillingCommands>().Subscribe(board, view.AccountId, service, 1, false, Guid.NewGuid()));
+        view = await View(app, board, id);
+        var serviceBill = view.Invoices.Single(x => x.Lines.Any(l => l.Line.Benefit == Benefit.Service));
+        await Pay(app, serviceBill.Reference, serviceBill.Remaining);
+        On(7, 2);
+        await Scan(app, view.AccountId);
+        view = await View(app, board, id);
+
+        Assert.False(view.Membership.Active);
+        Assert.Empty(view.Subscriptions);
+        await Pay(app, view.Groups.Single().PaymentReference, 40, new(2026, 6, 30));
+        view = await View(app, board, id);
+        var renewals = view.Invoices.SelectMany(x => x.Lines).Where(x => x.Line.Purpose == PurchasePurpose.Renewal).ToList();
+
+        Assert.True(view.Membership.Active);
+        Assert.Contains(renewals, x => x.Line.Benefit == Benefit.Membership && x.Line.State == LineState.Fulfilled);
+        Assert.Contains(renewals, x => x.Line.Benefit == Benefit.Service && x.Line.State == LineState.Fulfilled);
+        Assert.Contains(view.Subscriptions, x => x.Enrollment.ServiceDefinitionId == service && x.Standing.Active);
+        Assert.Contains(view.Coverage, x => x.Benefit == Benefit.Membership && x.StartsOn == new DateOnly(2026, 7, 1) && x.EndsOn == new DateOnly(2026, 8, 1));
+        Assert.Contains(view.Coverage, x => x.Benefit == Benefit.Service && x.StartsOn == new DateOnly(2026, 7, 1) && x.EndsOn == new DateOnly(2026, 8, 1));
+        Assert.Equal(new Balances(0, 0, 0), view.Balances);
+    }
+
+    [Fact]
+    [Trait("Acceptance", "DATE")]
+    public async Task Timely_delayed_service_renewal_is_recovered_after_expiry()
+    {
+        On(6, 1);
+        var board = await Board();
+        await using var app = CommandsApp();
+        var id = await Admit(app, board);
+        var view = await View(app, board, id);
+        await Pay(app, view.Invoices[0].Reference, 10);
+        var service = await Service(app, board, grace: 7);
+        await Run(app, sp => sp.GetRequiredService<BillingCommands>().Subscribe(board, view.AccountId, service, 1, false, Guid.NewGuid()));
+        view = await View(app, board, id);
+        var serviceBill = view.Invoices.Single(x => x.Lines.Any(l => l.Line.Benefit == Benefit.Service));
+        await Pay(app, serviceBill.Reference, serviceBill.Remaining);
+        On(6, 20);
+        await Scan(app, view.AccountId);
+        view = await View(app, board, id);
+        var renewalInvoice = view.Invoices.Single(x => x.Invoice.ClosedAt is null);
+        On(7, 10);
+        await Scan(app, view.AccountId);
+        view = await View(app, board, id);
+
+        Assert.DoesNotContain(view.Subscriptions, x => x.Enrollment.ServiceDefinitionId == service);
+        await Pay(app, renewalInvoice.Reference, 40, new(2026, 7, 5));
+        view = await View(app, board, id);
+        var renewal = view.Invoices.SelectMany(x => x.Lines)
+            .Single(x => x.Line.Benefit == Benefit.Service && x.Line.Purpose == PurchasePurpose.Renewal).Line;
+
+        Assert.Equal(LineState.Fulfilled, renewal.State);
+        Assert.Contains(view.Coverage, x => x.Benefit == Benefit.Service && x.StartsOn == new DateOnly(2026, 7, 1) && x.EndsOn == new DateOnly(2026, 8, 1));
+        Assert.Contains(view.Subscriptions, x => x.Enrollment.ServiceDefinitionId == service && x.Standing.Active);
+    }
+
+    [Fact]
+    [Trait("Acceptance", "DATE")]
+    public async Task Partial_timely_receipt_reopens_a_service_and_a_second_receipt_completes_it()
+    {
+        On(6, 1);
+        Settings["Billing:MembershipRenewalGraceDays"] = "0";
+        var board = await Board();
+        await using var app = CommandsApp();
+        var id = await Admit(app, board);
+        var view = await View(app, board, id);
+        await Pay(app, view.Invoices[0].Reference, 10);
+        var service = await Service(app, board, grace: 0);
+        await Run(app, sp => sp.GetRequiredService<BillingCommands>().Subscribe(board, view.AccountId, service, 1, false, Guid.NewGuid()));
+        view = await View(app, board, id);
+        var serviceBill = view.Invoices.Single(x => x.Lines.Any(l => l.Line.Benefit == Benefit.Service));
+        await Pay(app, serviceBill.Reference, serviceBill.Remaining);
+        On(6, 20);
+        await Scan(app, view.AccountId);
+        view = await View(app, board, id);
+        var renewalInvoice = view.Invoices.Single(x => x.Invoice.ClosedAt is null);
+        await Pay(app, renewalInvoice.Reference, 10, new(2026, 6, 20));
+        On(7, 2);
+        await Scan(app, view.AccountId);
+        view = await View(app, board, id);
+
+        Assert.DoesNotContain(view.Subscriptions, x => x.Enrollment.ServiceDefinitionId == service);
+        await Pay(app, renewalInvoice.Reference, 10, new(2026, 7, 1));
+        view = await View(app, board, id);
+        var serviceLine = view.Invoices.SelectMany(x => x.Lines)
+            .Single(x => x.Line.Benefit == Benefit.Service && x.Line.Purpose == PurchasePurpose.Renewal).Line;
+
+        Assert.Equal(LineState.Expired, serviceLine.State);
+        Assert.Equal(new Balances(10, 0, 0), view.Balances);
+        await Pay(app, renewalInvoice.Reference, 20, new(2026, 7, 1));
+        view = await View(app, board, id);
+        serviceLine = view.Invoices.SelectMany(x => x.Lines)
+            .Single(x => x.Line.Benefit == Benefit.Service && x.Line.Purpose == PurchasePurpose.Renewal).Line;
+
+        Assert.Equal(LineState.Fulfilled, serviceLine.State);
+        Assert.Contains(view.Coverage, x => x.Benefit == Benefit.Service && x.StartsOn == new DateOnly(2026, 7, 1) && x.EndsOn == new DateOnly(2026, 8, 1));
+        Assert.Contains(view.Subscriptions, x => x.Enrollment.ServiceDefinitionId == service && x.Standing.Active);
+        Assert.Equal(new Balances(0, 0, 0), view.Balances);
+    }
+
+    [Fact]
+    [Trait("Acceptance", "SVC")]
+    public async Task A_late_receipt_does_not_reopen_an_old_enrollment_after_resubscription()
+    {
+        On(6, 1);
+        Settings["Billing:MembershipRenewalGraceDays"] = "0";
+        var board = await Board();
+        await using var app = CommandsApp();
+        var id = await Admit(app, board);
+        var view = await View(app, board, id);
+        await Pay(app, view.Invoices[0].Reference, 10);
+        var service = await Service(app, board, grace: 0);
+        await Run(app, sp => sp.GetRequiredService<BillingCommands>().Subscribe(board, view.AccountId, service, 1, false, Guid.NewGuid()));
+        view = await View(app, board, id);
+        var serviceBill = view.Invoices.Single(x => x.Lines.Any(l => l.Line.Benefit == Benefit.Service));
+        await Pay(app, serviceBill.Reference, serviceBill.Remaining);
+        On(7, 2);
+        await Scan(app, view.AccountId);
+        long oldEnrollment;
+        await using (var db = Context())
+            oldEnrollment = (await db.ServiceEnrollments.SingleAsync(x => x.ServiceDefinitionId == service)).Id;
+
+        await Run(app, sp => sp.GetRequiredService<BillingCommands>().ResumeMembership(board, view.AccountId, Guid.NewGuid()));
+        view = await View(app, board, id);
+        var resumptionBill = view.Invoices.Single(x => x.Invoice.ClosedAt is null);
+        await Pay(app, resumptionBill.Reference, resumptionBill.Remaining);
+        await Run(app, sp => sp.GetRequiredService<BillingCommands>().Subscribe(board, view.AccountId, service, 1, false, Guid.NewGuid()));
+        await Pay(app, view.Groups.Single().PaymentReference, 30, new(2026, 7, 1));
+        await using var after = Context();
+
+        Assert.NotNull((await after.ServiceEnrollments.SingleAsync(x => x.Id == oldEnrollment)).EndedAt);
+        Assert.Single(await after.ServiceEnrollments.Where(x => x.ServiceDefinitionId == service && x.EndedAt == null).ToListAsync());
+    }
+
+    [Fact]
+    [Trait("Acceptance", "DATE")]
+    public async Task Missed_membership_renewal_without_an_issued_line_sends_one_inactive_notice()
+    {
+        On(6, 1);
+        Settings["Billing:MembershipRenewalGraceDays"] = "0";
+        Settings["Billing:AutomaticMembershipReactivation"] = "false";
+        var board = await Board();
+        await using var app = CommandsApp();
+        var id = await Admit(app, board);
+        var view = await View(app, board, id);
+        await Pay(app, view.Invoices[0].Reference, 10);
+        On(7, 2);
+        await Scan(app, view.AccountId);
+        await Scan(app, view.AccountId);
+        view = await View(app, board, id);
+
+        Assert.False(view.Membership.Active);
+        await using var db = Context();
+        Assert.Equal(1, await db.Deliveries.CountAsync(x => x.UserId == id && x.Kind == MailKind.MembershipInactive));
     }
 
     [Fact]
@@ -338,6 +556,7 @@ public sealed class BillingTests : MembershipTest
         view = await View(app, board, id);
         var renewal = Assert.Single(view.Invoices.SelectMany(x => x.Lines), x => x.Line.Purpose == PurchasePurpose.Renewal);
 
+        Assert.Equal(new DateOnly(2026, 7, 3), renewal.Line.ExpiresOn);
         Assert.NotNull(renewal.Line.GraceNotifiedAt);
         Assert.True(view.Membership.Active);
         await Pay(app, renewalInvoice.Reference, 10, new(2026, 7, 2));

@@ -1,129 +1,176 @@
 # Billing review follow-ups
 
-Review of the uncommitted billing changes for post-due grace, missed timely
-renewals, service retirement and the prefilled service form. The review was
-read-only; it ran no tests or builds. The branch tests already passed 140 fast
-and 160 full cases before this review. Findings are ordered by severity.
+Status after the implementation pass. The corrections and small cleanups below
+are implemented; 4B remains a scope decision. The standard test suite passes
+with 150 cases.
 
-## Must fix before commit
+## Decisions
 
-### Existing retired services still bill
+- **Existing retired services (the old "must fix").** Won't fix. Retirement
+  before the retirement change set only `ServiceDefinition.Retired`; renewal
+  issuance checked only `FeeDefinition.Retired`. Fresh services set both flags.
+  There is no production data and development databases are disposable, so no
+  migration, backfill or runtime service-retired skip was added.
+- **`Billing:InvoiceLeadDays` minimum is 7.** Enforced in `FoundationHost` and
+  documented in `docs/billing.md`. Renewal invoices must have at least a week of
+  advance notice. A "pay immediately" demand/late notice is a different invoice
+  type, not a zero-lead renewal. This widens the issuance window but does not
+  replace the corrections below.
+- **Invoice email for a helper-created renewal.** Not changed. A renewal that is
+  fully funded in `Match` closes the invoice, so `Finish(false)` does not send a
+  payment request. Sending an invoice notice after payment would be a separate
+  paid-invoice/receipt mail type, not a flag flip.
 
-`BillingLifecycle.IssueDueRenewals` skips only `FeeDefinition.Retired`. Services
-retired before this change have `ServiceDefinition.Retired = true` but
-`FeeDefinition.Retired = false`, so their renewals continue. The new services
-table in `/admin/billing-configuration` shows them as “Retired” while billing
-continues. Fresh-database tests cannot detect this.
+## Implemented fixes
 
-Fix: also skip when the service definition is retired, for example:
+### Service enrollment re-open (#3)
 
-```csharp
-if (fee.Retired)
-    continue;
-if (fee.ServiceDefinitionId is { } serviceId &&
-    facts.Services.Single(x => x.Id == serviceId).Retired)
-    continue;
-```
+`Match` now reopens a service enrollment that an automatic expiry ended when a
+receipt dated before the renewal cutoff arrives later. It runs after
+`Expire(preserved...)` and before `IssueDueRenewals`, so it covers both a prior
+worker scan and `Match`'s own expiry pass. The existing `Recover` reopening was
+factored into `ReopenService` so the line and no-line paths share it.
 
-Alternatively, add a one-time migration:
+The reopen predicate requires:
 
-```sql
-UPDATE "Fees" SET "Retired" = true
-WHERE "ServiceDefinitionId" IN (
-    SELECT "Id" FROM "ServiceDefinitions" WHERE "Retired"
-);
-```
+- automatic nonpayment ending (`RenewalStoppedAt == null`, `FirstPaidOn != null`);
+- no newer enrollment for the same service (the unique active-enrollment index
+  would otherwise reject the reopen);
+- an item in the matched billing group;
+- no expired or cancelled line for the enrollment; existing lines are left to
+  `Recover`/`CanRecover`;
+- the service and fee are not retired (a retired service gets no new line);
+- a timely receipt according to `ServiceGraceEnd`;
+- active membership on the receipt date.
 
-Add a test that simulates a service retired without the fee flag and verifies
-that no renewal is issued.
+Tests:
 
-## Should fix
+- `Pre_due_receipt_after_worker_outage_reopens_service_and_membership`
+- `Timely_delayed_service_renewal_is_recovered_after_expiry`
+- `Retiring_a_service_keeps_an_issued_renewal_recoverable_by_a_timely_receipt`
+- `Partial_timely_receipt_reopens_a_service_and_a_second_receipt_completes_it`
+- `A_late_receipt_does_not_reopen_an_old_enrollment_after_resubscription`
 
-### `service-retired` blocks delayed-receipt recovery
+### `service-retired` recovery (#2)
 
-`Expire` records an automatic retirement-related removal as `service-retired`.
-`CanRecover` treats every end reason other than `nonpayment` as an explicit
-closure. A receipt booked before the expired line’s cutoff can therefore go to
-`Review` instead of funding the line after an automatic removal.
+`CanRecover` now treats `nonpayment` and `service-retired` as automatic end
+reasons through one `IsAutomaticEndReason` predicate. A timely receipt for an
+already-issued retired-service renewal funds the line instead of going to
+`Review`. The retirement test also covers the forecast and `SetPrice` changes.
 
-Fix: include `service-retired` among the recoverable end reasons, or keep
-`nonpayment` as the enrollment end reason and record `service-retired` only in
-the service-change audit entry. Add a delayed-receipt-after-retirement test.
+Open policy question, unchanged: the current code leaves an already-issued
+unpaid renewal line payable after retirement. If retirement should cancel it,
+close the line at retirement and document that rule.
 
-### Service enrollment already ended by the first post-due scan
+### Pre-due incoming receipt (4A)
 
-A zero-grace service enrollment that the first post-due scan has ended is not
-reopened by a later-imported on-time receipt. `IssueDueRenewals` only sees open
-items and enrollments, and the expired service line has already been closed.
-Membership does not have this problem because membership items are not ended by
-`EndService`.
+The `through` catch-up limit was removed from `IssueDueRenewals`. The existing
+`nextStart > on + InvoiceLeadDays` bound still prevents issuing renewals too far
+ahead, but a receipt dated before the due date can now settle the upcoming
+renewal exactly as a worker running on the receipt date would. Tests cover a
+pre-due membership and service receipt imported after the grace window.
 
-Fix: add a service re-open path that accepts an enrollment ended by an automatic
-removal when `receipt.ReceivedOn` is before the renewal cutoff, then reopens the
-item/enrollment the same way `Recover` does. Reordering the helper before
-`Expire` is not sufficient because the trailing `Expire` would close the
-unfunded new line.
+### Membership notice without a renewal line
 
-### Receipts dated before the due date cannot rescue a missed renewal
+When a scan observes an inactive membership with no open membership line,
+`Expire` now queues one `MembershipInactive` notice. It uses a deterministic
+delivery key based on the account and `InactiveSince`, so repeated scans do not
+duplicate it. The existing line-expiry notice still wins when a line exists.
+Test: `Missed_membership_renewal_without_an_issued_line_sends_one_inactive_notice`.
 
-The helper is gated by `through = receipt.ReceivedOn` and by
-`renewalExpiresOn <= on`. If the worker is down across the due date and the
-payment is dated before it, the receipt becomes credit and the later scan stops
-catch-up. Closing this requires issuing and allocating against dated available
-credit, not only the incoming receipt. This is narrower than the due-date case
-and needs a scope decision.
+### Small cleanups
 
-## Nice to have
+- Member forecasts skip retired fees.
+- `SetPrice` rejects a missing or retired fee, matching `AddDiscount`.
+- `Expire` uses `SingleOrDefault` for the service fee; a missing fee no longer
+  blocks an account scan.
+- The retirement control is an `InputSelect` with explicit `selected` options.
+  SSR does not derive the selected option from the select's value, so the
+  explicit options are required.
+- The prefill test asserts named fields, the prefilled ID, read-only ID/code and
+  the selected option.
+- A POST test edits a service with the retirement control and proves no
+  duplicate service is created.
+- `?service=abc` binds as a string and is ignored when it cannot be parsed.
+- The SPEC grace-end row now states that the inactive notice and inactivity
+  happen on the first non-grace day.
+- `One_day_renewal_grace` asserts `ExpiresOn` directly.
 
-- `Match` uses `Finish(notify: false)`. If the helper creates and fully funds a
-  renewal invoice, the member may receive no invoice email for that revision.
-- Member forecasts still include items whose service fee is retired.
-- `SetPrice` still accepts a retired fee while `AddDiscount` rejects it.
-- `Expire` uses `facts.Fees.Single(...)` for the service end reason.
-  `SingleOrDefault(...)?.Retired == true` is safer if a service ever lacks a fee.
-- The retirement `<select>` is a plain select. The house pattern is
-  `InputSelect` with explicit `selected` options; use it and add a POST test.
-- `?service=abc` can throw during render; bind a string and parse if this matters.
-- The SPEC grace-end row says the notice and inactivity happen the following
-  day; the code sends both when the line expires. Reword or move the notice.
+## Remaining scope decision
 
-## Test gaps
+### 4B. Receipt was already billing credit when the renewal was missed
 
-- No POST through the new service form: retirement selection, read-only ID/code
-  and “editing must not create a duplicate service” are unverified.
-- The prefill test uses position-blind `value="7"`-style assertions; assert named
-  fields and the prefilled ID.
-- No service version of the missed-renewal test.
-- No service within-grace delayed-import test.
-- No fee-retirement/`CanRecover` interaction test.
-- `One_day_renewal_grace` should assert `ExpiresOn` directly.
-- `Retiring_a_service` does not prove that a renewal would otherwise have been
-  issued.
+A receipt imported more than `InvoiceLeadDays` before the due date becomes
+credit instead of funding a line. If no worker scan or other group match occurs
+from `due - InvoiceLeadDays` through expiry, the credit cannot rescue the missed
+renewal. With defaults this is roughly a 22-day complete outage plus an early
+payment. The money is not lost; it remains billing credit and can fund a return
+period, resubscription or manual correction.
 
-## What looked correct
+A full fix is not a date lookup:
 
-- The Scan helper refactor is behaviour-preserving; `Scan` still passes
-  `clock.Today`, no group filter and no receipt cutoff.
-- Helper placement after `Expire`, before resumption and funding, is order-safe.
-- Group filtering, retired-fee checks, enrollment guards, membership-active
-  checks and grace expiry checks mirror `Scan`.
-- Duplicate receipts cannot double-issue because of the purchase key and the
-  account lock.
-- Resumption ordering is correct: a helper-created membership line prevents an
-  extra resumption.
-- B arithmetic is consistent across creation, standing, service grace, scan
-  catch-up and the tests. Initial membership, resumption, service initial and
-  one-off windows are unchanged.
-- Fresh service retirement is symmetric, preserves paid coverage and keeps the
-  membership fee untouched.
-- Prefill wiring and admin authorization are correct.
-- README counts match the added tests.
+- `BillingCredit` is a single pool. The `ReceiptToBilling` movement keeps the
+  receipt date, but `AllocateCredit` does not identify credit lots and applies
+  credit with the application date.
+- SPEC 612-614 says previously available billing credit uses its application
+  effective date, not the original deposit date. Using the receipt date to
+  fund a missed renewal would change that policy.
+- If the credit was spent on another line after the expiry, retroactive
+  allocation would require reallocation/reversal. That is a ledger policy.
+- Transfers, refunds, reversals and repricing credits all affect the pool.
 
-## Recommended order
+Options:
 
-1. Fix the retirement backfill or runtime service-retired skip.
-2. Fix `service-retired` in `CanRecover` and add the test.
-3. Decide whether to implement the service re-open and pre-due receipt paths.
-4. Apply the small forecast, invoice-mail, `SetPrice` and `<select>` cleanups.
-5. Commit the corrected changes; keep the uncommitted review changes together
-   until then.
+1. **Accept and document.** Recommended unless very early payments plus long
+   outages are a real requirement.
+2. **Pending receipt/reservation.** Hold an early group receipt for that group's
+   next renewal instead of general credit. New state, UI and refund/unassign
+   rules; cleanest product fix if needed.
+3. **Dated credit lots.** Track credit sources and allocate by date. General but
+   a significant ledger change.
+4. **Auto-return from credit on scan.** Start a prorated return from available
+   credit after inactivity. Changes reactivation semantics; not recommended
+   implicitly.
+5. **Issue the renewal immediately on an early receipt.** Avoids credit but
+   creates far-future invoices and turns early payment into prepayment.
+
+## Remaining test gap
+
+- `Retiring_a_service` could include a control proving a renewal would otherwise
+  have been issued. The normal service-renewal tests already cover issuance, so
+  this is a test-strength improvement rather than an untested behaviour.
+
+## Operational notes
+
+- `billing-due-work` runs every minute, and `WorkStatus` treats it as stale
+  after 3 minutes. A 15-22 day complete worker outage is an operational
+  incident, not a routine bank-import delay. Ensure stale-work alerts reach an
+  administrator, not only the system console.
+- The due-work scan and bank sync are separate schedules. After an outage the
+  due-work scan may run before the bank sync imports an on-time receipt. The
+  corrections make the result order-independent; consider running bank sync
+  before due work on recovery as an additional mitigation.
+- A late bank import with a running worker is handled by `Recover` when the
+  renewal line exists. The no-line cases require the worker to miss the invoice
+  preparation window through expiry.
+
+## Architecture note
+
+The current design is reconciliation-based, not a command queue. Missed ticks
+are not lost work; the next scan recomputes from dated state. That is generally
+more robust than replaying a backlog, and it already catches up within grace.
+
+The shared root cause of the no-line cases is that some lifecycle transitions
+are destructive and based on `clock.Today`, while late facts can have earlier
+effective dates. `Recover` and the reopen path are correction mechanisms for
+that hybrid model.
+
+A queue of due-work commands would not fix this by itself; the expiry command
+would still run before a late receipt is known. A milestone queue with as-of
+replay could work if all facts are present, but it still needs corrections for
+later imports and adds admin-action timestamps, as-of pricing and idempotent
+notice keys. Full event sourcing/bitemporal state would be the general answer
+but is a large project for this scale.
+
+Recommended direction: keep the targeted corrections and add a bounded as-of
+replay layer only if this class of finding keeps recurring.

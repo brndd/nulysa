@@ -36,6 +36,20 @@ public sealed class ConfigurationTests : DatabaseTest
             Assert.Throws<OptionsValidationException>(() => app.Services.GetRequiredService<IOptions<BillingOptions>>().Value);
     }
 
+    [Theory]
+    [InlineData(0, false)]
+    [InlineData(6, false)]
+    [InlineData(7, true)]
+    public async Task Billing_requires_at_least_a_week_of_invoice_lead_time(int days, bool valid)
+    {
+        Settings["Billing:InvoiceLeadDays"] = days.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        await using var app = Build("commands");
+        if (valid)
+            Assert.Equal(days, app.Services.GetRequiredService<IOptions<BillingOptions>>().Value.InvoiceLeadDays);
+        else
+            Assert.Throws<OptionsValidationException>(() => app.Services.GetRequiredService<IOptions<BillingOptions>>().Value);
+    }
+
     [Fact]
     public async Task Billing_rejects_a_missing_template_directory_or_renderer()
     {

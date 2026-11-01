@@ -60,6 +60,8 @@ public sealed class BillingQueries(AppDbContext db, AssociationClock clock, IOpt
             {
                 var group = facts.Groups.Single(x => x.Id == item.BillingGroupId);
                 var fee = facts.Fees.Single(x => x.Id == item.FeeDefinitionId);
+                if (fee.Retired)
+                    continue;
                 var nextStart = item.NextOn;
                 var benefit = item.MembershipId is not null ? Benefit.Membership : Benefit.Service;
                 foreach (var covered in facts.Periods(benefit, fee.ServiceDefinitionId).OrderBy(x => x.Start))
