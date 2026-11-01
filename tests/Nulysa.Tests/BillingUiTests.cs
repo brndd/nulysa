@@ -27,6 +27,7 @@ public sealed class BillingBrowserTests : MembershipTest
         await using var administrator = await browser.NewContextAsync();
         var page = await member.NewPageAsync();
         var admin = await administrator.NewPageAsync();
+        var invoiceTables = page.Locator("table").Filter(new() { Has = page.Locator("caption").Filter(new() { HasText = "Invoice #" }) });
         var root = Settings["Oidc:Issuer"]!;
         async Task LoginPage(IPage target, string email)
         {
@@ -61,7 +62,7 @@ public sealed class BillingBrowserTests : MembershipTest
         await page.GetByRole(AriaRole.Button, new() { Name = "Save preference" }).ClickAsync();
         await Assertions.Expect(page.GetByLabel("Email invoice PDFs")).Not.ToBeCheckedAsync();
         await page.GetByRole(AriaRole.Button, new() { Name = "Subscribe", Exact = true }).ClickAsync();
-        await Assertions.Expect(page.GetByRole(AriaRole.Row).Filter(new() { HasText = "Door" })).ToContainTextAsync("30.00");
+        await Assertions.Expect(invoiceTables.GetByRole(AriaRole.Row).Filter(new() { HasText = "Door" })).ToContainTextAsync("30.00");
 
         Assert.False((await db.BillingAccounts.AsNoTracking().SingleAsync(x => x.Id == view.AccountId)).EmailInvoices);
 
@@ -77,8 +78,8 @@ public sealed class BillingBrowserTests : MembershipTest
         }
         await Import("partial", view.Invoices[0].Reference, "15");
         await page.ReloadAsync();
-        await Assertions.Expect(page.GetByRole(AriaRole.Row).Filter(new() { HasText = "Membership" })).ToContainTextAsync("Fulfilled");
-        await Assertions.Expect(page.GetByRole(AriaRole.Row).Filter(new() { HasText = "Door" })).ToContainTextAsync("5.00");
+        await Assertions.Expect(invoiceTables.GetByRole(AriaRole.Row).Filter(new() { HasText = "Membership" })).ToContainTextAsync("Fulfilled");
+        await Assertions.Expect(invoiceTables.GetByRole(AriaRole.Row).Filter(new() { HasText = "Door" })).ToContainTextAsync("5.00");
         await Import("unknown", "not-a-reference", "7");
         var receipt = await db.Receipts.SingleAsync(x => x.ExternalId == "unknown");
         await admin.GetByLabel("Receipt ID", new() { Exact = true }).FillAsync(receipt.Id.ToString());
@@ -92,7 +93,7 @@ public sealed class BillingBrowserTests : MembershipTest
         await page.ReloadAsync();
         await page.GetByLabel("Amount (EUR)", new() { Exact = true }).FillAsync("10");
         await page.GetByRole(AriaRole.Button, new() { Name = "Transfer available funds" }).ClickAsync();
-        await Assertions.Expect(page.GetByRole(AriaRole.Row).Filter(new() { HasText = "Door" })).ToContainTextAsync("22.00");
+        await Assertions.Expect(invoiceTables.GetByRole(AriaRole.Row).Filter(new() { HasText = "Door" })).ToContainTextAsync("22.00");
         await page.GetByRole(AriaRole.Button, new() { Name = "Stop renewal; keep remaining covered time" }).ClickAsync();
         await Assertions.Expect(page.GetByRole(AriaRole.Button, new() { Name = "Subscribe", Exact = true })).ToBeVisibleAsync();
         await page.GetByLabel("Membership (currently").SelectOptionAsync("3");
@@ -146,7 +147,7 @@ public sealed class BillingBrowserTests : MembershipTest
         Assert.Equal(ReceiptState.Posted, (await db.Receipts.AsNoTracking().SingleAsync(x => x.Id == workshopReceipt.Id)).State);
         await Assertions.Expect(admin.GetByRole(AriaRole.Row).Filter(new() { HasText = "unknown-workshop-reference" })).ToHaveCountAsync(0);
         await page.GotoAsync(root + "billing");
-        await Assertions.Expect(page.GetByRole(AriaRole.Row).Filter(new() { HasText = "Workshop" })).ToContainTextAsync("Fulfilled");
+        await Assertions.Expect(invoiceTables.GetByRole(AriaRole.Row).Filter(new() { HasText = "Workshop" })).ToContainTextAsync("Fulfilled");
         await page.GotoAsync(root + "admin/payments");
         await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Access denied", Exact = true })).ToBeVisibleAsync();
         foreach (var export in new[] { "export", "receipts-export" })

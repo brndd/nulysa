@@ -194,6 +194,8 @@ public sealed partial class BillingCommands
                 .Where(x => x.State == LineState.Open && receipt.ReceivedOn < x.ExpiresOn && LineIsInDestination(x))
                 .Select(x => x.Id)
                 .ToHashSet();
+            // Existing credit lots must repair missed renewals before expiry or resumption decisions.
+            await RecoverMissedRenewalsWithLots(billingFacts, operation, clock.Today, ct);
             await Expire(billingFacts, operation, scheduler, ct, timelyLineIds, notifyInactiveWithoutLine: true);
 
             // A timely receipt can settle a renewal the worker has not issued yet.

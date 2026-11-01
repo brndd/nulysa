@@ -43,6 +43,13 @@
         }
         </tbody></table>
     }
+    @if (Page > 1 || view.Statements.Any(x => x.HasMore))
+    {
+        <p>
+            @if (Page > 1) { <a href="@Navigation.GetUriWithQueryParameter("page", Page - 1)">Previous</a> }
+            @if (view.Statements.Any(x => x.HasMore)) { <a href="@Navigation.GetUriWithQueryParameter("page", Page + 1)">Next</a> }
+        </p>
+    }
     @if (error is not null) { <p role="alert">@error</p> }
     <h2>One-off advance request</h2><p>Uses its own permanent invoice reference. It does not create a subscription or storage reservation.</p>
     <EditForm Model="OneOff" method="post" FormName="one-off" OnValidSubmit="CreateOneOff"><DataAnnotationsValidator /><ValidationSummary />
@@ -85,10 +92,12 @@
         [Range(typeof(bool), "true", "true", ErrorMessage = "Review and confirm the adjustment.")] public bool Confirmed { get; set; }
     }
     [Parameter] public long AccountId { get; set; }
+    [SupplyParameterFromQuery] public int Page { get; set; } = 1;
+    [SupplyParameterFromQuery] public int PageSize { get; set; } = 25;
     [SupplyParameterFromForm(FormName = "one-off")] public OneOffInput? OneOff { get; set; }
     [SupplyParameterFromForm(FormName = "adjustment")] public AdjustmentInput? Adjustment { get; set; }
     private ClaimsPrincipal actor = null!; private BillingView? view; private List<FeeDefinition> fees = []; private string? error;
-    protected override async Task OnInitializedAsync() { actor = (await Authentication.GetAuthenticationStateAsync()).User; view = await Queries.Account(actor, AccountId); fees = await Queries.Fees(actor); OneOff ??= new() { DueOn = Clock.Today.AddDays(14) }; Adjustment ??= new() { Start = Clock.Today, End = Clock.Today.AddMonths(1) }; }
+    protected override async Task OnInitializedAsync() { actor = (await Authentication.GetAuthenticationStateAsync()).User; view = await Queries.Account(actor, AccountId, skip: (Page - 1) * PageSize, take: PageSize); fees = await Queries.Fees(actor); OneOff ??= new() { DueOn = Clock.Today.AddDays(14) }; Adjustment ??= new() { Start = Clock.Today, End = Clock.Today.AddMonths(1) }; }
     private Task CreateOneOff() => Handle(async () => await Commands.OneOff(actor, AccountId, OneOff!.Key, OneOff.Description, OneOff.Category, OneOff.Amount, OneOff.DueOn));
     private Task Adjust() => Handle(async () =>
     {

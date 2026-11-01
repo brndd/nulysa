@@ -128,6 +128,13 @@
         }
         </tbody></table>
     }
+    @if (Page > 1 || view.Statements.Any(x => x.HasMore))
+    {
+        <p>
+            @if (Page > 1) { <a href="@Navigation.GetUriWithQueryParameter("page", Page - 1)">Previous</a> }
+            @if (view.Statements.Any(x => x.HasMore)) { <a href="@Navigation.GetUriWithQueryParameter("page", Page + 1)">Next</a> }
+        </p>
+    }
     @if (board) { <p><a href="@($"/admin/billing/{view.AccountId}")">Financial adjustments and one-off invoices</a></p> }
 }
 else { <p>No billing account is available.</p> }
@@ -137,6 +144,8 @@ else { <p>No billing account is available.</p> }
     public sealed class TransferInput { public Guid Key { get; set; } = Guid.NewGuid(); [Range(typeof(decimal), "0.01", "999999999")] public decimal Amount { get; set; } public bool ToPurchase { get; set; } }
     public sealed class PreferenceInput { public Guid Key { get; set; } = Guid.NewGuid(); public bool Enabled { get; set; } }
     [Parameter] public long? UserId { get; set; }
+    [SupplyParameterFromQuery] public int Page { get; set; } = 1;
+    [SupplyParameterFromQuery] public int PageSize { get; set; } = 25;
     [SupplyParameterFromForm] public ActionInput? Action { get; set; }
     [SupplyParameterFromForm(FormName = "transfer")] public TransferInput? Transfer { get; set; }
     [SupplyParameterFromForm(FormName = "invoice-preference")] public PreferenceInput? Preference { get; set; }
@@ -145,7 +154,7 @@ else { <p>No billing account is available.</p> }
     protected override async Task OnInitializedAsync()
     {
         actor = (await Authentication.GetAuthenticationStateAsync()).User;
-        try { view = await Queries.Member(actor, UserId ?? Authority.Id(actor)); services = await Queries.Services(actor); }
+        try { view = await Queries.Member(actor, UserId ?? Authority.Id(actor), skip: (Page - 1) * PageSize, take: PageSize); services = await Queries.Services(actor); }
         catch (UnauthorizedAccessException) { HttpContext.Response.StatusCode = 403; return; }
         board = HttpContext.User.IsInRole("Administrator");
         Action ??= new(); Transfer ??= new(); Preference ??= new() { Enabled = view?.EmailInvoices ?? true };

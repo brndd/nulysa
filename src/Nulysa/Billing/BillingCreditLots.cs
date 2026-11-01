@@ -13,23 +13,48 @@ public sealed partial class BillingCommands
             .Where(x => x.EndedAt is null
                 || (x.ServiceEnrollmentId is { } enrollmentId
                     && IsAutomaticEndReason(facts.Enrollments.Single(e => e.Id == enrollmentId).EndReason)))
-            .OrderBy(x => x.MembershipId is null)
-            .ThenBy(x => x.MembershipId is null
-                ? facts.Services.Single(s => s.Id == facts.Fees.Single(f => f.Id == x.FeeDefinitionId).ServiceDefinitionId).Priority
-                : 0)
-            .ThenBy(x => x.Id)
             .ToList();
 
-        foreach (var item in items)
+        // Recover the earliest missed period first, then membership before services on the same bill.
+        var remaining = items;
+        for (var count = 0; count < 24 * items.Count; count++)
         {
-            for (var count = 0; count < 24; count++)
-            {
-                if (!facts.CreditLots.Any(x => x.RemainingAmount > 0))
-                    return;
-                if (!await RecoverOneMissedRenewal(facts, operation, item, on, ct))
-                    break;
-            }
+            if (!facts.CreditLots.Any(x => x.RemainingAmount > 0))
+                return;
+            var next = remaining
+                .Select(item => (item, start: NextMissedStart(facts, item)))
+                .Where(x => x.start <= on)
+                .OrderBy(x => x.start)
+                .ThenBy(x => x.item.MembershipId is null)
+                .ThenBy(x => x.item.MembershipId is null
+                    ? facts.Services.Single(s => s.Id == facts.Fees.Single(f => f.Id == x.item.FeeDefinitionId).ServiceDefinitionId).Priority
+                    : 0)
+                .ThenBy(x => x.item.Id)
+                .FirstOrDefault();
+            if (next.item is null)
+                return;
+            if (!await RecoverOneMissedRenewal(facts, operation, next.item, on, ct))
+                remaining = remaining.Where(x => x.Id != next.item.Id).ToList();
         }
+    }
+
+    private static DateOnly NextMissedStart(BillingFacts facts, RecurringItem item)
+    {
+        var fee = facts.Fees.Single(x => x.Id == item.FeeDefinitionId);
+        var benefit = item.MembershipId is null ? Benefit.Service : Benefit.Membership;
+        var lastLine = facts.Lines
+            .Where(x => x.RecurringItemId == item.Id)
+            .OrderByDescending(x => x.StartsOn)
+            .ThenByDescending(x => x.Id)
+            .FirstOrDefault();
+        if (lastLine is not null && lastLine.State is (LineState.Open or LineState.Expired)
+            && lastLine.Purpose is (PurchasePurpose.Renewal or PurchasePurpose.Alignment))
+            return lastLine.StartsOn;
+        var nextStart = item.NextOn;
+        foreach (var period in facts.Periods(benefit, fee.ServiceDefinitionId).OrderBy(x => x.Start))
+            if (period.Start <= nextStart && nextStart < period.End)
+                nextStart = period.End;
+        return nextStart;
     }
 
     private async Task<bool> RecoverOneMissedRenewal(BillingFacts facts, BillingOperation operation, RecurringItem item, DateOnly on, CancellationToken ct)
@@ -108,7 +133,7 @@ public sealed partial class BillingCommands
                     || facts.Enrollments.Any(newer => newer.Id != enrollment.Id
                         && newer.ServiceDefinitionId == enrollment.ServiceDefinitionId
                         && newer.StartedAt >= enrollment.StartedAt)
-                    || facts.Lines.Any(x => x.ServiceEnrollmentId == enrollment.Id && x.State is LineState.Expired or LineState.Cancelled))
+                    || facts.Lines.Any(x => x.Id != line?.Id && x.ServiceEnrollmentId == enrollment.Id && x.State is LineState.Expired or LineState.Cancelled))
                     return false;
                 ReopenService(facts, operation, enrollment, item.Id);
             }

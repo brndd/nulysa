@@ -90,8 +90,11 @@ public sealed class BillingTests : MembershipTest
         Assert.Contains(held.Lines, x => x.Kind == MovementKind.ReceiptToLine && x.InvoiceLineId is not null);
         Assert.Contains(held.Lines, x => x.Kind == MovementKind.LinePurchase && x.Amount == -10);
 
-        var filtered = await Run(app, sp => sp.GetRequiredService<BillingQueries>().Statement(board, view.AccountId, BalanceKind.BillingCredit));
+        var filtered = await Run(app, sp => sp.GetRequiredService<BillingQueries>().Statement(board, view.AccountId, BalanceKind.BillingCredit, from: new(2026, 6, 1), to: new(2026, 7, 2)));
         Assert.Equal(billing.ClosingBalance, filtered.ClosingBalance);
+        var paged = await Run(app, sp => sp.GetRequiredService<BillingQueries>().Statement(board, view.AccountId, BalanceKind.BillingCredit, skip: 1, take: 1));
+        Assert.Single(paged.Lines);
+        Assert.Equal(billing.Lines[0].Amount, paged.OpeningBalance);
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             Run(app, sp => sp.GetRequiredService<BillingQueries>().Statements(Actor(other), view.AccountId)));
     }
@@ -254,6 +257,43 @@ public sealed class BillingTests : MembershipTest
         await using var db = Context();
         var lot = await db.CreditLots.SingleAsync();
         Assert.Equal(0m, lot.RemainingAmount);
+    }
+
+    [Fact]
+    [Trait("Acceptance", "BILL")]
+    public async Task Delayed_receipt_lot_recovers_an_ended_service_renewal()
+    {
+        On(6, 1);
+        Settings["Billing:MembershipRenewalGraceDays"] = "0";
+        var board = await Board();
+        await using var app = CommandsApp();
+        var id = await Admit(app, board);
+        var view = await View(app, board, id);
+        await Pay(app, view.Invoices[0].Reference, 10);
+        var service = await Service(app, board, grace: 0);
+        await Run(app, sp => sp.GetRequiredService<BillingCommands>().Subscribe(board, view.AccountId, service, 1, false, Guid.NewGuid()));
+        view = await View(app, board, id);
+        var serviceBill = view.Invoices.Single(x => x.Lines.Any(l => l.Line.Benefit == Benefit.Service));
+        await Pay(app, serviceBill.Reference, serviceBill.Remaining);
+
+        On(6, 20);
+        await Scan(app, view.AccountId);
+        view = await View(app, board, id);
+        On(7, 2);
+        await Scan(app, view.AccountId);
+        view = await View(app, board, id);
+        Assert.DoesNotContain(view.Subscriptions, x => x.Enrollment.ServiceDefinitionId == service);
+
+        // A delayed receipt dated before expiry arrives after the service already ended.
+        var receiptId = await Pay(app, "not-a-reference", 40, new(2026, 6, 1));
+        await Run(app, sp => sp.GetRequiredService<BillingCommands>().AssignReceipt(board, receiptId, view.AccountId, null, false, Guid.NewGuid(), "Delayed bank payment"));
+        view = await View(app, board, id);
+
+        Assert.True(view.Membership.Active);
+        Assert.Contains(view.Subscriptions, x => x.Enrollment.ServiceDefinitionId == service && x.Standing.Active);
+        var renewal = view.Invoices.SelectMany(x => x.Lines)
+            .Single(x => x.Line.Benefit == Benefit.Service && x.Line.Purpose == PurchasePurpose.Renewal).Line;
+        Assert.Equal(LineState.Fulfilled, renewal.State);
     }
 
     [Fact]

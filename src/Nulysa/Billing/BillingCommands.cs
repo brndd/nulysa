@@ -78,7 +78,12 @@ public sealed partial class BillingCommands(AppDbContext db, AssociationClock cl
         if (kind == MovementKind.ReceiptToBilling && receipt is { } receiptId)
             AddCreditLot(facts, receiptId, on, amount);
         else if (BillingFacts.BillingBalanceDelta(kind) < 0)
-            ConsumeCreditLots(facts, amount, kind == MovementKind.BillingReceiptReversal ? receipt : null);
+        {
+            // A receipt-to-line reversal releases the line's hold and must not consume credit lots.
+            var reversed = reverses is { } id ? facts.Movements.SingleOrDefault(x => x.Id == id) : null;
+            if (kind != MovementKind.BillingReceiptReversal || reversed?.Kind == MovementKind.ReceiptToBilling)
+                ConsumeCreditLots(facts, amount, kind == MovementKind.BillingReceiptReversal ? receipt : null);
+        }
     }
 
     private void AddCreditLot(BillingFacts facts, long receiptId, DateOnly receivedOn, decimal amount)
@@ -101,7 +106,7 @@ public sealed partial class BillingCommands(AppDbContext db, AssociationClock cl
             return;
         var lots = facts.CreditLots.Where(x => x.RemainingAmount > 0).OrderBy(x => x.ReceivedOn).ThenBy(x => x.Id).ToList();
         if (preferredReceiptId is { } receiptId)
-            lots = lots.Where(x => x.ReceiptId == receiptId).Concat(lots.Where(x => x.ReceiptId != receiptId)).ToList();
+            lots = lots.Where(x => x.ReceiptId == receiptId).ToList();
         foreach (var lot in lots)
         {
             if (amount <= 0)

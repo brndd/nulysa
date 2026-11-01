@@ -40,14 +40,14 @@ public sealed record BillingView(long AccountId, long? UserId, string DepositRef
 
 public sealed class BillingQueries(AppDbContext db, AssociationClock clock, IOptions<BillingOptions> options)
 {
-    public async Task<BillingView?> Member(ClaimsPrincipal actor, long userId, CancellationToken ct = default)
+    public async Task<BillingView?> Member(ClaimsPrincipal actor, long userId, int skip = 0, int take = 0, CancellationToken ct = default)
     {
         await Authority.RequireOwnerOrAdministrator(db, actor, userId, ct);
         var account = await db.BillingAccounts.AsNoTracking().SingleOrDefaultAsync(x => x.UserId == userId, ct);
-        return account is null ? null : await Account(actor, account.Id, ct);
+        return account is null ? null : await Account(actor, account.Id, skip, take, ct);
     }
 
-    public async Task<BillingView> Account(ClaimsPrincipal actor, long accountId, CancellationToken ct = default)
+    public async Task<BillingView> Account(ClaimsPrincipal actor, long accountId, int skip = 0, int take = 0, CancellationToken ct = default)
     {
         var account = await db.BillingAccounts.AsNoTracking().SingleAsync(x => x.Id == accountId, ct);
         if (account.UserId is { } id)
@@ -102,7 +102,7 @@ public sealed class BillingQueries(AppDbContext db, AssociationClock clock, IOpt
             facts.Items.Where(x => x.EndedAt is null).ToList(), facts.Groups, subscriptions,
             facts.Movements.OrderByDescending(x => x.Id).Take(100).ToList(), facts.Coverage, facts.Discounts, operations, forecasts, facts.Services)
         {
-            Statements = await StatementsFor(facts, null, null, 0, 0, ct)
+            Statements = await StatementsFor(facts, null, null, skip, take, ct)
         };
     }
 
@@ -143,6 +143,14 @@ public sealed class BillingQueries(AppDbContext db, AssociationClock clock, IOpt
         var movements = facts.Movements.ToDictionary(x => x.Id);
 
         var results = new List<BalanceStatement>();
+        // Lots are created in the same order as their ReceiptToBilling movements; pair them deterministically.
+        var lotsByMovement = facts.Movements
+            .Where(x => x.Kind == MovementKind.ReceiptToBilling && x.ReceiptId is not null)
+            .GroupBy(x => x.ReceiptId!.Value)
+            .SelectMany(g => g.OrderBy(x => x.Id)
+                .Zip(facts.CreditLots.Where(l => l.ReceiptId == g.Key).OrderBy(l => l.Id),
+                    (movement, lot) => (movement.Id, lot)))
+            .ToDictionary(x => x.Id, x => x.lot);
         foreach (var balance in Enum.GetValues<BalanceKind>())
         {
             var ordered = facts.Movements
@@ -164,14 +172,13 @@ public sealed class BillingQueries(AppDbContext db, AssociationClock clock, IOpt
             var inRange = ordered.Where(x => (from is null || x.movement.EffectiveOn >= from) && (to is null || x.movement.EffectiveOn < to)).ToList();
             var page = inRange.Skip(skip).Take(take > 0 ? take : int.MaxValue).ToList();
             var running = opening + inRange.Take(skip).Sum(x => x.delta);
+            var pageOpening = running;
             var statementLines = new List<StatementLineView>();
             foreach (var entry in page)
             {
                 running += entry.delta;
                 var movement = entry.movement;
-                var lot = movement.Kind == MovementKind.ReceiptToBilling && movement.ReceiptId is { } receiptId
-                    ? facts.CreditLots.Where(x => x.ReceiptId == receiptId).OrderByDescending(x => x.Id).FirstOrDefault()
-                    : null;
+                var lot = lotsByMovement.GetValueOrDefault(movement.Id);
                 statementLines.Add(new(movement.Id, movement.EffectiveOn, operations.GetValueOrDefault(movement.OperationId)?.OccurredAt ?? default,
                     movement.Kind, entry.delta, running,
                     Describe(movement, lines.GetValueOrDefault(movement.InvoiceLineId ?? 0), receipts.GetValueOrDefault(movement.ReceiptId ?? 0),
@@ -179,7 +186,7 @@ public sealed class BillingQueries(AppDbContext db, AssociationClock clock, IOpt
                     movement.ReceiptId, movement.InvoiceLineId, lines.GetValueOrDefault(movement.InvoiceLineId ?? 0)?.InvoiceId,
                     movement.DiscountId, movement.ReversesMovementId, lot?.Id, lot?.OriginalAmount, lot?.RemainingAmount));
             }
-            results.Add(new(balance, opening, running, inRange.Count > skip + page.Count, statementLines));
+            results.Add(new(balance, pageOpening, running, inRange.Count > skip + page.Count, statementLines));
         }
         return results;
     }
