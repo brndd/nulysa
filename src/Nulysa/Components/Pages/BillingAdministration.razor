@@ -21,6 +21,27 @@
         </tbody></table>
     }
     <p>Available billing credit: @view.Balances.BillingCredit.ToString("0.00") EUR · purchase balance: @view.Balances.PurchaseBalance.ToString("0.00") EUR · held: @view.Balances.Held.ToString("0.00") EUR</p>
+    <h2>Balance statements</h2>
+    <p>Running statements are derived from the immutable journal. <a href="/admin/payments">Open Payments and accounting for the full journal export and reconciliation</a>.</p>
+    @foreach (var statement in view.Statements)
+    {
+        <h3>@StatementTitle(statement.Balance)</h3>
+        <p>Closing balance: @statement.ClosingBalance.ToString("0.00") EUR@if (statement.HasMore) { <span> · showing a page</span> }</p>
+        <table><thead><tr><th>Effective</th><th>Recorded</th><th>Description</th><th>Amount EUR</th><th>Running balance EUR</th><th>Source</th></tr></thead><tbody>
+        @foreach (var line in statement.Lines)
+        {
+            <tr id="movement-@line.MovementId"><td>@line.EffectiveOn</td><td>@line.RecordedAt.ToString("yyyy-MM-dd HH:mm")</td><td>@line.Description</td><td>@line.Amount.ToString("0.00")</td><td>@line.RunningBalance.ToString("0.00")</td>
+                <td>
+                    @if (line.ReceiptId is { } receiptId) { <span>Receipt #@receiptId</span> }
+                    @if (line.InvoiceId is { } invoiceId) { <a href="@($"/billing/invoices/{invoiceId}/pdf")">Invoice #@invoiceId</a> }
+                    @if (line.InvoiceLineId is { } lineId) { <span>line #@lineId</span> }
+                    @if (line.DiscountId is { } discountId) { <span>discount #@discountId</span> }
+                    @if (line.ReversesMovementId is { } reversalId) { <a href="#movement-@reversalId">reverses #@reversalId</a> }
+                </td>
+            </tr>
+        }
+        </tbody></table>
+    }
     @if (error is not null) { <p role="alert">@error</p> }
     <h2>One-off advance request</h2><p>Uses its own permanent invoice reference. It does not create a subscription or storage reservation.</p>
     <EditForm Model="OneOff" method="post" FormName="one-off" OnValidSubmit="CreateOneOff"><DataAnnotationsValidator /><ValidationSummary />
@@ -84,4 +105,10 @@
         }
     });
     private async Task Handle(Func<Task> action) { try { await action(); Navigation.NavigateTo(Navigation.Uri); } catch (ValidationException ex) { error = ex.Message; } }
+    private static string StatementTitle(BalanceKind balance) => balance switch
+    {
+        BalanceKind.BillingCredit => "Billing credit statement",
+        BalanceKind.PurchaseBalance => "Purchase balance statement",
+        _ => "Held/funding movements"
+    };
 }

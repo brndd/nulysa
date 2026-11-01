@@ -52,6 +52,51 @@ public sealed class BillingTests : MembershipTest
     }
 
     [Fact]
+    [Trait("Acceptance", "BILL")]
+    public async Task Balance_statements_reconcile_available_and_held_balances_and_keep_transfers_in_both()
+    {
+        On(6, 1);
+        Settings["Billing:PurchaseBalanceEnabled"] = "true";
+        var board = await Board();
+        await using var app = CommandsApp();
+        var id = await Admit(app, board);
+        var other = await Admit(app, board, "statement-other@example.test");
+        var view = await View(app, board, id);
+        await Pay(app, view.Invoices[0].Reference, 15);
+        await Run(app, sp => sp.GetRequiredService<BillingCommands>().Transfer(Actor(id), view.AccountId, Guid.NewGuid(), 2, true));
+        view = await View(app, board, id);
+
+        Assert.Equal(new Balances(3, 2, 0), view.Balances);
+        var billing = view.Statement(BalanceKind.BillingCredit);
+        var purchase = view.Statement(BalanceKind.PurchaseBalance);
+        var held = view.Statement(BalanceKind.Held);
+
+        Assert.Equal(view.Balances.BillingCredit, billing.ClosingBalance);
+        Assert.Equal(view.Balances.PurchaseBalance, purchase.ClosingBalance);
+        Assert.Equal(view.Balances.Held, held.ClosingBalance);
+        Assert.Equal(billing.ClosingBalance, billing.Lines[^1].RunningBalance);
+        Assert.Equal(purchase.ClosingBalance, purchase.Lines[^1].RunningBalance);
+        Assert.Equal(held.ClosingBalance, held.Lines[^1].RunningBalance);
+        Assert.All(billing.Lines, line =>
+        {
+            Assert.NotEqual(default, line.RecordedAt);
+            Assert.False(string.IsNullOrWhiteSpace(line.Description));
+        });
+        var receiptCredit = Assert.Single(billing.Lines, x => x.Kind == MovementKind.ReceiptToBilling);
+        Assert.NotNull(receiptCredit.ReceiptId);
+        Assert.Contains(billing.Lines, x => x.Kind == MovementKind.BillingToPurchase && x.Amount == -2);
+        Assert.Contains(purchase.Lines, x => x.Kind == MovementKind.BillingToPurchase && x.Amount == 2);
+        Assert.DoesNotContain(billing.Lines, x => x.Kind == MovementKind.ReceiptToLine);
+        Assert.Contains(held.Lines, x => x.Kind == MovementKind.ReceiptToLine && x.InvoiceLineId is not null);
+        Assert.Contains(held.Lines, x => x.Kind == MovementKind.LinePurchase && x.Amount == -10);
+
+        var filtered = await Run(app, sp => sp.GetRequiredService<BillingQueries>().Statement(board, view.AccountId, BalanceKind.BillingCredit));
+        Assert.Equal(billing.ClosingBalance, filtered.ClosingBalance);
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            Run(app, sp => sp.GetRequiredService<BillingQueries>().Statements(Actor(other), view.AccountId)));
+    }
+
+    [Fact]
     [Trait("Acceptance", "SVC")]
     public async Task Retiring_a_service_stops_renewals_and_keeps_paid_coverage()
     {

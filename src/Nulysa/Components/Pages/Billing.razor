@@ -99,9 +99,34 @@
     <h2>Forecasts — not issued invoices</h2>
     <ul>@foreach (var forecast in view.Forecasts) { <li>@forecast.Description · @forecast.Start–@forecast.End · @Money(forecast.Amount) EUR · @forecast.Months months</li> }</ul>
     <h2>Coverage</h2><ul>@foreach (var coverage in view.Coverage.OrderByDescending(x => x.StartsOn)) { <li>@coverage.Benefit @(view.Services.SingleOrDefault(x => x.Id == coverage.ServiceDefinitionId)?.Name) · @coverage.StartsOn–@coverage.EndsOn · @coverage.Source</li> }</ul>
-    <h2>Money history</h2><table><thead><tr><th>Event</th><th>Effective date</th><th>Amount EUR</th><th>Source / purchase</th></tr></thead><tbody>
-    @foreach (var move in view.Movements) { <tr><td>#@move.Id @move.Kind</td><td>@move.EffectiveOn</td><td>@Money(move.Amount)</td><td>Receipt #@move.ReceiptId · line #@move.InvoiceLineId</td></tr> }
-    </tbody></table>
+    <h2>Balance statements</h2>
+    <p>Running statements are derived from the immutable journal. Transfers appear in both available balances; held/funding movements are kept separate.</p>
+    @foreach (var statement in view.Statements)
+    {
+        var showStatement = statement.Balance != BalanceKind.PurchaseBalance
+            || Options.Value.PurchaseBalanceEnabled
+            || statement.Lines.Count > 0
+            || statement.OpeningBalance != 0
+            || statement.ClosingBalance != 0;
+        if (!showStatement) { continue; }
+
+        <h3>@StatementTitle(statement.Balance)</h3>
+        <p>Closing balance: @Money(statement.ClosingBalance) EUR@if (statement.HasMore) { <span> · showing a page; administrators can export the full journal from Payments and accounting</span> }</p>
+        <table><thead><tr><th>Effective</th><th>Recorded</th><th>Description</th><th>Amount EUR</th><th>Running balance EUR</th><th>Source</th></tr></thead><tbody>
+        @foreach (var line in statement.Lines)
+        {
+            <tr id="movement-@line.MovementId"><td>@line.EffectiveOn</td><td>@line.RecordedAt.ToString("yyyy-MM-dd HH:mm")</td><td>@line.Description</td><td>@Money(line.Amount)</td><td>@Money(line.RunningBalance)</td>
+                <td>
+                    @if (line.ReceiptId is { } receiptId) { <span>Receipt #@receiptId</span> }
+                    @if (line.InvoiceId is { } invoiceId) { <a href="@($"/billing/invoices/{invoiceId}/pdf")">Invoice #@invoiceId</a> }
+                    @if (line.InvoiceLineId is { } lineId) { <span>line #@lineId</span> }
+                    @if (line.DiscountId is { } discountId) { <span>discount #@discountId</span> }
+                    @if (line.ReversesMovementId is { } reversalId) { <a href="#movement-@reversalId">reverses #@reversalId</a> }
+                </td>
+            </tr>
+        }
+        </tbody></table>
+    }
     @if (board) { <p><a href="@($"/admin/billing/{view.AccountId}")">Financial adjustments and one-off invoices</a></p> }
 }
 else { <p>No billing account is available.</p> }
@@ -125,6 +150,12 @@ else { <p>No billing account is available.</p> }
         Action ??= new(); Transfer ??= new(); Preference ??= new() { Enabled = view?.EmailInvoices ?? true };
     }
     private static string Money(decimal amount) => amount.ToString("0.00");
+    private static string StatementTitle(BalanceKind balance) => balance switch
+    {
+        BalanceKind.BillingCredit => "Billing credit statement",
+        BalanceKind.PurchaseBalance => "Purchase balance statement",
+        _ => "Held/funding movements"
+    };
     private async Task Submit() => await Handle(async () =>
     {
         switch (Action!.Name)

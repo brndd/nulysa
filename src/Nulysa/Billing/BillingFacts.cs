@@ -74,6 +74,13 @@ internal sealed class BillingFacts
         _ => 0
     };
 
+    internal static decimal HeldBalanceDelta(MovementKind kind) => kind switch
+    {
+        MovementKind.ReceiptToLine or MovementKind.BillingToLine => 1,
+        MovementKind.LineToBilling or MovementKind.LinePurchase => -1,
+        _ => 0
+    };
+
     public decimal Held(InvoiceLine line) => Movements
         .Where(x => x.InvoiceLineId == line.Id)
         .Sum(x => x.Kind switch

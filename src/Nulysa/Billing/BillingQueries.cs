@@ -24,10 +24,19 @@ public sealed record Forecast(string Description, DateOnly Start, DateOnly End, 
 public sealed record Reconciliation(decimal Receipts, decimal BillingCredit, decimal PurchaseBalance, decimal Held, decimal Purchases,
     decimal Corrections, decimal Refunds, decimal Difference, List<long> InvalidLines, List<long> InvalidReceipts);
 public sealed record FinancialClaim(long AccountId, string? Name, string? Email, decimal BillingCredit, decimal PurchaseBalance);
+public enum BalanceKind { BillingCredit, PurchaseBalance, Held }
+public sealed record StatementLineView(long MovementId, DateOnly EffectiveOn, DateTimeOffset RecordedAt, MovementKind Kind, decimal Amount,
+    decimal RunningBalance, string Description, long? ReceiptId, long? InvoiceLineId, long? InvoiceId, long? DiscountId, long? ReversesMovementId,
+    long? LotId = null, decimal? LotOriginalAmount = null, decimal? LotRemaining = null);
+public sealed record BalanceStatement(BalanceKind Balance, decimal OpeningBalance, decimal ClosingBalance, bool HasMore, List<StatementLineView> Lines);
 public sealed record BillingView(long AccountId, long? UserId, string DepositReference, bool EmailInvoices, Balances Balances, Standing Membership,
     List<InvoiceView> Invoices, List<RecurringItem> Items, List<BillingGroup> Groups, List<SubscriptionView> Subscriptions,
     List<MoneyMovement> Movements, List<Coverage> Coverage, List<Discount> Discounts, List<BillingOperation> History, List<Forecast> Forecasts,
-    List<ServiceDefinition> Services);
+    List<ServiceDefinition> Services)
+{
+    public List<BalanceStatement> Statements { get; init; } = [];
+    public BalanceStatement Statement(BalanceKind balance) => Statements.Single(x => x.Balance == balance);
+}
 
 public sealed class BillingQueries(AppDbContext db, AssociationClock clock, IOptions<BillingOptions> options)
 {
@@ -91,7 +100,115 @@ public sealed class BillingQueries(AppDbContext db, AssociationClock clock, IOpt
             .ToListAsync(ct);
         return new(account.Id, account.UserId, account.PurchaseDepositReference, account.EmailInvoices, facts.Balances, membership, invoices,
             facts.Items.Where(x => x.EndedAt is null).ToList(), facts.Groups, subscriptions,
-            facts.Movements.OrderByDescending(x => x.Id).Take(100).ToList(), facts.Coverage, facts.Discounts, operations, forecasts, facts.Services);
+            facts.Movements.OrderByDescending(x => x.Id).Take(100).ToList(), facts.Coverage, facts.Discounts, operations, forecasts, facts.Services)
+        {
+            Statements = await StatementsFor(facts, null, null, 0, 0, ct)
+        };
+    }
+
+    public async Task<List<BalanceStatement>> Statements(ClaimsPrincipal actor, long accountId, DateOnly? from = null, DateOnly? to = null,
+        int skip = 0, int take = 0, CancellationToken ct = default)
+    {
+        var account = await db.BillingAccounts.AsNoTracking().SingleOrDefaultAsync(x => x.Id == accountId, ct)
+            ?? throw new System.ComponentModel.DataAnnotations.ValidationException("Choose an existing financial account ID.");
+        if (account.UserId is { } id)
+            await Authority.RequireOwnerOrAdministrator(db, actor, id, ct);
+        else
+            await Authority.RequireAdministrator(db, actor, ct);
+        var facts = await BillingFacts.Load(db, accountId, ct, options.Value.MembershipRenewalGraceDays);
+        return await StatementsFor(facts, from, to, skip, take, ct);
+    }
+
+    public async Task<BalanceStatement> Statement(ClaimsPrincipal actor, long accountId, BalanceKind balance, DateOnly? from = null,
+        DateOnly? to = null, int skip = 0, int take = 0, CancellationToken ct = default)
+        => (await Statements(actor, accountId, from, to, skip, take, ct)).Single(x => x.Balance == balance);
+
+    private async Task<List<BalanceStatement>> StatementsFor(BillingFacts facts, DateOnly? from, DateOnly? to, int skip, int take, CancellationToken ct)
+    {
+        if (from is not null && to is not null && to <= from)
+            throw new System.ComponentModel.DataAnnotations.ValidationException("Choose an end date after the start date.");
+        if (skip < 0 || take < 0)
+            throw new System.ComponentModel.DataAnnotations.ValidationException("Statement paging cannot be negative.");
+
+        var operationIds = facts.Movements.Select(x => x.OperationId).Distinct().ToList();
+        var operations = operationIds.Count == 0
+            ? new Dictionary<Guid, BillingOperation>()
+            : await db.BillingOperations.AsNoTracking().Where(x => operationIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, ct);
+        var receiptIds = facts.Movements.Where(x => x.ReceiptId is not null).Select(x => x.ReceiptId!.Value).Distinct().ToList();
+        var receipts = receiptIds.Count == 0
+            ? new Dictionary<long, Receipt>()
+            : await db.Receipts.AsNoTracking().Where(x => receiptIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, ct);
+        var lines = facts.Lines.ToDictionary(x => x.Id);
+        var discounts = facts.Discounts.ToDictionary(x => x.Id);
+        var movements = facts.Movements.ToDictionary(x => x.Id);
+
+        var results = new List<BalanceStatement>();
+        foreach (var balance in Enum.GetValues<BalanceKind>())
+        {
+            var ordered = facts.Movements
+                .Select(movement => new
+                {
+                    movement,
+                    delta = balance switch
+                    {
+                        BalanceKind.BillingCredit => BillingFacts.BillingBalanceDelta(movement.Kind),
+                        BalanceKind.PurchaseBalance => BillingFacts.PurchaseBalanceDelta(movement.Kind),
+                        _ => BillingFacts.HeldBalanceDelta(movement.Kind)
+                    } * movement.Amount
+                })
+                .Where(x => x.delta != 0)
+                .OrderBy(x => x.movement.EffectiveOn)
+                .ThenBy(x => x.movement.Id)
+                .ToList();
+            var opening = from is { } start ? ordered.Where(x => x.movement.EffectiveOn < start).Sum(x => x.delta) : 0;
+            var inRange = ordered.Where(x => (from is null || x.movement.EffectiveOn >= from) && (to is null || x.movement.EffectiveOn < to)).ToList();
+            var page = inRange.Skip(skip).Take(take > 0 ? take : int.MaxValue).ToList();
+            var running = opening + inRange.Take(skip).Sum(x => x.delta);
+            var statementLines = new List<StatementLineView>();
+            foreach (var entry in page)
+            {
+                running += entry.delta;
+                var movement = entry.movement;
+                statementLines.Add(new(movement.Id, movement.EffectiveOn, operations.GetValueOrDefault(movement.OperationId)?.OccurredAt ?? default,
+                    movement.Kind, entry.delta, running,
+                    Describe(movement, lines.GetValueOrDefault(movement.InvoiceLineId ?? 0), receipts.GetValueOrDefault(movement.ReceiptId ?? 0),
+                        discounts.GetValueOrDefault(movement.DiscountId ?? 0), movements.GetValueOrDefault(movement.ReversesMovementId ?? 0)),
+                    movement.ReceiptId, movement.InvoiceLineId, lines.GetValueOrDefault(movement.InvoiceLineId ?? 0)?.InvoiceId,
+                    movement.DiscountId, movement.ReversesMovementId));
+            }
+            results.Add(new(balance, opening, running, inRange.Count > skip + page.Count, statementLines));
+        }
+        return results;
+    }
+
+    private static string Describe(MoneyMovement movement, InvoiceLine? line, Receipt? receipt, Discount? discount, MoneyMovement? reversed)
+    {
+        var text = movement.Kind switch
+        {
+            MovementKind.ReceiptToLine => "Receipt funding held for a purchase",
+            MovementKind.ReceiptToBilling => "Billing credit from a receipt",
+            MovementKind.ReceiptToPurchase => "Purchase balance deposit",
+            MovementKind.BillingToLine => "Billing credit applied to a purchase",
+            MovementKind.LineToBilling => "Unspent purchase funds released to billing credit",
+            MovementKind.LinePurchase => "Purchase completed from held funds",
+            MovementKind.BillingToPurchase => "Billing credit transferred to purchase balance",
+            MovementKind.PurchaseToBilling => "Purchase balance transferred to billing credit",
+            MovementKind.PurchaseCredit => "Billing credit correction",
+            MovementKind.BillingRefund => "Billing credit refund",
+            MovementKind.PurchaseRefund => "Purchase balance refund",
+            MovementKind.BillingReceiptReversal => "Billing credit allocation reversed",
+            MovementKind.PurchaseReceiptReversal => "Purchase balance allocation reversed",
+            _ => movement.Kind.ToString()
+        };
+        if (line is not null && !string.IsNullOrWhiteSpace(line.Description))
+            text += $" — {line.Description}";
+        if (receipt is not null && movement.ReceiptId is not null)
+            text += $" — receipt #{receipt.Id}" + (string.IsNullOrWhiteSpace(receipt.Reference) ? "" : $" ({receipt.Reference})");
+        if (discount is not null && movement.DiscountId is not null)
+            text += $" — discount #{discount.Id}";
+        if (reversed is not null && movement.ReversesMovementId is not null)
+            text += $" — reverses movement #{reversed.Id}";
+        return text;
     }
 
     internal static InvoiceView View(BillingFacts facts, Invoice invoice)
