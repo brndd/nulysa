@@ -8,6 +8,7 @@ using Nulysa;
 using Nulysa.Accounts;
 using Nulysa.Billing;
 using Nulysa.Data;
+using Nulysa.Development;
 using Nulysa.Membership;
 using Nulysa.Operations;
 using OpenIddict.Abstractions;
@@ -21,10 +22,13 @@ if (mode == "worker")
     await worker.RunAsync();
     return;
 }
+var seedClock = mode == "seed-development-data" ? new DevelopmentClock() : null;
 WebApplication app;
 try
 {
-    app = FoundationHost.Build(args);
+    app = FoundationHost.Build(args, seedClock is null
+        ? null
+        : builder => builder.Services.AddSingleton<TimeProvider>(seedClock));
 }
 catch (Exception) when (mode == "status")
 {
@@ -136,8 +140,15 @@ try
                 Console.WriteLine($"Created development user with ID {user.Id}.");
                 break;
             }
+        case "seed-development-data" when app.Environment.IsDevelopment():
+            {
+                var seed = scope.ServiceProvider.GetRequiredService<DevelopmentSeed>();
+                var summary = await seed.Run();
+                Console.WriteLine(summary.ToText());
+                break;
+            }
         default:
-            throw new InvalidOperationException("Use web, worker, migrate, install-schedules, status, grant-superuser/revoke-superuser/grant-administrator/revoke-administrator <user-id>, register-client or create-development-user (Development only).");
+            throw new InvalidOperationException("Use web, worker, migrate, install-schedules, status, grant-superuser/revoke-superuser/grant-administrator/revoke-administrator <user-id>, register-client, create-development-user or seed-development-data (Development only).");
     }
     await scheduler.Shutdown();
 }
@@ -154,6 +165,11 @@ catch (Exception) when (mode is "grant-superuser" or "revoke-superuser" or "gran
 catch (Exception) when (mode == "create-development-user")
 {
     Console.Error.WriteLine("Development user creation failed. Check the email, non-empty password and whether the account already exists.");
+    Environment.ExitCode = 1;
+}
+catch (Exception error) when (mode == "seed-development-data")
+{
+    Console.Error.WriteLine("Development data seeding failed: " + error.Message);
     Environment.ExitCode = 1;
 }
 await app.DisposeAsync();

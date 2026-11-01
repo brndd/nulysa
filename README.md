@@ -58,7 +58,18 @@ enables purchase balance for both processes by default. Set
 does not change deployment defaults or stored balances. Restart the launcher after
 changing the setting. Web startup validates schema but never runs jobs. Migrations and schedule installation
 are explicit release commands, not startup side effects. No database is seeded
-automatically. To create a synthetic local login:
+automatically. For a full synthetic demo dataset (admin/board/sysop logins, a
+couple of dozen members with varied payment states, applicants, payment-review
+receipts and Door/Trailer services):
+
+```sh
+bash scripts/dev.sh seed-development-data
+```
+
+The seed is explicit, Development-only and one-shot; it never runs on startup or
+in Production. See [development data](docs/development-data.md) for the fixed
+credentials, scenarios and reset instructions. To create a single synthetic local
+login instead:
 
 ```sh
 DevelopmentUser__Email='synthetic@example.test' \

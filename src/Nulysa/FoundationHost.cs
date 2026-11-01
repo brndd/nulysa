@@ -15,6 +15,7 @@ using Nulysa.Billing;
 using Nulysa.Communications;
 using Nulysa.Components;
 using Nulysa.Data;
+using Nulysa.Development;
 using Nulysa.Integrations;
 using Nulysa.Membership;
 using Nulysa.Operations;
@@ -130,6 +131,8 @@ public static class FoundationHost
         builder.Services.AddScoped<BillingCommands>();
         builder.Services.AddScoped<BillingQueries>();
         builder.Services.AddScoped<MemberPortalQueries>();
+        if (development)
+            builder.Services.AddScoped<DevelopmentSeed>();
         builder.Services.AddScoped<InvoicePdf>();
         builder.Services.AddHttpClient<BankFeed>(client =>
         {

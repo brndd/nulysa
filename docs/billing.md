@@ -35,9 +35,10 @@ approval**; a missing price rolls back approval, including its mail intents.
    the portal invoice or suppressing mandatory membership notices.
 2. Configure a service and its dated monthly price at `/admin/billing-configuration`.
    Set self-subscription, initial free days, renewal grace (zero allowed), and funding
-   priority. Membership always funds first. Door service is not automatically seeded;
-   for this association configure 14 free days, seven renewal-grace days and no
-   self-subscription.
+   priority. Membership always funds first. No service is seeded by migrations or
+   startup; the optional `seed-development-data` command creates a synthetic Door
+   access service (14 free days, seven renewal-grace days, no self-subscription) and
+   a self-subscribable Trailer access service for local testing.
 3. Use `/admin/members/{user-id}/billing` to add an admin-only service. The unchecked
    free-days exception is an explicit, retry-safe grant for a returning subscriber.
    Stopping renewal preserves purchased/granted time; immediate removal is separate.

@@ -19,7 +19,10 @@ override so development can also send through SMTP.
 
 Create a development operator as described in the README. The command provisions
 a membership/billing owner, grants both `Administrator` and `Superuser`, and prints
-the new user ID after commit. No separate board-role grant is needed.
+the new user ID after commit. No separate board-role grant is needed. For a
+populated local registry with members, applications, payment states and services,
+use the explicit `seed-development-data` command; see
+[development data](development-data.md).
 
 For an existing account, the separate operator command remains available:
 
