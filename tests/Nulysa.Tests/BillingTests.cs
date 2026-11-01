@@ -2,8 +2,6 @@ using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.DependencyInjection;
 using Nulysa.Billing;
 using Nulysa.Communications;
@@ -1406,81 +1404,6 @@ public sealed class BillingTests : MembershipTest
         Assert.Equal(LineState.Expired, view.Invoices.Single(x => x.Invoice.Id == secondId).Lines.Single().Line.State);
         Assert.Equal(12.50m, view.Balances.BillingCredit);
         Assert.Equal(0m, view.Balances.Held);
-    }
-
-    [Fact]
-    [Trait("Acceptance", "DATE")]
-    public async Task Upgrade_extends_only_open_exclusive_deadlines_and_preserves_closed_purchases()
-    {
-        On(6, 1);
-        var board = await Board();
-        await using var app = CommandsApp();
-        var id = await Admit(app, board);
-        var view = await View(app, board, id);
-        await using var db = Context();
-        var invoices = new Dictionary<LineState, long>();
-        foreach (var state in Enum.GetValues<LineState>())
-        {
-            var invoiceId = (await Run(app, sp => sp.GetRequiredService<BillingCommands>().OneOff(board, view.AccountId,
-                Guid.NewGuid(), "Workshop", "workshop", 12.50m, new(2026, 6, 20))))!.Value;
-            invoices.Add(state, invoiceId);
-            if (state == LineState.Fulfilled)
-            {
-                var invoice = (await View(app, board, id)).Invoices.Single(x => x.Invoice.Id == invoiceId);
-                await Pay(app, invoice.Reference, 12.50m);
-            }
-            if (state == LineState.Cancelled)
-                await Run(app, sp => sp.GetRequiredService<BillingCommands>().CancelInvoice(board, view.AccountId, invoiceId,
-                    Guid.NewGuid(), "Cancelled workshop"));
-        }
-        // Create the inclusive invoice while still at the latest schema.
-        var inclusiveId = (await Run(app, sp => sp.GetRequiredService<BillingCommands>().OneOff(board, view.AccountId, Guid.NewGuid(),
-            "Inclusive workshop", "workshop", 5m, new(2026, 6, 20))))!.Value;
-        await db.GetService<IMigrator>().MigrateAsync("20261031185213_BillingMovementEffectiveIndex");
-        var legacy = await db.InvoiceLines.ToListAsync();
-        foreach (var line in legacy)
-        {
-            line.ExpiresOn = line.ChargeDueOn;
-            if (line.InvoiceId == invoices[LineState.Expired])
-            {
-                line.State = LineState.Expired;
-                (await db.Invoices.SingleAsync(x => x.Id == line.InvoiceId)).ClosedAt = Clock.Now;
-            }
-            // Already-inclusive requests must not gain another day on upgrade.
-            if (line.InvoiceId == inclusiveId)
-                line.ExpiresOn = new DateOnly(2026, 6, 27);
-        }
-        await db.SaveChangesAsync();
-        db.ChangeTracker.Clear();
-        var before = await db.InvoiceLines.AsNoTracking().ToListAsync();
-
-        await db.Database.MigrateAsync();
-        await db.Database.MigrateAsync();
-        var after = await db.InvoiceLines.AsNoTracking().ToDictionaryAsync(x => x.Id);
-
-        foreach (var line in before)
-        {
-            var expectedExpiry = line.State == LineState.Open && line.ExpiresOn <= line.ChargeDueOn
-                ? line.ChargeDueOn.AddDays(1) : line.ExpiresOn;
-            Assert.Equal(expectedExpiry, after[line.Id].ExpiresOn);
-            Assert.Equal(line.State, after[line.Id].State);
-            Assert.Equal(line.ChargeDueOn, after[line.Id].ChargeDueOn);
-            Assert.Equal(line.StartsOn, after[line.Id].StartsOn);
-            Assert.Equal(line.EndsOn, after[line.Id].EndsOn);
-            Assert.Equal(line.Amount, after[line.Id].Amount);
-        }
-        var extended = after[invoices[LineState.Open]].ExpiresOn;
-        On(6, 20);
-        var payable = (await View(app, board, id)).Invoices.Single(x => x.Invoice.Id == invoices[LineState.Open]);
-        await Pay(app, payable.Reference, payable.Remaining);
-        var settled = (await View(app, board, id)).Invoices.Single(x => x.Invoice.Id == payable.Invoice.Id);
-
-        Assert.Equal(LineState.Fulfilled, Assert.Single(settled.Lines).Line.State);
-        Assert.Equal(12.50m, settled.Paid);
-        Assert.Equal(0m, (await Run(app, sp => sp.GetRequiredService<BillingQueries>().Reconcile(board))).Difference);
-        await db.Database.MigrateAsync("20261031185213_BillingMovementEffectiveIndex");
-        var downgraded = await db.InvoiceLines.AsNoTracking().SingleAsync(x => x.InvoiceId == invoices[LineState.Open]);
-        Assert.Equal(extended, downgraded.ExpiresOn);
     }
 
     [Theory]

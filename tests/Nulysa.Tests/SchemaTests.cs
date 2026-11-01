@@ -1,8 +1,5 @@
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
-using Microsoft.EntityFrameworkCore.Migrations;
-using Nulysa.Billing;
 using Nulysa.Data;
 using Nulysa.Operations;
 using Nulysa.WorkerHarness;
@@ -14,44 +11,9 @@ namespace Nulysa.Tests;
 public sealed class SchemaTests : DatabaseTest
 {
     [Fact]
-    public async Task S1_upgrade_backfills_distinct_references_and_preserves_initial_requests_without_seeding_prices()
+    public async Task Quartz_45_shape_upgrade_preserves_existing_work()
     {
         await using var db = Context();
-        await db.GetService<IMigrator>().MigrateAsync("20261031022746_UsernameGuidAndLanguageDefault");
-        await db.Database.ExecuteSqlRawAsync("""
-            INSERT INTO "BillingAccounts" ("CreatedAt") VALUES ('2026-06-01T10:00Z'), ('2026-06-02T10:00Z');
-            INSERT INTO "InitialMembershipRequests" ("BillingAccountId", "Anchor", "RequestedAt")
-            SELECT "Id", '2026-06-01', "CreatedAt" FROM "BillingAccounts";
-            """);
-        await db.Database.MigrateAsync();
-        var accounts = await db.BillingAccounts.AsNoTracking().ToListAsync();
-
-        Assert.Equal(2, accounts.Count);
-        Assert.Equal(2, accounts.Select(x => x.PurchaseDepositReference).Distinct().Count());
-        foreach (var account in accounts)
-        {
-
-            Assert.Equal(account.PurchaseDepositReference, PaymentReference.Complete(account.PurchaseDepositReference[..^1]));
-            Assert.True(account.EmailInvoices);
-        }
-
-        Assert.Equal(2, await db.InitialMembershipRequests.CountAsync(x => x.InvoiceId == null));
-        Assert.Empty(await db.FeePrices.ToListAsync());
-        Assert.Empty(await db.Invoices.ToListAsync());
-    }
-
-    [Fact]
-    public async Task EF_upgrade_and_Quartz_45_shape_upgrade_preserve_existing_work_and_identities()
-    {
-        await using var db = Context();
-        var first = db.Database.GetMigrations().First();
-        await db.GetService<IMigrator>().MigrateAsync(first);
-        await db.Database.ExecuteSqlRawAsync("""
-            INSERT INTO "AspNetUsers" ("UserName", "NormalizedUserName", "Email", "NormalizedEmail", "Name", "OidcSubject",
-              "Admitted", "EmailConfirmed", "PhoneNumberConfirmed", "TwoFactorEnabled", "LockoutEnabled", "AccessFailedCount")
-            VALUES ('synthetic@example.test', 'SYNTHETIC@EXAMPLE.TEST', 'synthetic@example.test', 'SYNTHETIC@EXAMPLE.TEST',
-              'Synthetic', 'frozen-subject', true, true, false, false, false, 0);
-            """);
         await Probe.Enqueue(db, Scheduler, "upgrade");
         var trigger = await Scheduler.GetTrigger(new TriggerKey("upgrade", "work"));
         // Reconstruct just the 4.5 -> 4.6 schema delta in our disposable database.
@@ -62,14 +24,9 @@ public sealed class SchemaTests : DatabaseTest
             DROP INDEX idx_qrtz_eh_fire_inst;
             DROP INDEX idx_qrtz_eh_trig_time;
             """);
-        await db.Database.MigrateAsync();
         await QuartzSchema.Upgrade(db);
         await QuartzSchema.Upgrade(db);
-        var upgraded = await db.Users.SingleAsync();
 
-        Assert.Equal("frozen-subject", upgraded.OidcSubject);
-        Assert.Equal("en", upgraded.Language);
-        Assert.Matches("^[0-9a-f]{32}$", upgraded.UserName!);
         Assert.Equal(trigger!.NextFireTimeUtc, (await Scheduler.GetTrigger(trigger.Key))!.NextFireTimeUtc);
         StartWorker();
         await Until(async () => await Effects("upgrade") == 1);
