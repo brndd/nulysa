@@ -146,9 +146,15 @@ public sealed partial class BillingCommands
             if (actor is not null)
                 throw new ValidationException("Only incoming EUR receipts can be assigned to a live member.");
 
-            await Review(facts?.User is { PendingDeletionAt: not null }
-                ? "Account pending deletion — manual repair required after restoration"
-                : "Unknown reference, unavailable account, outgoing transaction or unsupported currency");
+            var reviewReason = receipt switch
+            {
+                { Amount: < 0 } => "Outgoing bank transaction — no member funds allocated",
+                { Currency: not "EUR" } => $"Unsupported currency: {receipt.Currency} — only EUR can be allocated",
+                _ when facts is null => "Unknown payment reference — no matching bill, billing group or deposit reference",
+                _ when facts.User is { PendingDeletionAt: not null } => "Account pending deletion — manual repair required after restoration",
+                _ => "Matched account is unavailable — no live admitted member"
+            };
+            await Review(reviewReason);
             return;
         }
 

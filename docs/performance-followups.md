@@ -22,9 +22,11 @@ schedule frequency.
 
 ## Member registry
 
-`MembershipQueries.Registry` loads all matching members and their billing facts
-because the required order depends on computed standing. Search already runs in
-SQL; limiting rows before standing would return the wrong 100.
+`MembershipQueries.Registry` evaluates standing across all matching candidates
+before filtering, sorting and pagination. Search runs in SQL. UI3 reduces the
+standing inputs to the latest started membership coverage and at most three
+relevant membership lines per account; it does not load the money journal.
+Limiting candidates before standing would return incorrect filtered pages/counts.
 
 Measure: page latency and rows loaded at 500 and 2,000 members. Optimize only
 with a SQL standing expression or a separate denormalized view, not by limiting

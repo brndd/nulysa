@@ -37,8 +37,71 @@
             container.querySelector('.navigation-toggle').focus();
         }
     });
+
+    function dialogs() {
+        root.classList.add('js-controls');
+        document.querySelectorAll('.dialog-disclosure').forEach(details => {
+            const dialog = details.querySelector('dialog');
+            if (!dialog.dataset.ready) {
+                dialog.dataset.ready = 'true';
+                dialog.addEventListener('close', () => {
+                    details.open = false;
+                    if (details.isConnected) details.querySelector('summary').focus();
+                });
+            }
+            if (!dialog.matches(':modal')) {
+                dialog.removeAttribute('open');
+                if (details.open) dialog.showModal();
+            }
+        });
+    }
+    document.addEventListener('toggle', event => {
+        const details = event.target;
+        if (!details.matches('.dialog-disclosure')) return;
+        const dialog = details.querySelector('dialog');
+        if (details.open && !dialog.matches(':modal')) {
+            dialog.removeAttribute('open');
+            dialog.showModal();
+        } else if (!details.open && dialog.matches(':modal')) dialog.close();
+    }, true);
+    document.addEventListener('click', event => {
+        const cancel = event.target.closest('.dialog-cancel');
+        if (cancel) cancel.closest('dialog').close();
+        const approve = event.target.closest('[data-confirm-approval]');
+        if (!approve) return;
+        const confirmed = approve.form.querySelector('[name="Input.Confirmed"]');
+        if (approve.dataset.armed === 'true') {
+            confirmed.checked = true;
+            return;
+        }
+        event.preventDefault();
+        approve.dataset.armed = 'true';
+        approve.textContent = 'Confirm membership';
+        approve.classList.add('confirm-action');
+        approve.disabled = true;
+        setTimeout(() => { if (approve.isConnected) approve.disabled = false; }, 700);
+        setTimeout(() => {
+            if (!approve.isConnected) return;
+            approve.dataset.armed = 'false';
+            approve.textContent = 'Approve membership';
+            approve.classList.remove('confirm-action');
+            confirmed.checked = false;
+        }, 10000);
+    });
+    function preferenceForms() {
+        document.querySelectorAll('[data-preference-form]').forEach(form => {
+            const checkbox = form.querySelector('input[type="checkbox"]');
+            const submit = form.querySelector('button[type="submit"], button:not([type])');
+            submit.disabled = checkbox.checked === (form.dataset.saved === 'true');
+        });
+    }
+    document.addEventListener('change', event => {
+        if (event.target.closest('[data-preference-form]')) preferenceForms();
+    });
     document.addEventListener('DOMContentLoaded', () => {
         navigation();
-        if (window.Blazor) Blazor.addEventListener('enhancedload', navigation);
+        dialogs();
+        preferenceForms();
+        if (window.Blazor) Blazor.addEventListener('enhancedload', () => { navigation(); dialogs(); preferenceForms(); });
     });
 })();

@@ -1,0 +1,84 @@
+@using System.ComponentModel.DataAnnotations
+@using Nulysa.Membership
+@inject MembershipCommands Commands
+@inject AuthenticationStateProvider Authentication
+@inject NavigationManager Navigation
+@inject AssociationClock Clock
+@inject UiFeedback Feedback
+
+<article class="application-card">
+    <header><h2><a href="@($"/admin/applications/{Application.Id}")">@Application.Name — @Application.Email</a></h2>
+        <p>@Application.Municipality · Born @Application.DateOfBirth.ToString("d MMM yyyy") (age @Age)</p>
+        @if (Age < 18) { <strong>Under 18 — check consent outside the portal</strong> }
+    </header>
+    <p class="application-message">@Application.Message</p>
+    <details class="application-extra"><summary>Other application details</summary>
+        <dl class="compact-facts"><dt>Language</dt><dd>@Application.Language</dd><dt>Phone</dt><dd>@(Application.PhoneNumber ?? "Not supplied")</dd>
+            <dt>Nickname</dt><dd>@(Application.Nickname ?? "Not supplied")</dd><dt>Matrix ID</dt><dd>@(Application.MatrixId ?? "Not supplied")</dd></dl>
+    </details>
+    @if (error is not null && !Input!.Rejecting) { <p role="alert">@error</p> }
+    <div class="application-actions">
+        <EditForm Model="Input" method="post" FormName="@($"approve-{Application.Id}")" OnValidSubmit="Approve">
+            <DataAnnotationsValidator /><ValidationSummary />
+            <label class="no-script-confirm"><InputCheckbox @bind-Value="Input!.Confirmed" /> I confirm admission before payment and creation of the initial bill.</label>
+            <button type="submit" data-confirm-approval>Approve membership</button>
+        </EditForm>
+        <ActionDialog Id="@($"reject-heading-{Application.Id}")" Label="Reject application" Title="@($"Reject application from {Application.Name}")" Open="@(Input!.Rejecting && HttpContext.Request.HasFormContentType && HttpContext.Request.Form["_handler"].ToString().EndsWith($"reject-{Application.Id}", StringComparison.Ordinal))">
+            @if (error is not null) { <p role="alert">@error</p> }
+            <p>Rejection queues an email, then permanently erases the application and applicant details. Queued does not mean delivered.</p>
+            <EditForm Model="Input" method="post" FormName="@($"reject-{Application.Id}")" OnValidSubmit="Reject">
+                <DataAnnotationsValidator /><ValidationSummary />
+                <input type="hidden" name="Input.Confirmed" value="true" />
+                <input type="hidden" name="Input.Rejecting" value="true" />
+                <label for="@($"explanation-{Application.Id}")">Optional rejection explanation (emailed, then erased with the application)</label>
+                <InputTextArea id="@($"explanation-{Application.Id}")" @bind-Value="Input!.Explanation" maxlength="2000" />
+                <button class="danger-action">Reject and email applicant</button>
+            </EditForm>
+        </ActionDialog>
+    </div>
+
+</article>
+
+@code {
+    public sealed class DecisionInput
+    {
+        [Range(typeof(bool), "true", "true", ErrorMessage = "Confirm the admission decision.")] public bool Confirmed { get; set; }
+        [StringLength(2000)] public string? Explanation { get; set; }
+        public bool Rejecting { get; set; }
+    }
+    [Parameter, EditorRequired] public ApplicationReview Application { get; set; } = null!;
+    [SupplyParameterFromForm] public DecisionInput? Input { get; set; }
+    [CascadingParameter] private HttpContext HttpContext { get; set; } = null!;
+    private string? error;
+    private int Age
+    {
+        get
+        {
+            var years = Clock.Today.Year - Application.DateOfBirth.Year;
+            return Application.DateOfBirth > Clock.Today.AddYears(-years) ? years - 1 : years;
+        }
+    }
+    protected override void OnInitialized() => Input ??= new();
+    private async Task Approve()
+    {
+        try
+        {
+            var id = await Commands.Approve((await Authentication.GetAuthenticationStateAsync()).User, Application.Id);
+            Feedback.Save(HttpContext, "Membership approved. Welcome email queued; delivery is not yet confirmed.");
+            Navigation.NavigateTo($"/admin/members/{id}");
+        }
+        catch (ValidationException ex) { error = ex.Message; }
+        catch (Microsoft.EntityFrameworkCore.DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException { SqlState: "23505" })
+        { error = "The email address is no longer available. Reload and review the existing account."; }
+    }
+    private async Task Reject()
+    {
+        try
+        {
+            await Commands.Reject((await Authentication.GetAuthenticationStateAsync()).User, Application.Id, Input!.Explanation);
+            Feedback.Save(HttpContext, "Rejection email queued. Delivery is not yet confirmed; applicant data will be erased after sending or at its retention deadline.");
+            Navigation.NavigateTo("/admin/applications");
+        }
+        catch (ValidationException ex) { error = ex.Message; }
+    }
+}

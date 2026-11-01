@@ -1,0 +1,19 @@
+<details class="dialog-disclosure" open="@Open">
+    <summary class="dialog-trigger @TriggerClass">@Label</summary>
+    <dialog open aria-labelledby="@Id" class="action-dialog">
+        <div class="dialog-body">
+            <h2 id="@Id">@Title</h2>
+            @ChildContent
+            <button type="button" class="secondary-action dialog-cancel">Cancel</button>
+        </div>
+    </dialog>
+</details>
+
+@code {
+    [Parameter, EditorRequired] public string Id { get; set; } = "";
+    [Parameter, EditorRequired] public string Label { get; set; } = "";
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+    [Parameter] public string? TriggerClass { get; set; }
+    [Parameter] public bool Open { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

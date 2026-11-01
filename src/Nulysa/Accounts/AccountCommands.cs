@@ -116,4 +116,36 @@ public sealed class AccountCommands(AppDbContext db, UserManager<User> users, Me
         MembershipCommands.Check(await users.ResetPasswordAsync(user, token, password));
         await tx.CommitAsync(ct);
     }
+
+    public async Task<User> ChangePassword(ClaimsPrincipal actor, string currentPassword, string newPassword, Guid operation, CancellationToken ct = default)
+    {
+        var id = Authority.Id(actor);
+        if (operation == Guid.Empty || string.IsNullOrEmpty(currentPassword) || string.IsNullOrEmpty(newPassword) ||
+            currentPassword.Length > 256 || newPassword.Length > 256)
+            throw new ValidationException("Enter your current password and a new password of at most 256 characters.");
+
+        var scheduler = await schedulers.GetScheduler(ct);
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        using var enlistment = scheduler.EnlistTransaction(tx.GetDbTransaction());
+        var user = await membership.LockUser(id, ct);
+        await Authority.RequireOwnerOrAdministrator(db, actor, id, ct);
+        if (!user.MayLogIn || !user.EmailConfirmed)
+            throw new ValidationException("This account is unavailable.");
+
+        var prior = await db.Deliveries.AsNoTracking().SingleOrDefaultAsync(delivery => delivery.Id == operation, ct);
+        if (prior is not null)
+        {
+            var isSameChange = prior.UserId == id && prior.Kind == MailKind.PasswordChanged && await users.CheckPasswordAsync(user, newPassword);
+            if (!isSameChange)
+                throw new ValidationException("This request key was already used for another action.");
+            await tx.CommitAsync(ct);
+            return user;
+        }
+
+        MembershipCommands.Check(await users.ChangePasswordAsync(user, currentPassword, newPassword));
+        await mail.Add(scheduler, operation, MailKind.PasswordChanged, id, ct: ct);
+
+        await tx.CommitAsync(ct);
+        return user;
+    }
 }

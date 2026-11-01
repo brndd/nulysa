@@ -54,7 +54,7 @@ public sealed class MembershipFormTests : MembershipTest
         Assert.DoesNotContain("@if", paged);
         Assert.Contains("showing a page", paged);
         Assert.Contains("Balance at end of this page", paged);
-        Assert.Contains(">Current balances</h2>", paged);
+        Assert.DoesNotContain(">Current balances</h2>", paged);
 
         using var administrator = Client();
         await Login(administrator, "board@example.test");
@@ -79,14 +79,15 @@ public sealed class MembershipFormTests : MembershipTest
         await Login(client);
 
         var services = await client.GetStringAsync("services");
-        Assert.Contains("<h1>Membership and services</h1>", services);
+        Assert.Contains("<h1>Account overview</h1>", services);
         Assert.DoesNotContain("<h2>Issued bills</h2>", services);
         var bills = await client.GetStringAsync("billing");
-        Assert.Contains("<h1>Payments</h1>", bills);
+        Assert.Contains("<h1>Billing details</h1>", bills);
         Assert.DoesNotContain("<h2>Billing intervals</h2>", bills);
-        Assert.Contains(">Current balances</h2>", bills);
+        Assert.Contains(">Current balances</h2>", services);
+        Assert.DoesNotContain(">Current balances</h2>", bills);
         Assert.DoesNotContain("<h3>Allocated to unfinished bills</h3>", bills);
-        Assert.Contains("class=\"balance-note\"", bills);
+        Assert.Contains("class=\"balance-note\"", services);
         Assert.DoesNotContain("Available purchase balance", bills);
         Assert.Contains(">Transaction history</h2>", bills);
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("balances")).StatusCode);
@@ -312,6 +313,7 @@ public sealed class MembershipBrowserTests : MembershipTest
         await Assertions.Expect(boardPage.GetByText("Under 18 — check consent outside the portal")).ToBeVisibleAsync();
         await boardPage.GetByRole(AriaRole.Link, new() { Name = "Browser Member — " + Email }).ClickAsync();
         await boardPage.GetByRole(AriaRole.Button, new() { Name = "Approve membership", Exact = true }).ClickAsync();
+        await boardPage.GetByRole(AriaRole.Button, new() { Name = "Confirm membership", Exact = true }).ClickAsync();
         await Assertions.Expect(boardPage.GetByRole(AriaRole.Heading, new() { Name = "Member details", Exact = true })).ToBeVisibleAsync();
         var id = (await db.Members.SingleAsync()).UserId;
         await Run(commands, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(application.Id));
@@ -320,7 +322,7 @@ public sealed class MembershipBrowserTests : MembershipTest
         await memberPage.GetByLabel("Confirm password", new() { Exact = true }).FillAsync(Password);
         await memberPage.GetByRole(AriaRole.Button, new() { Name = "Set password", Exact = true }).ClickAsync();
         await LoginPage(memberPage, Email);
-        await memberPage.GetByRole(AriaRole.Link, new() { Name = "My details", Exact = true }).ClickAsync();
+        await memberPage.GetByRole(AriaRole.Link, new() { Name = "Settings", Exact = true }).ClickAsync();
         await Assertions.Expect(memberPage).ToHaveTitleAsync("Member details — Synthetic Membership Association");
         await memberPage.GetByLabel("Name", new() { Exact = true }).FillAsync("Unsaved draft name");
         foreach (var (label, section) in new[] { ("Personal details", "personal"), ("Email", "email"), ("Communication preferences", "communications"), ("Account and privacy", "account") })
@@ -365,7 +367,7 @@ public sealed class MembershipBrowserTests : MembershipTest
         await memberPage.GetByLabel("Confirm password", new() { Exact = true }).FillAsync(Password);
         await memberPage.GetByRole(AriaRole.Button, new() { Name = "Set password", Exact = true }).ClickAsync();
         await LoginPage(memberPage, "browser-changed@example.test");
-        await memberPage.GetByRole(AriaRole.Link, new() { Name = "My details", Exact = true }).ClickAsync();
+        await memberPage.GetByRole(AriaRole.Link, new() { Name = "Settings", Exact = true }).ClickAsync();
         await memberPage.GetByRole(AriaRole.Link, new() { Name = "Resign and request account deletion", Exact = true }).ClickAsync();
         await memberPage.GetByLabel("I understand and want to resign now.").CheckAsync();
         await memberPage.GetByRole(AriaRole.Button, new() { Name = "Resign and begin account deletion" }).ClickAsync();
@@ -377,8 +379,8 @@ public sealed class MembershipBrowserTests : MembershipTest
         await memberPage.GotoAsync(root);
         await Assertions.Expect(memberPage).ToHaveURLAsync(new Regex("/Account/Login"));
         await boardPage.GotoAsync(root + "admin/members/" + id);
+        await boardPage.GetByText("Restore account", new() { Exact = true }).ClickAsync();
         await boardPage.GetByLabel("Reason / verified restoration request").FillAsync("Verified request");
-        await boardPage.GetByLabel("I confirm this membership action and its consequences.").CheckAsync();
         await boardPage.GetByRole(AriaRole.Button, new() { Name = "Cancel pending deletion" }).ClickAsync();
         await Assertions.Expect(boardPage.GetByRole(AriaRole.Heading, new() { Name = "Member registry", Exact = true })).ToBeVisibleAsync();
 

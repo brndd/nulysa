@@ -9,18 +9,25 @@ component/configuration names, colours and breakpoints remain engineering propos
 [SPEC.md](SPEC.md) remains authoritative for domain behaviour and permissions.
 [ARCHITECTURE.md](ARCHITECTURE.md) owns rendering, authentication, commands and
 transaction boundaries. This document records UI direction and acceptance criteria;
-it does not introduce new membership, payment or storage policies. S0–S2 already
-provide working, mostly unstyled pages. Later feature descriptions constrain their
+it does not introduce new membership, payment or storage policies. S0–S2 provide
+working membership and billing features; the shared shell and member-facing tasks
+are now styled and organised. The board dashboard and registry/member workspace
+are implemented; financial workflows still use their baseline
+task layouts. Later feature descriptions constrain their
 delivery slices; they are not instructions to implement future features now.
 
 The first UI foundation increment now implements the shared responsive shell,
 two light/dark themes, browser appearance preferences and a local stylesheet hook.
 See [implementation scope and configuration](../docs/ui.md). The member slice now
-includes services and a unified Payments page, authorised bill details,
-homepage standing/attention summaries, compact bills/readable history, profile and
-invoice-email settings, action confirmations and success feedback. Board workflows,
-expanded theme tokens and broader localisation/accessibility work remain later
-increments; this document describes the target, not completed UI1–UI4 scope.
+includes a general front page, account overview and separate billing details,
+highlighted attention, compact bills/readable history, profile and
+invoice-email settings, action confirmations and success feedback. **UI1's shared
+foundation and UI2's member experience are delivered for the current feature set.**
+UI3 board administration is in progress: its first bounded deliverable covers the
+attention dashboard and registry/member workspace. Inline application review is
+also implemented; contextual financial workflows follow, then the remaining UI4
+validation/localisation work. Section 13 is the current UI work docket; later
+feature descriptions elsewhere are not unfinished UI2 requirements.
 
 ## 1. Goals and boundaries
 
@@ -69,15 +76,17 @@ authorization. Neither workspace nor appearance selection grants authority.
 
 | Area | Contents |
 | --- | --- |
-| Overview | Actions needing attention, membership summary and useful shortcuts. |
-| Membership & services | Standing/coverage, billing intervals, optional services, subscription and renewal controls. |
-| Payments | Bills/payment instructions, balances, deposits/transfers when enabled, transaction history. |
+| Overview | General front page at `/`: highlighted actions and membership standing today; future storage/access summaries arrive with those features. |
+| Membership & payments: Account overview | Membership/service standing, balances, deposit/transfer tools, subscriptions and billing settings at `/services`. |
+| Membership & payments: Billing details | Outstanding bills, payment instructions, bill history and transaction history at `/billing`. |
 | Space access — S4 | Doors, access requirements and own registered fobs. |
 | Machines & training — S4 | Machine availability, qualifications and unmet requirements. Distinct from doors despite shared infrastructure. |
 | Storage — S5 | Rentals, group availability, queue entries, offers and checkout/renewal. |
 
-The account menu contains **My details**, **Communication preferences**,
-**Appearance** and **Log out**. Account/membership settings provide resignation and
+The account section has one **Settings** entry at `/profile`, containing personal
+details, communication preferences and account/privacy actions, plus **Log out**. **Appearance** is always available in the top bar, outside account settings.
+Sidebar destinations are grouped into sections, with matching page tabs for sibling
+pages so navigation remains available when the mobile sidebar is closed. Account/membership settings provide resignation and
 personal-data/privacy requests; resignation is not a homepage primary action.
 If privacy requests are handled by contacting administrators, present that route
 honestly rather than imply an automated workflow.
@@ -99,6 +108,10 @@ resignation access, plus convenient membership/services-page access.
 - **Association settings:** supported fees/services/business settings, not arbitrary
   configuration or superuser grants.
 
+Use compact controls, lists and field groups on busy task pages; large overview
+controls should not set the density of every page. Rarely adjusted review thresholds
+belong inside their count card as secondary controls.
+
 Use related subnavigation within areas rather than a flat list of every screen.
 The System Console stays separately labelled, outside normal board task groupings;
 its initial implementation remains read-only.
@@ -107,9 +120,10 @@ its initial implementation remains read-only.
 
 - Use real links and durable URLs for pages and section tabs. Filters, sorting and
   pagination belong in query parameters where practical.
-- `/services` handles membership/services; `/billing` is the single member Payments
-  page. Separate `/balances` and `/billing/history` routes were removed during
-  active development; no compatibility aliases or redirects are required.
+- `/` is the general front page, separate from the account overview at `/services`.
+  `/billing` holds outstanding bills and both histories. Account overview and Billing
+  details share reciprocal page tabs.
+  There are no separate `/balances` or `/billing/history` destinations.
 - Use breadcrumbs on deeper administration/member/payment/storage pages, not
   automatically on every shallow member page.
 - Returning from a record preserves the originating search/filter where practical.
@@ -127,8 +141,9 @@ association identity where useful; retain unobtrusive “Powered by Nulysa” at
 Public/account pages use a simplified shell with the same branding, appearance and
 form treatment, but no member/admin navigation.
 
-On mobile, replace the sidebar with an accessible drawer opened by a labelled menu
-button. Do not depend on hover, an icon-only rail, or a fixed bottom tab bar that
+On mobile, replace the sidebar with an accessible disclosure/drawer opened by a
+hamburger button in the top bar, with an accessible “Menu” label. Do not depend on
+hover, an icon-only rail, or a fixed bottom tab bar that
 assumes the portal will always have only a few destinations. Opening navigation
 must not require an Interactive Server connection.
 
@@ -139,8 +154,11 @@ must not require an Interactive Server connection.
 | Wide | Registry, payment review and accounting. |
 | Workspace | Storage map and justified spatial/editor interactions. |
 
-Use content-driven CSS Grid/Flexbox breakpoints; Bootstrap's conventional breakpoints
-are a starting point, not device-specific requirements.
+Use two primary responsive modes: desktop with the sidebar at 768 CSS pixels and
+above, and mobile with its disclosure menu below 768. Balance cards use two columns
+in desktop mode and one in mobile mode, without an auto-fit transition before the
+sidebar breakpoint. Other field groups may adapt within these modes; they must not
+cause content to expand back into multiple columns when the sidebar disappears.
 
 - Forms collapse to one column with labels above controls.
 - Summaries and actions wrap in a meaningful reading order.
@@ -213,27 +231,26 @@ coverage, renewal intention, billing interval and permitted next actions.
 
 Outstanding requests precede history; each bill has a detail view. Member-facing
 wording can use ordinary **Bills**, while preserving advance-payment/no-debt policy.
+Show active/upcoming discounts by fee and validity dates, linking outstanding bills
+whose stored pricing includes the discount. Do not infer a repriced bill merely
+from a current discount.
+
 Keep distinct billing groups/references/schedules rather than flattening everything
 into one payable total.
 
-Keep all money tasks on the Payments page, with this information flow:
+The account overview puts a brief highlighted **Needs your attention** panel first,
+with outstanding-bill counts linking to Billing details and pending email warnings.
+It then shows membership, service and balance status. Deposit guidance lives inside
+the purchase-balance card; transfers use its adjacent dialog. **Billing settings**
+groups invoice-email preferences and billing intervals. Administrator free-day grants,
+removals and financial-adjustment links appear only in the administration view.
 
-1. Prominent outstanding-bills box, showing all current requests without paging
-   them away when browsing history. Keep the no-debt distinction explicit.
-2. One current-balance summary: available billing credit, purchase balance when
-   enabled, and separately allocated funds. Do not repeat this summary in history.
-3. Secondary expandable deposit/transfer tools, when enabled.
-4. A previous-bills box, initially collapsed, with its own newest-first pagination
-   (default ten). Opening it through in-page navigation reveals the contents.
-5. A transaction-history box with a balance selector and independent newest-first
-   pagination (default ten rows). Calculate running balances chronologically before
-   reversing display order. Historical page-end balances are not current availability.
-
-Use separate URL parameters and in-section paging controls for the two histories.
-Paging one must not page the other or remove the outstanding requests/current
-balances above. Keep the page responsive and static SSR; independent list paging
-does not require making the whole page interactive. Invoice-email settings live
-under profile communication preferences, linked from Payments.
+Billing details prioritises all outstanding requests, then a collapsed, newest-first
+previous-bills list and a separate transaction-history list. Both histories default
+to ten rows and retain independent URL pagination. Running balances are calculated
+chronologically before reversing presentation order. Paging either history must not
+hide current outstanding requests or change the other history's page. Current
+balances and transfer/deposit tools live on the overview, not among historical totals.
 
 Bill detail presents:
 
@@ -283,6 +300,15 @@ Refund requests go to the treasurer; no initial self-service bank withdrawal.
 
 ### 5.5 Profile, preferences and lifecycle
 
+Authenticated password changes belong in Account and privacy: current password and
+the new password twice, without email confirmation. Identity validates the current
+password and its normal policy. Password changes and a required notification are
+committed atomically, without passwords in delivery data; the current sign-in is
+refreshed. Forgotten-password recovery remains a separate public flow.
+
+Invoice-email save buttons track the saved preference and are disabled until it
+changes (with the ordinary form remaining usable without JavaScript).
+
 - Group personal/contact details, email change, communications and account/security
   actions into understandable sections.
 - Distinguish current email from pending verification. The old address remains in
@@ -319,6 +345,10 @@ Member detail has a persistent subject heading and linked sections for profile,
 membership/services, payments, relevant access/storage records and history. Show
 only implemented sections. Separate ordinary edits, financial corrections and
 destructive lifecycle actions.
+
+Account removal uses a confirmation dialog near the bottom of member details. Its
+freeform note is optional; the command still records a standard audit reason if the
+note is omitted. Restoration retains its verified-request reason.
 
 Termination, restoration, grants and discounts are named actions with appropriate
 reasons/dates/consequences, not “set active.” Restoration cancels pending deletion;
@@ -654,9 +684,10 @@ assembly hierarchy or generic renderer.
 - `src/Nulysa/Components/Layout/SystemConsoleLayout.razor`: distinct technical area
   without weakening authorization.
 - `src/Nulysa/Pages/Shared/_Layout.cshtml`: consistent public/account presentation.
-- `src/Nulysa/Components/Pages/Index.razor`: useful overview.
-- `src/Nulysa/Components/Pages/Billing.razor`: split all-in-one tasks while preserving
-  commands and useful URLs.
+- `src/Nulysa/Components/Pages/Billing.razor`: account overview (`/services`) and billing details (`/billing`) with explicit audience/page sections.
+- `src/Nulysa/Components/Pages/Billing.razor`: unified member Payments and distinct
+  membership/services tasks, with shared commands and separately scoped history
+  paging. The combined administrative view remains until the remaining UI3 financial workflows.
 - `src/Nulysa/Components/Pages/Profile.razor`, `Registry.razor` and payment/configuration
   pages: contextual tasks and administrative hierarchy. Member/admin views can
   differ while sharing commands and appropriate display fragments.
@@ -675,18 +706,87 @@ avoid fetching an entire journal for a summary card. Interactivity is feature-lo
 not a live-update subscription for every status badge. Migrate pages incrementally
 without replacing the domain foundation or building a separate showcase application.
 
-## 13. Delivery plan
+## 13. Delivery status and remaining UI docket
 
 UI work is an increment between S2 and further features; it does not renumber
 S3–S6 or change the single full-replacement cutover plan.
 
-| Increment | Deliverable and exit check |
-| --- | --- |
-| UI1: foundation | Responsive public/member/admin shells; consistent account pages; both themes/light-dark variants; Appearance resolution; trusted stylesheet contract; accessible shared fields/notices/navigation. Verify first paint and navigation. |
-| UI2: member tasks | Overview; separated membership/services and payments; bill detail; balances/transfers; profile/preferences; resignation confirmation. Preserve existing behaviour and links. |
-| UI3: board tasks | Attention dashboard, registry/member sections, application review and contextual payment/adjustment workflows. Verify subject identification, permissions, confirmation and mobile use. |
-| UI4: validation/handoff | Responsive/accessibility/localisation checks and critical browser journeys; operator theme configuration/examples. Refine representative pages before later expansion. |
-| S3–S5 | Communications, access/training and storage follow these patterns, with widget choices and feature-specific tests when needed. |
+| Increment | Current status | Remaining scope |
+| --- | --- | --- |
+| UI1: foundation | Delivered for current pages | Shared responsive shells, top-bar mobile menu, both themes/modes, browser preferences and local stylesheet contract are implemented. Carry their patterns forward; no additional theme framework is needed. |
+| UI2: member tasks | Delivered for S1–S2 features | Homepage standing/attention, services, unified Payments, bill details, balances/transfers, independently paged histories, profile/invoice preferences and resignation are implemented. Remaining cross-cutting validation belongs to UI4, not another member-page split. |
+| UI3: board tasks | Dashboard, member workspace and application review implemented | Contextual payment matching and dedicated financial adjustment workflows remain. |
+| UI4: validation/handoff | Partially covered; not complete | Existing fast/browser tests and theme configuration documentation are in place. Broader accessibility, responsive/visual and localisation work remains below. |
+| S3–S5 UI | Future feature work | Communications, access/training and storage interfaces ship with their domain slices, not as prerequisites for completing the current member UI. |
+
+### UI3, in bounded board-facing deliverables
+
+1. **Attention dashboard and registry/member workspace — implemented.** `/admin`
+   is the board home, with actionable queue counts and bank-sync warnings, including
+   configured accounts with no recorded success. Registry lifecycle/duration filters,
+   stable sorting and 25/50/100-result pages preserve search context through member
+   details and payments. Both pages identify the member by name and number; details
+   separate ordinary edits from lifecycle actions/history. `/admin/mail-attention`
+   provides paged failed/uncertain-delivery review without unsafe resend controls.
+   The dashboard's editable inactivity review filter initially uses 30 days; this
+   is explicitly a view default, never a termination or deletion rule. Standing
+   uses the existing evaluator and reduced membership facts, not the money journal.
+2. **Application-review polish — implemented.** Compact list entries show name,
+   email, municipality, birth date/age and message, with additional profile fields
+   in a disclosure. Inline approval requires a visibly armed second click after a
+   short debounce; without JavaScript it uses explicit confirmation. Rejection
+   opens a dialog with an optional message and cancel/confirm actions. Both routes
+   use the same commands, verified-only queries and safe failure feedback. Under-18
+   review still uses external consent handling; no admission policy was added.
+3. **Contextual payments and financial adjustments.** Replace manual account/group/
+   invoice/receipt-ID entry with record selection and human-readable context. Split
+   the large adjustment form into named actions with only relevant fields, reviewed
+   effects, required reasons/dates and confirmation. Keep bank review, reconciliation,
+   exports and retained claims discoverable but separate from routine actions.
+   Preserve all current commands, permissions, retry keys and financial invariants;
+   uncertain sends/payments are not candidates for a blind retry button.
+
+These are presentation/workflow deliverables over already implemented features,
+not a replacement billing engine or an expansion of board permissions. Test each
+increment's positive paths, denial paths, validation failures and mobile operation.
+
+### UI4: cross-cutting work still to finish
+
+- **Localisation:** resource-based UI strings, explicit UI-language/fallback
+  selection, correct document language and Finnish/English money/date input/output.
+  The UI is currently English. Agree any additional initial languages, such as
+  Swedish, rather than hard-code a permanent two-language limit.
+- **Accessibility:** systematic keyboard, focus/error announcement, screen-reader,
+  zoom/reflow and contrast checks across both themes and both modes. Existing
+  targeted tests are not a WCAG 2.2 AA compliance claim. Verify the new board
+  workflows as well as member pages; retain visible control focus without restoring
+  decorative outlines on automatically focused headings.
+- **Responsive/visual review:** cover 320/375/768-pixel and desktop layouts, long
+  Finnish labels, table overflow, empty/failed/denied states and restrained danger/
+  attention styling. Some mobile/browser checks already exist; the complete matrix
+  has not been certified.
+- **Read-query efficiency:** the account overview and billing/history pages load
+  account facts before UI pagination; profile email settings still use a small
+  projection. Review bounded projections/query-level paging for long-lived accounts
+  without changing running balances or duplicating financial rules. This is a
+  targeted read-path follow-up, not a new data-access architecture.
+- **Branding and handoff:** finish configured logo treatment once association assets
+  are supplied, verify their light/dark legibility, and keep the shipped CSS-token/
+  stylesheet example current. Expand tokens only when actual components need them.
+  A theme editor, marketplace or extra preference infrastructure is not pending work.
+- **Acceptance evidence:** extend critical browser journeys as board workflows land,
+  and run the repository's agreed correctness/acceptance gates before claiming the
+  complete UI delivery verified. Do not infer deployment readiness from UI tests.
+
+### Later: feature-specific UI, not current UI debt
+
+- **S3 communications:** rich-text drafts/templates, language variants and explicit
+  fallbacks, audience/test-send/confirmation, delivery progress and member newsletter
+  preferences. Current invoice-email preferences are already implemented.
+- **S4 access/training:** distinct door and machine views, fob claim/revoke and
+  qualification-scoped trainer tools.
+- **S5 storage:** group/position administration, queues/offers, map/list views,
+  funded checkout, manual renewal and clearance/handover presentation.
 
 A lightweight synthetic/read-only storage prototype can validate map/list layout,
 keyboard access, theme states and mobile detail before S5. It is not a shipped
@@ -725,8 +825,8 @@ These do not reopen agreed direction or block foundation work:
 
 - Final Tampere Hacklab UI palette and supplied logo assets/their use; the confirmed
   logo colours above are reference points, not an exclusive or exact-match UI palette.
-- Final CSS tokens/hooks, configuration names and stylesheet packaging, with a
-  concise operator-facing example.
+- Extend the implemented CSS tokens/hooks and configuration documentation when real
+  widgets need more; the local stylesheet contract and operator example already exist.
 - Route and page refinements; active development does not require old-link compatibility.
 - Initial translations and UI language/fallback details, without hard-coding a
   permanently Finnish/English-only model.

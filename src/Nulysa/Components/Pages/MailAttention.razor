@@ -1,0 +1,88 @@
+@page "/admin/mail-attention"
+@attribute [Authorize(Policy = "Administrator")]
+@using Nulysa.Membership
+@using Nulysa.Communications
+@using Microsoft.AspNetCore.WebUtilities
+@inject MembershipQueries Queries
+@inject AuthenticationStateProvider Authentication
+@inject IConfiguration Configuration
+
+<PageTitle>Mail needing attention — @Configuration["Association:Name"]</PageTitle>
+<nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/admin">Needs attention</a><span aria-hidden="true">/</span><span aria-current="page">Mail problems</span></nav>
+<h1>Mail needing attention</h1>
+<p class="page-intro">Essential mail includes verification, welcome, security, membership and deletion notices. Invoice emails are optional and can be included below.</p>
+<div class="status-panel operational-warning">
+    <p><strong>Uncertain delivery requires reconciliation.</strong> Review means a send may have been accepted. Check the delivery ID and provider reference with the mail provider before taking further action. Do not blindly resend.</p>
+    <p>Failed means delivery was not confirmed. Rejected applicant payloads are erased at their configured deadline even if sending failed. A queued message is not proof of delivery.</p>
+</div>
+<form method="get" action="/admin/mail-attention" class="filter-panel">
+    <div class="filter-fields">
+        <div><label for="mail-state">Delivery state</label><select id="mail-state" name="state" value="@State">
+            <option value="all" selected="@(State == "all")">Failed and uncertain</option>
+            <option value="failed" selected="@(State == "failed")">Failed</option>
+            <option value="review" selected="@(State == "review")">Uncertain (Review)</option>
+        </select></div>
+        <div><label for="mail-kind">Message scope</label><select id="mail-kind" name="scope" value="@Scope">
+            <option value="essential" selected="@(Scope == "essential")">Essential mail</option>
+            <option value="all" selected="@(Scope == "all")">All mail, including invoices</option>
+        </select></div>
+    </div>
+    <button>Filter mail</button>
+</form>
+@if (result is not null)
+{
+    @if (result.Total == 0) { <p>No known mail problems match these filters. This does not establish that mail delivery is healthy.</p> }
+    else
+    {
+        <p>@result.Total messages need attention. Oldest first, up to @MailAttentionPage.PageSize per page. Times are UTC.</p>
+        <ul class="mail-attention-list">
+            @foreach (var delivery in result.Entries)
+            {
+                <li class="status-panel">
+                    <strong>@KindLabel(delivery.Kind) · @(delivery.State == DeliveryState.Review ? "Uncertain — reconcile with provider" : "Failed — delivery not confirmed")</strong>
+                    <dl><dt>Delivery ID</dt><dd class="supporting-reference">@delivery.Id</dd>
+                        <dt>Provider reference</dt><dd class="supporting-reference">@(delivery.ProviderId ?? "None recorded")</dd>
+                        <dt>Created / attempts</dt><dd>@delivery.CreatedAt.ToString("u") · @delivery.Attempts attempts</dd>
+                    </dl>
+                </li>
+            }
+        </ul>
+        <nav class="section-pagination" aria-label="Mail problem pages">
+            @if (result.Page > 1) { <a href="@PageUrl(result.Page - 1)">Previous messages</a> }
+            <span>Page @result.Page of @result.PageCount</span>
+            @if (result.Page < result.PageCount) { <a href="@PageUrl(result.Page + 1)">Next messages</a> }
+        </nav>
+    }
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "state")] public string? RequestedState { get; set; }
+    [SupplyParameterFromQuery(Name = "scope")] public string? RequestedScope { get; set; }
+    [SupplyParameterFromQuery(Name = "page")] public string? RequestedPage { get; set; }
+    private string State => RequestedState is "failed" or "review" ? RequestedState : "all";
+    private string Scope => RequestedScope == "all" ? "all" : "essential";
+    private MailAttentionPage? result;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var page = int.TryParse(RequestedPage, out var number) ? number : 1;
+        result = await Queries.MailFailures((await Authentication.GetAuthenticationStateAsync()).User, State, Scope == "essential", page);
+    }
+
+    private string PageUrl(int page) => QueryHelpers.AddQueryString("/admin/mail-attention", new Dictionary<string, string?> { ["state"] = State, ["scope"] = Scope, ["page"] = page.ToString() });
+    private static string KindLabel(MailKind kind) => kind switch
+    {
+        MailKind.Verification => "Application verification",
+        MailKind.Welcome => "Welcome and password setup",
+        MailKind.Rejection => "Application rejection",
+        MailKind.DeletionWarning => "Deletion warning",
+        MailKind.PasswordReset => "Password reset",
+        MailKind.PasswordChanged => "Password changed",
+        MailKind.EmailChange => "Email change",
+        MailKind.Restoration => "Account restoration",
+        MailKind.MembershipGrace => "Membership grace notice",
+        MailKind.MembershipInactive => "Membership inactivity notice",
+        MailKind.BankAlert => "Bank synchronization alert",
+        _ => "Invoice"
+    };
+}

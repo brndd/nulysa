@@ -5,23 +5,25 @@
 @inject AuthenticationStateProvider Authentication
 @inject AssociationClock Clock
 @inject IConfiguration Configuration
+@inject UiFeedback Feedback
 
 <PageTitle>Application review — @Configuration["Association:Name"]</PageTitle>
 <h1>Application review</h1>
 <p>Only email-verified applications awaiting a decision appear here (up to 100).</p>
-<ul>
-    @foreach (var application in applications)
-    {
-        <li><a href="@($"/admin/applications/{application.Id}")">@application.Name — @application.Email</a>
-            @if (application.DateOfBirth > Clock.Today.AddYears(-18)) { <strong>Under 18 — check consent outside the portal</strong> }
-        </li>
-    }
-</ul>
+<p class="field-help">Approval establishes membership and login before payment and creates the initial membership bill.</p>
+@if (notice is not null) { <p role="status" class="success-notice">@notice</p> }
+@if (applications.Count == 0) { <p>No verified applications are awaiting a decision.</p> }
+<div class="application-list detail-workspace">
+    @foreach (var application in applications) { <ApplicationReviewCard Application="application" @key="application.Id" /> }
+</div>
 
 @code {
+    [CascadingParameter] private HttpContext HttpContext { get; set; } = null!;
+    private string? notice;
     private List<ApplicationReview> applications = [];
     protected override async Task OnInitializedAsync()
     {
+        notice = Feedback.Read(HttpContext);
         applications = await Queries.Applications((await Authentication.GetAuthenticationStateAsync()).User);
     }
 }

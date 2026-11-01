@@ -13,6 +13,13 @@ public sealed record InvoiceEmailSettings(long AccountId, bool Enabled);
 
 public sealed class MemberPortalQueries(AppDbContext db, AssociationClock clock, IOptions<BillingOptions> options)
 {
+    public async Task<string?> PendingEmail(ClaimsPrincipal actor, CancellationToken ct = default)
+    {
+        var id = Authority.Id(actor);
+        await Authority.RequireOwnerOrAdministrator(db, actor, id, ct);
+        return await db.Users.Where(user => user.Id == id).Select(user => user.PendingEmail).SingleAsync(ct);
+    }
+
     public async Task<PortalOverview> Overview(ClaimsPrincipal actor, CancellationToken ct = default)
     {
         var id = Authority.Id(actor);

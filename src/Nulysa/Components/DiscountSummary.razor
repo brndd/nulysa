@@ -1,0 +1,36 @@
+@using Nulysa.Billing
+@using System.Text.Json
+@inject Nulysa.Membership.AssociationClock Clock
+
+@if (Discounts.Count > 0)
+{
+    <section class="discount-summary" aria-labelledby="discounts-heading">
+        <h2 id="discounts-heading">Active and upcoming discounts</h2>
+        <ul>
+            @foreach (var discount in Discounts)
+            {
+                <li><strong>@View.FeeNames.GetValueOrDefault(discount.FeeDefinitionId, "Membership or service fee"):
+                    @(discount.Kind == DiscountKind.Percentage ? $"{discount.Value:0.##}% discount" : $"{discount.Value:0.00} EUR/month replacement price")</strong>
+                    <span>@discount.StartsOn.ToString("d MMM yyyy") – @discount.EndsOn.AddDays(-1).ToString("d MMM yyyy")</span>
+                    @if (discount.StartsOn > Clock.Today) { <span>Upcoming</span> }
+                    @foreach (var bill in AppliedBills(discount.Id))
+                    {
+                        <a href="@($"/billing/invoices/{bill.Invoice.Id}")">Applied to outstanding bill #@bill.Invoice.Id</a>
+                    }
+                </li>
+            }
+        </ul>
+        <small>Applies only within these dates. Issued bills show the actual discounted charge.</small>
+    </section>
+}
+
+@code {
+    [Parameter, EditorRequired] public BillingView View { get; set; } = null!;
+    private List<Discount> Discounts => View.Discounts
+        .Where(discount => discount.WithdrawnAt is null && discount.EndsOn > Clock.Today)
+        .OrderBy(discount => discount.StartsOn)
+        .ToList();
+    private IEnumerable<InvoiceView> AppliedBills(long discountId) => View.Invoices.Where(invoice => invoice.Invoice.ClosedAt is null &&
+        invoice.Lines.Any(row => row.Line.State == LineState.Open &&
+            (JsonSerializer.Deserialize<List<PriceSegment>>(row.Line.PricingJson) ?? []).Any(segment => segment.DiscountId == discountId)));
+}

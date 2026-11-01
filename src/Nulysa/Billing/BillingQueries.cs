@@ -34,6 +34,7 @@ public sealed record BillingView(long AccountId, long? UserId, string DepositRef
     List<MoneyMovement> Movements, List<Coverage> Coverage, List<Discount> Discounts, List<BillingOperation> History, List<Forecast> Forecasts,
     List<ServiceDefinition> Services)
 {
+    public Dictionary<long, string> FeeNames { get; init; } = [];
     public List<BalanceStatement> Statements { get; init; } = [];
     public BalanceStatement Statement(BalanceKind balance) => Statements.Single(x => x.Balance == balance);
 }
@@ -115,6 +116,7 @@ public sealed class BillingQueries(AppDbContext db, AssociationClock clock, IOpt
             facts.Items.Where(x => x.EndedAt is null).ToList(), facts.Groups, subscriptions,
             facts.Movements.OrderByDescending(x => x.Id).Take(100).ToList(), facts.Coverage, facts.Discounts, operations, forecasts, facts.Services)
         {
+            FeeNames = facts.Fees.ToDictionary(fee => fee.Id, fee => fee.Name),
             Statements = await StatementsFor(facts, null, null, skip, take, ct, newestFirst)
         };
     }

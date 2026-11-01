@@ -1,59 +1,21 @@
 @page "/admin/applications/{Id:guid}"
 @attribute [Authorize(Policy = "Administrator")]
 @using Nulysa.Membership
-@using System.ComponentModel.DataAnnotations
 @inject MembershipQueries Queries
-@inject MembershipCommands Commands
 @inject AuthenticationStateProvider Authentication
-@inject NavigationManager Navigation
-@inject AssociationClock Clock
 @inject IConfiguration Configuration
 
 <PageTitle>Review application — @Configuration["Association:Name"]</PageTitle>
+<nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/admin/applications">Application review</a></nav>
 <h1>Review application</h1>
 @if (application is null) { <p>This verified application is no longer awaiting review.</p> }
-else
-{
-    <dl>
-        <dt>Name</dt><dd>@application.Name</dd><dt>Email</dt><dd>@application.Email</dd>
-        <dt>Municipality</dt><dd>@application.Municipality</dd><dt>Date of birth</dt><dd>@application.DateOfBirth</dd>
-        <dt>Language</dt><dd>@application.Language</dd><dt>Phone</dt><dd>@application.PhoneNumber</dd>
-        <dt>Nickname</dt><dd>@application.Nickname</dd><dt>Matrix ID</dt><dd>@application.MatrixId</dd>
-        <dt>Message</dt><dd style="white-space: pre-wrap">@application.Message</dd>
-    </dl>
-    @if (application.DateOfBirth > Clock.Today.AddYears(-18)) { <p><strong>Under 18: handle any parental consent outside this portal. Do not upload consent records.</strong></p> }
-    <p>Approval grants membership and login before payment. The initial membership invoice is created with approval and is payable from the member's billing page.</p>
-    @if (error is not null) { <p role="alert">@error</p> }
-    <EditForm Model="Input" method="post" FormName="decision" OnValidSubmit="Decide">
-        <DataAnnotationsValidator /><ValidationSummary />
-        <p><label for="rejection-explanation">Optional rejection explanation (emailed, then erased with the application)</label><br /><InputTextArea id="rejection-explanation" @bind-Value="Input!.Explanation" maxlength="2000" /></p>
-        <button type="submit" name="Input.Decision" value="approve">Approve membership</button>
-        <button type="submit" name="Input.Decision" value="reject">Reject and email applicant</button>
-    </EditForm>
-}
+else { <div class="detail-workspace"><ApplicationReviewCard Application="application" /></div> }
 
 @code {
-    public sealed class DecisionInput { public string Decision { get; set; } = ""; [StringLength(2000)] public string? Explanation { get; set; } }
     [Parameter] public Guid Id { get; set; }
-    [SupplyParameterFromForm] public DecisionInput? Input { get; set; }
     private ApplicationReview? application;
-    private string? error;
     protected override async Task OnInitializedAsync()
     {
-        Input ??= new();
         application = (await Queries.Applications((await Authentication.GetAuthenticationStateAsync()).User, Id)).SingleOrDefault();
-    }
-    private async Task Decide()
-    {
-        try
-        {
-            var actor = (await Authentication.GetAuthenticationStateAsync()).User;
-            if (Input!.Decision == "approve") Navigation.NavigateTo("/admin/members/" + await Commands.Approve(actor, Id));
-            else if (Input.Decision == "reject") { await Commands.Reject(actor, Id, Input.Explanation); Navigation.NavigateTo("/admin/members"); }
-            else error = "Choose approve or reject.";
-        }
-        catch (ValidationException ex) { error = ex.Message; }
-        catch (Microsoft.EntityFrameworkCore.DbUpdateException ex) when (ex.InnerException is Npgsql.PostgresException { SqlState: "23505" })
-        { error = "The email address is no longer available. Reload the application and review the existing account."; }
     }
 }

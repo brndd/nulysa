@@ -18,4 +18,19 @@ public sealed class UiFeedback(ITempDataDictionaryFactory factory)
         data["UiNotice"] = notice;
         data.Save();
     }
+
+    public string? ReadError(HttpContext context)
+    {
+        var data = factory.GetTempData(context);
+        var error = data["UiError"] as string;
+        data.Save();
+        return error;
+    }
+
+    public void SaveError(HttpContext context, string error)
+    {
+        var data = factory.GetTempData(context);
+        data["UiError"] = error;
+        data.Save();
+    }
 }

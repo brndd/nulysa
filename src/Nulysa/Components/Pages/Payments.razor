@@ -15,7 +15,7 @@
 <h2>Bank synchronization</h2>
 <ul>@foreach (var status in statuses) { <li>@status.Account · @status.Status · last success: @(status.LastSuccess?.ToString("u") ?? "never") · last attempt: @status.LastAttempt?.ToString("u")</li> }</ul>
 @if (statuses.Count == 0) { <p>No bank synchronization recorded. Configure the GoCardless feed before relying on automatic payment status.</p> }
-<h2>Failed-match review</h2><p>Assign a known member and purpose explicitly. Ignoring preserves source facts and keeps donations/outgoing transactions out of member funds. Pending-deletion receipts require manual repair after restoration.</p>
+<h2 id="payment-review">Failed-match review</h2><p>Assign a known member and purpose explicitly. Ignoring preserves source facts and keeps donations/outgoing transactions out of member funds. Pending-deletion receipts require manual repair after restoration.</p>
 <table><caption>Unresolved bank transactions</caption><thead><tr><th>ID / received</th><th>Amount</th><th>Reference / source</th><th>Message / counterparty</th><th>Review reason</th></tr></thead><tbody>
 @foreach (var receipt in receipts) { <tr><td>#@receipt.Id · @receipt.ReceivedOn</td><td>@receipt.Amount @receipt.Currency</td><td>@receipt.Reference · @receipt.Source / @receipt.SourceAccount / @receipt.ExternalId</td><td>@receipt.Message · @receipt.Counterparty</td><td>@receipt.ReviewReason</td></tr> }
 </tbody></table>

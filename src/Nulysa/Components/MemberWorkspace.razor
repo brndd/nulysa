@@ -1,0 +1,24 @@
+@using Nulysa.Membership
+
+<nav class="breadcrumbs" aria-label="Breadcrumb">
+    <a href="/admin">Needs attention</a><span aria-hidden="true">/</span>
+    <a href="@RegistryNavigation.ReturnUrl(ReturnUrl)">Members</a><span aria-hidden="true">/</span>
+    <span aria-current="page">Member #@Member.Id</span>
+</nav>
+<div class="member-subject">
+    <h2 class="subject-name">@Member.Name <span>Member #@Member.Id</span></h2>
+    <p>@Member.Email · Joined @Member.JoinedOn.ToString("d MMM yyyy")</p>
+    <p>You are administering this member's account.
+        @if (Member.PendingDeletionAt is not null) { <strong>Pending deletion; login and services blocked.</strong> }
+    </p>
+</div>
+<nav class="section-navigation" aria-label="Member workspace">
+    <a href="@RegistryNavigation.MemberUrl(Member.Id, ReturnUrl)" aria-current="@(Billing ? null : "page")">Member details</a>
+    <a href="@RegistryNavigation.MemberUrl(Member.Id, ReturnUrl, billing: true)" aria-current="@(Billing ? "page" : null)">Membership, services and payments</a>
+</nav>
+
+@code {
+    [Parameter, EditorRequired] public RegistryEntry Member { get; set; } = null!;
+    [Parameter] public string? ReturnUrl { get; set; }
+    [Parameter] public bool Billing { get; set; }
+}

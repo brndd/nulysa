@@ -10,7 +10,7 @@ namespace Nulysa.Tests;
 public sealed class BillingBrowserTests : MembershipTest
 {
     [Fact]
-    public async Task Payments_keeps_attention_and_balances_visible_while_histories_page_independently()
+    public async Task Billing_details_keeps_outstanding_bills_visible_while_histories_page_independently()
     {
         Clock.Now = DateTimeOffset.UtcNow;
         Settings["Billing:PurchaseBalanceEnabled"] = "true";
@@ -41,13 +41,13 @@ public sealed class BillingBrowserTests : MembershipTest
         await page.GetByLabel("Email", new() { Exact = true }).FillAsync(Email);
         await page.GetByLabel("Password", new() { Exact = true }).FillAsync(Password);
         await page.GetByRole(AriaRole.Button, new() { Name = "Log in", Exact = true }).ClickAsync();
-        await page.GetByRole(AriaRole.Navigation, new() { Name = "Member self-service" }).GetByRole(AriaRole.Link, new() { Name = "Payments", Exact = true }).ClickAsync();
-        await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Payments", Exact = true })).ToBeVisibleAsync();
-        await Assertions.Expect(page.Locator("#outstanding-bills .bill-summary")).ToHaveCountAsync(1);
-        await Assertions.Expect(page.Locator("#funds")).ToHaveCountAsync(1);
+        await page.GotoAsync(root + "services");
         await Assertions.Expect(page.Locator("#funds .balance-cards > div")).ToHaveCountAsync(2);
-        await Assertions.Expect(page.Locator("#funds .balance-note")).ToContainTextAsync("Allocated to unfinished bills");
-        await Assertions.Expect(page.Locator("#funds .balance-cards > div").Last).ToContainTextAsync("Available purchase balance");
+        await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Needs your attention", Exact = true })).ToBeVisibleAsync();
+        await page.GetByRole(AriaRole.Navigation, new() { Name = "Membership and payments", Exact = true }).GetByRole(AriaRole.Link, new() { Name = "Billing details", Exact = true }).ClickAsync();
+        await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Billing details", Exact = true })).ToBeVisibleAsync();
+        await Assertions.Expect(page.Locator("#outstanding-bills .bill-summary")).ToHaveCountAsync(1);
+        await Assertions.Expect(page.Locator("#funds")).ToHaveCountAsync(0);
         Assert.Null(await page.Locator("#bill-history").GetAttributeAsync("open"));
         await page.GetByRole(AriaRole.Navigation, new() { Name = "Payments sections" }).GetByRole(AriaRole.Link, new() { Name = "Previous bills", Exact = true }).ClickAsync();
         await Assertions.Expect(page.Locator("#bill-history .bill-summary")).ToHaveCountAsync(10);
@@ -66,7 +66,7 @@ public sealed class BillingBrowserTests : MembershipTest
         await page.GetByRole(AriaRole.Navigation, new() { Name = "Previous bill pages" }).GetByRole(AriaRole.Link, new() { Name = "Previous bills", Exact = true }).ClickAsync();
         await Assertions.Expect(page.Locator("#bill-history .bill-summary")).ToHaveCountAsync(10);
         await Assertions.Expect(page.Locator("#transactions tbody tr")).ToHaveCountAsync(2);
-        await Assertions.Expect(page.Locator("#funds")).ToHaveCountAsync(1);
+        await Assertions.Expect(page.Locator("#funds")).ToHaveCountAsync(0);
         await page.SetViewportSizeAsync(375, 812);
         Assert.True(await page.EvaluateAsync<bool>("document.documentElement.scrollWidth <= innerWidth"));
     }
@@ -124,7 +124,7 @@ public sealed class BillingBrowserTests : MembershipTest
         await page.GetByRole(AriaRole.Button, new() { Name = "Save communication preferences" }).ClickAsync();
         await Assertions.Expect(page.GetByLabel("Email invoice PDFs")).Not.ToBeCheckedAsync();
         await page.GotoAsync(root + "services");
-        await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Membership and services", Exact = true })).ToBeVisibleAsync();
+        await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Account overview", Exact = true })).ToBeVisibleAsync();
         await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Issued bills", Exact = true })).ToHaveCountAsync(0);
         await page.GetByRole(AriaRole.Button, new() { Name = "Subscribe", Exact = true }).ClickAsync();
         await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Review service change" })).ToBeVisibleAsync();
@@ -169,11 +169,12 @@ public sealed class BillingBrowserTests : MembershipTest
         await Assertions.Expect(admin.GetByRole(AriaRole.Row).Filter(new() { HasText = "not-a-reference" })).ToHaveCountAsync(0);
 
         await Import("deposit", view.DepositReference, "10");
-        await page.GotoAsync(root + "billing");
+        await page.GotoAsync(root + "services");
         await page.GetByText("Move funds between balances", new() { Exact = true }).ClickAsync();
         await page.GetByLabel("Amount (EUR)", new() { Exact = true }).FillAsync("9999");
         await page.GetByRole(AriaRole.Button, new() { Name = "Transfer available funds" }).ClickAsync();
         await Assertions.Expect(page.GetByRole(AriaRole.Alert)).ToContainTextAsync("exceeds your available source balance");
+        await Assertions.Expect(page.GetByRole(AriaRole.Alert)).ToBeVisibleAsync();
         await Assertions.Expect(page.GetByLabel("Amount (EUR)", new() { Exact = true })).ToHaveValueAsync("9999");
         await page.GetByLabel("Amount (EUR)", new() { Exact = true }).FillAsync("10");
         await page.GetByLabel("From / to").SelectOptionAsync("false");
@@ -248,7 +249,7 @@ public sealed class BillingBrowserTests : MembershipTest
         await page.GotoAsync(root + $"billing/invoices/{view.Invoices[0].Invoice.Id}");
         await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Pay by bank transfer" })).ToHaveCountAsync(0);
         await page.GotoAsync(root + "billing?transactionsPage=-1&pageSize=0");
-        await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Payments", Exact = true })).ToBeVisibleAsync();
+        await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Billing details", Exact = true })).ToBeVisibleAsync();
         await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Transaction history", Exact = true })).ToBeVisibleAsync();
         await page.GotoAsync(root + "admin/payments");
         await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Access denied", Exact = true })).ToBeVisibleAsync();

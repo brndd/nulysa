@@ -69,7 +69,7 @@ public sealed class AppearanceBrowserTests : OidcTest
         await Assertions.Expect(page.Locator("html")).ToHaveAttributeAsync("data-bs-theme", "light");
         await page.GetByRole(AriaRole.Link, new() { Name = "Return to portal" }).ClickAsync();
         await menu.ClickAsync();
-        await page.GetByRole(AriaRole.Link, new() { Name = "My details", Exact = true }).First.ClickAsync();
+        await page.GetByRole(AriaRole.Link, new() { Name = "Settings", Exact = true }).First.ClickAsync();
         await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Member details", Exact = true })).ToBeVisibleAsync();
         var detailsHeading = page.GetByRole(AriaRole.Heading, new() { Name = "Member details", Exact = true });
         await Assertions.Expect(detailsHeading).ToBeFocusedAsync();

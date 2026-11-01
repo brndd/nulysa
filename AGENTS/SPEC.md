@@ -377,6 +377,10 @@ age/consent workflow to implement in the portal.
 - Members log in using email and password.
 - The welcome message sent on approval includes a link to set the initial password.
 - Provide ordinary email-based password resets.
+- Signed-in members can change their own password by entering the current password
+  and the new password twice, without prior email confirmation. Apply the normal
+  password policy and send a required password-changed notification; invoice-email
+  preferences cannot disable this security notice.
 - Password setup and reset must not bypass the no-login-before-approval rule or
   the immediate access block on accounts pending deletion.
 - OIDC refresh tokens have a one-year (365-day) idle lifetime. Successful refreshes

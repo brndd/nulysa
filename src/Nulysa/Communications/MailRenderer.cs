@@ -97,6 +97,18 @@ public sealed class MailRenderer(AppDbContext db, UserManager<User> users, Membe
                 text = fi ? "Hallinto peruutti tilisi poiston. Kirjautuminen ja jäsenpalvelut ovat jälleen käytössä. Poisto ei palauta laskutusta, kattavuutta tai tunnuksia. Ota yhteyttä hallitukseen, jos et pyytänyt tätä."
                     : "An administrator cancelled the pending deletion of your account. Login and member services are available again. Restoration does not reopen billing, coverage or credentials. Contact the board if you did not request this.";
             }
+            else if (delivery.Kind == MailKind.PasswordChanged)
+            {
+                if (!user.MayLogIn)
+                    return null;
+
+                var changedAt = TimeZoneInfo.ConvertTime(delivery.CreatedAt, clock.Zone);
+                subject = fi ? "Salasanasi on vaihdettu" : "Your password was changed";
+                text = fi
+                    ? $"Tilisi salasana vaihdettiin {changedAt:yyyy-MM-dd HH:mm zzz}. Jos et tehnyt muutosta, ota heti yhteyttä yhdistyksen ylläpitäjiin. Voit palauttaa salasanasi osoitteessa: "
+                    : $"Your account password was changed on {changedAt:yyyy-MM-dd HH:mm zzz}. If you did not make this change, contact the association's administrators immediately. You can reset your password at: ";
+                text += Link("Account/ForgotPassword", new());
+            }
             else if (delivery.Kind == MailKind.DeletionWarning)
             {
                 var member = await db.Members.AsNoTracking().SingleOrDefaultAsync(x => x.UserId == user.Id, ct);

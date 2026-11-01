@@ -1,0 +1,69 @@
+@page "/admin"
+@attribute [Authorize(Policy = "Administrator")]
+@using Nulysa.Membership
+@inject BoardQueries Queries
+@inject AuthenticationStateProvider Authentication
+@inject IConfiguration Configuration
+
+<PageTitle>Needs attention — @Configuration["Association:Name"]</PageTitle>
+<h1>Needs attention</h1>
+<p class="page-intro">Review membership and payment queues, then check the operational warnings below. An empty queue means no known items; it does not establish that integrations are healthy.</p>
+@if (attention is not null)
+{
+    <nav class="attention-queues" aria-label="Board work queues">
+        <a href="/admin/applications"><strong>@attention.Applications</strong><span>Verified applications</span><small>Review admission decisions</small></a>
+        <a href="/admin/payments#payment-review"><strong>@attention.PaymentReviews</strong><span>Payment exceptions</span><small>Review unmatched bank transactions</small></a>
+        <div class="attention-queue">
+            <a href="@($"/admin/members?state=inactive&inactiveDays={InactiveDays}")"><strong>@attention.InactiveMembers</strong><span>Inactive for at least @InactiveDays days</span><small>Review members, longest inactive first</small></a>
+            <details class="queue-filter"><summary>Adjust threshold</summary>
+                <form method="get" action="/admin" class="compact-form">
+                    <label for="inactive-days">Inactivity review threshold (days)</label>
+                    <input id="inactive-days" name="inactiveDays" type="number" min="1" max="36500" value="@InactiveDays" aria-describedby="threshold-help" />
+                    <button class="secondary-action">Apply</button>
+                    <small id="threshold-help">View filter only; never terminates membership or starts deletion.</small>
+                </form>
+            </details>
+        </div>
+        <a href="/admin/members?state=pending-deletion"><strong>@attention.PendingDeletions</strong><span>Pending deletions</span><small>Review before the erasure batch</small></a>
+        <a href="/admin/mail-attention"><strong>@attention.EssentialMailProblems</strong><span>Essential mail problems</span><small>Reconcile failed or uncertain delivery</small></a>
+    </nav>
+    <section id="bank-sync" aria-labelledby="bank-heading">
+        <h2 id="bank-heading">Bank synchronization</h2>
+        @if (!attention.BankEnabled)
+        {
+            <p class="status-panel"><strong>Automatic bank import is disabled.</strong> Payment standing depends on confirmed transactions imported manually. Contact the system operator to configure the feed.</p>
+        }
+        @if (attention.BankAccounts.Count == 0)
+        {
+            <p>No successful bank synchronization has been recorded. An empty payment-review queue does not establish that payments are up to date.</p>
+        }
+        else
+        {
+            <p>A last success more than @attention.StaleHours hours ago is shown as stale. Times below are UTC.</p>
+            @foreach (var account in attention.BankAccounts)
+            {
+                <div class="status-panel @(attention.BankEnabled && account.NeedsAttention ? "operational-warning" : "")">
+                    <h3>Bank account <span class="supporting-reference">@account.Account</span></h3>
+                    <p><strong>@(account.Stale ? "Stale — payment information may be incomplete" : account.NeedsAttention ? "Synchronization needs attention" : "Recent successful synchronization")</strong></p>
+                    <p>Last successful sync: <strong>@(account.LastSuccess?.ToString("u") ?? "Never — no successful sync recorded")</strong><br />
+                        Last attempt: @(account.LastAttempt?.ToString("u") ?? "None recorded")<br />
+                        Last recorded state: @account.Status
+                    </p>
+                    @if (attention.BankEnabled && account.NeedsAttention) { <p>Ask the system operator to check the feed and provider authorization. Review confirmed bank transactions before changing member funds.</p> }
+                </div>
+            }
+        }
+        <p><a href="/admin/payments">Open payments and accounting</a></p>
+    </section>
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "inactiveDays")] public string? RequestedInactiveDays { get; set; }
+    private int InactiveDays => int.TryParse(RequestedInactiveDays, out var days) ? Math.Clamp(days, 1, 36500) : 30;
+    private BoardAttention? attention;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        attention = await Queries.Attention((await Authentication.GetAuthenticationStateAsync()).User, InactiveDays);
+    }
+}

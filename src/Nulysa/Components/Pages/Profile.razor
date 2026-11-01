@@ -19,29 +19,38 @@
 
 <PageTitle>Member details — @Configuration["Association:Name"]</PageTitle>
 <h1>Member details</h1>
+<div class="detail-workspace">
 @if (details is not null)
 {
+    @if (Id is not null)
+    {
+        <MemberWorkspace Member="@(new RegistryEntry(details.Id, details.Profile.Name, details.Email, details.JoinedOn, details.PendingDeletionAt))" ReturnUrl="@ReturnUrl" />
+    }
+    else
+    {
     <p>Member #@details.Id · Joined @details.JoinedOn · Login email: @details.Email</p>
-    <p><a href="@(Id is null ? "/billing" : $"/admin/members/{details.Id}/billing")">Payment standing, invoices, coverage and services</a></p>
-    @if (error is not null) { <p role="alert">@error</p> }
+    <p><a href="/billing">Payment standing, invoices, coverage and services</a></p>
+    }
+    @if (error is not null && !IsLifecyclePost) { <p role="alert">@error</p> }
     @if (notice is not null) { <p role="status" class="success-notice">@notice</p> }
     @if (details.PendingDeletionAt is null)
     {
-        <nav class="section-navigation" aria-label="Account settings">
+        <nav class="section-navigation" aria-label="@(Id is null ? "Account settings" : "Member detail sections")">
             <a href="@(PageUrl + "#personal")">Personal details</a><a href="@(PageUrl + "#email")">Email</a><a href="@(PageUrl + "#communications")">Communication preferences</a>
             @if (Id is null) { <a href="@(PageUrl + "#account")">Account and privacy</a> }
+            else { <a href="@(PageUrl + "#lifecycle")">Account removal and restoration</a><a href="@(PageUrl + "#history")">Membership history</a> }
         </nav>
         <section id="personal" aria-labelledby="personal-heading">
         <h2 id="personal-heading">Personal details</h2>
         <EditForm Model="Input" method="post" FormName="profile" OnSubmit="Save">
             <DataAnnotationsValidator /><ValidationSummary />
-            <Nulysa.Components.ProfileFields Input="Input!" Prefix="Input" />
+            <div class="profile-fields-grid"><Nulysa.Components.ProfileFields Input="Input!" Prefix="Input" /></div>
             <button type="submit">Save details</button>
         </EditForm>
         </section>
         <section id="email" aria-labelledby="email-heading">
         <h2 id="email-heading">Change login email</h2>
-        <p>The current address remains in use until the new address is verified. Changing email does not create a new account or break SSO sign-in.</p>
+        <p>Current email: <strong>@details.Email</strong></p>
         @if (details.PendingEmail is not null) { <p>Awaiting verification: @details.PendingEmail</p> }
         <EditForm Model="EmailInput" method="post" FormName="email" OnValidSubmit="ChangeEmail">
             <DataAnnotationsValidator /><ValidationSummary />
@@ -55,10 +64,10 @@
             <p>Required security, membership, grace and deletion notices cannot be disabled. Bills remain available in the portal even if you turn off invoice emails.</p>
             @if (emailSettings is not null)
             {
-                <EditForm Model="EmailPreference" method="post" FormName="profile-invoice-preference" OnValidSubmit="SavePreference">
+                <EditForm Model="EmailPreference" method="post" FormName="profile-invoice-preference" OnValidSubmit="SavePreference" data-preference-form data-saved="@emailSettings.Enabled.ToString().ToLowerInvariant()">
                     <DataAnnotationsValidator /><ValidationSummary />
                     <input type="hidden" name="EmailPreference.Key" value="@EmailPreference!.Key" />
-                    <p><InputCheckbox id="email-invoices" @bind-Value="EmailPreference.Enabled" /> <label for="email-invoices">Email invoice PDFs</label></p>
+                    <div class="checkbox-field"><InputCheckbox id="email-invoices" @bind-Value="EmailPreference.Enabled" /><label for="email-invoices">Email invoice PDFs</label></div>
                     <button>Save communication preferences</button>
                 </EditForm>
             }
@@ -68,7 +77,16 @@
         {
             <section id="account" aria-labelledby="account-heading">
                 <h2 id="account-heading">Account and privacy</h2>
-                <p><a href="/Account/ForgotPassword">Reset your password</a> · <a href="/Appearance">Appearance settings</a></p>
+                <h3>Change password</h3>
+                @if (passwordError is not null) { <p role="alert">@passwordError</p> }
+                <form method="post" action="/Account/ChangePassword" data-enhance="false" class="password-change-form">
+                    <AntiforgeryToken />
+                    <input type="hidden" name="Operation" value="@Guid.NewGuid()" />
+                    <p><label for="current-password">Current password</label><input id="current-password" name="CurrentPassword" type="password" autocomplete="current-password" required maxlength="256" /></p>
+                    <p><label for="new-password">New password</label><input id="new-password" name="NewPassword" type="password" autocomplete="new-password" required maxlength="256" /></p>
+                    <p><label for="confirm-password">Confirm new password</label><input id="confirm-password" name="ConfirmPassword" type="password" autocomplete="new-password" required maxlength="256" /></p>
+                    <button type="submit">Change password</button>
+                </form>
                 <p>For personal-data access, correction or erasure requests, contact the association's administrators.
                     @if (!string.IsNullOrWhiteSpace(Options.Value.ContactEmail)) { <a href="@($"mailto:{Options.Value.ContactEmail}")">@Options.Value.ContactEmail</a> }
                 </p>
@@ -82,30 +100,39 @@
     {
         <p><strong>Pending deletion. Login and services are blocked. Eligible for a fortnightly deletion batch from @details.DeletionEligibleAt?.ToString("u") (UTC).</strong></p>
     }
-    <AuthorizeView Policy="Administrator">
-        <Authorized Context="board">
-            <h2>Membership lifecycle</h2>
+    @if (Id is not null)
+    {
+        <section id="lifecycle" aria-labelledby="lifecycle-heading">
+            <h2 id="lifecycle-heading">Account removal and restoration</h2>
+            <ActionDialog Id="lifecycle-dialog" Label="@(details.PendingDeletionAt is null ? "Remove account" : "Restore account")" Title="@(details.PendingDeletionAt is null ? "Terminate membership and remove account" : "Cancel pending deletion")" Open="@IsLifecyclePost" TriggerClass="@(details.PendingDeletionAt is null ? "danger-action" : null)">
+            @if (error is not null) { <p role="alert">@error</p> }
             <p>Termination immediately blocks login and starts erasure. Restoration cancels erasure only: it does not renew expired coverage, reverse separate removals, or repair payments. Do not put personal details in the audit reason.</p>
             <EditForm Model="Lifecycle" method="post" FormName="lifecycle" OnValidSubmit="ChangeLifecycle">
                 <DataAnnotationsValidator /><ValidationSummary />
                 <input type="hidden" name="Lifecycle.Operation" value="@Lifecycle!.Operation" />
                 <input type="hidden" name="Lifecycle.Action" value="@Lifecycle.Action" />
-                <p><label for="lifecycle-reason">Reason / verified restoration request</label> <InputTextArea id="lifecycle-reason" @bind-Value="Lifecycle.Reason" required maxlength="1000" /></p>
-                <p><InputCheckbox id="lifecycle-confirm" @bind-Value="Lifecycle.Confirmed" /> <label for="lifecycle-confirm">I confirm this membership action and its consequences.</label></p>
-                <button type="submit">@(Lifecycle.Action == "restore" ? "Cancel pending deletion" : "Terminate and begin deletion")</button>
+                <p><label for="lifecycle-reason">@(Lifecycle.Action == "restore" ? "Reason / verified restoration request" : "Reason (optional)")</label><InputTextArea id="lifecycle-reason" @bind-Value="Lifecycle.Reason" maxlength="1000" /></p>
+                <input type="hidden" name="Lifecycle.Confirmed" value="true" />
+                <button type="submit" class="@(Lifecycle.Action == "restore" ? "secondary-action" : "danger-action")">@(Lifecycle.Action == "restore" ? "Cancel pending deletion" : "Terminate and begin deletion")</button>
             </EditForm>
-            <h3>Lifecycle history</h3>
+            </ActionDialog>
+        </section>
+        <section id="history" aria-labelledby="history-heading">
+            <h2 id="history-heading">Membership history</h2>
             @if (details.Approval is { } approval) { <p>Approved @approval.ApprovedAt.ToString("u") by administrator #@approval.AdministratorId.</p> }
             <ul>@foreach (var entry in details.History) { <li>@entry.OccurredAt.ToString("u") — @entry.Action — actor #@entry.ActorId — @entry.Reason</li> }</ul>
-        </Authorized>
-    </AuthorizeView>
+        </section>
+    }
 }
 else
 {
     <p>No membership record is available for this account.</p>
 }
 
+</div>
+
 @code {
+    private bool IsLifecyclePost => Id is not null && HttpContext.Request.HasFormContentType && HttpContext.Request.Form["_handler"] == "lifecycle";
     private string PageUrl => Navigation.Uri.Split('#')[0];
     public sealed class EmailChangeInput
     {
@@ -115,7 +142,7 @@ else
     public sealed class LifecycleInput
     {
         public string Action { get; set; } = "";
-        [Required, StringLength(1000)] public string Reason { get; set; } = "";
+        [StringLength(1000)] public string Reason { get; set; } = "";
         [Range(typeof(bool), "true", "true", ErrorMessage = "Confirm the membership action.")] public bool Confirmed { get; set; }
         public Guid Operation { get; set; } = Guid.NewGuid();
     }
@@ -125,6 +152,7 @@ else
         public bool Enabled { get; set; }
     }
     [Parameter] public long? Id { get; set; }
+    [SupplyParameterFromQuery(Name = "returnUrl")] public string? ReturnUrl { get; set; }
     [SupplyParameterFromForm(FormName = "profile")] public ProfileInput? Input { get; set; }
     [SupplyParameterFromForm(FormName = "email")] public EmailChangeInput? EmailInput { get; set; }
     [SupplyParameterFromForm(FormName = "lifecycle")] public LifecycleInput? Lifecycle { get; set; }
@@ -134,17 +162,25 @@ else
     private ClaimsPrincipal actor = null!;
     private string? error;
     private string? notice;
+    private string? passwordError;
     private InvoiceEmailSettings? emailSettings;
     protected override async Task OnInitializedAsync()
     {
         actor = (await Authentication.GetAuthenticationStateAsync()).User;
         notice = Feedback.Read(HttpContext);
+        passwordError = Feedback.ReadError(HttpContext);
         if (Id is not null && !await Queries.IsAdministrator(actor)) { HttpContext.Response.StatusCode = 403; return; }
         details = await Queries.Details(actor, Id ?? Authority.Id(actor));
-        if (details is null) return;
+        if (details is null)
+        {
+            if (Id is not null) HttpContext.Response.StatusCode = 404;
+            return;
+        }
         emailSettings = await PortalQueries.EmailSettings(actor, details.Id, HttpContext.RequestAborted);
         EmailPreference ??= new() { Enabled = emailSettings?.Enabled ?? true };
-        Input ??= details.Profile; EmailInput ??= new(); Lifecycle ??= new() { Action = details.PendingDeletionAt is null ? "terminate" : "restore" };
+        Input ??= details.Profile;
+        EmailInput ??= new();
+        Lifecycle ??= new() { Action = details.PendingDeletionAt is null ? "terminate" : "restore" };
     }
     private async Task Save()
     {
@@ -181,13 +217,14 @@ else
     }
     private async Task ChangeLifecycle()
     {
-        if (details is null) return;
+        if (details is null || Id is null) return;
         try
         {
-            if (Lifecycle!.Action == "terminate") await Membership.BeginDeletion(actor, details.Id, Lifecycle.Operation, Lifecycle.Reason);
+            if (Lifecycle!.Action == "terminate") await Membership.BeginDeletion(actor, details.Id, Lifecycle.Operation, string.IsNullOrWhiteSpace(Lifecycle.Reason) ? "Administrator confirmed account removal" : Lifecycle.Reason);
             else if (Lifecycle.Action == "restore") await Membership.Restore(actor, details.Id, Lifecycle.Operation, Lifecycle.Reason);
             else throw new ValidationException("Choose a membership action.");
-            Navigation.NavigateTo("/admin/members");
+            Feedback.Save(HttpContext, Lifecycle.Action == "restore" ? "Pending deletion cancelled. Coverage and payments were not renewed or repaired." : "Membership terminated and account deletion started. Login and services are blocked.");
+            Navigation.NavigateTo(RegistryNavigation.ReturnUrl(ReturnUrl));
         }
         catch (ValidationException ex) { error = ex.Message; }
     }

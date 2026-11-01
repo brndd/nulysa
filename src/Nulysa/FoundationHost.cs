@@ -126,6 +126,7 @@ public static class FoundationHost
         builder.Services.AddScoped<AssociationClock>();
         builder.Services.AddScoped<MembershipCommands>();
         builder.Services.AddScoped<MembershipQueries>();
+        builder.Services.AddScoped<BoardQueries>();
         builder.Services.AddScoped<AccountCommands>();
         builder.Services.AddScoped<MembershipMaintenance>();
         builder.Services.AddScoped<BillingCommands>();

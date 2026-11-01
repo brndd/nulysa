@@ -26,9 +26,11 @@
                     {
                         <nav aria-label="Board administration">
                             <span class="nav-heading">Administration</span>
+                            <NavLink href="/admin" Match="NavLinkMatch.All">Needs attention</NavLink>
                             <NavLink href="/admin/members">Member registry</NavLink>
                             <NavLink href="/admin/applications">Application review</NavLink>
                             <NavLink href="/admin/payments">Payments and accounting</NavLink>
+                            <NavLink href="/admin/mail-attention">Mail problems</NavLink>
                             <NavLink href="/admin/billing-configuration">Fees and services</NavLink>
                         </nav>
                     }
@@ -41,16 +43,21 @@
                         <nav aria-label="Member self-service">
                             <span class="nav-heading">Member portal</span>
                             <NavLink href="/" Match="NavLinkMatch.All">Overview</NavLink>
-                            <NavLink href="/services">Membership &amp; services</NavLink>
-                            <NavLink href="/billing">Payments</NavLink>
-                            <NavLink href="/profile">My details</NavLink>
-                            <a href="/profile#communications">Communication preferences</a>
+                            <div class="navigation-section" role="group" aria-labelledby="membership-nav-heading">
+                                <span id="membership-nav-heading" class="nav-section-heading">Membership &amp; payments</span>
+                                <NavLink href="/services">Account overview</NavLink>
+                                <NavLink href="/billing">Billing details</NavLink>
+                            </div>
+                            <div class="navigation-section" role="group" aria-labelledby="account-nav-heading">
+                                <span id="account-nav-heading" class="nav-section-heading">My account</span>
+                                <NavLink href="/profile">Settings</NavLink>
+                            </div>
                         </nav>
                     }
                     <nav class="workspace-navigation" aria-label="Workspaces">
                         @if (Workspace != "Member portal") { <a href="/">Member portal</a> }
                         <AuthorizeView Policy="Administrator" Context="board">
-                            <Authorized>@if (Workspace != "Administration") { <a href="/admin/members">Administration</a> }</Authorized>
+                            <Authorized>@if (Workspace != "Administration") { <a href="/admin">Administration</a> }</Authorized>
                         </AuthorizeView>
                         <AuthorizeView Policy="Superuser" Context="sysop">
                             <Authorized>@if (Workspace != "System Console") { <a href="/system-console">System Console</a> }</Authorized>
@@ -70,8 +77,9 @@
 <footer class="site-footer"><small>Powered by Nulysa</small></footer>
 
 @code {
-    private string Workspace => Navigation.ToBaseRelativePath(Navigation.Uri) switch
+    private string Workspace => Navigation.ToBaseRelativePath(Navigation.Uri).Split('?', '#')[0].TrimEnd('/') switch
     {
+        var path when path.Equals("admin", StringComparison.OrdinalIgnoreCase) => "Administration",
         var path when path.StartsWith("admin/", StringComparison.OrdinalIgnoreCase) => "Administration",
         var path when path.StartsWith("system-console", StringComparison.OrdinalIgnoreCase) => "System Console",
         _ => "Member portal"

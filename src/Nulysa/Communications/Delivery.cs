@@ -1,6 +1,6 @@
 namespace Nulysa.Communications;
 
-public enum MailKind { Verification, Welcome, Rejection, DeletionWarning, PasswordReset, EmailChange, Restoration, Invoice, MembershipGrace, MembershipInactive, BankAlert }
+public enum MailKind { Verification, Welcome, Rejection, DeletionWarning, PasswordReset, EmailChange, Restoration, Invoice, MembershipGrace, MembershipInactive, BankAlert, PasswordChanged }
 public enum DeliveryState { Pending, Sending, Accepted, Review, Failed, Cancelled }
 
 public sealed class Delivery
