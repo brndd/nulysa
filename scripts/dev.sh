@@ -13,6 +13,7 @@ export Mail__Transport=${Mail__Transport:-Development}
 export Mail__PublicUrl=http://127.0.0.1:5000/
 export Mail__SpoolPath="$root/.local/data-protection/mail"
 export Billing__Iban=${Billing__Iban:-FI2112345600000785} # Synthetic invoice fixture; never a deployment payment destination.
+export Billing__PurchaseBalanceEnabled=${Billing__PurchaseBalanceEnabled:-true}
 
 cd "$root"
 "$engine" compose -f "$root/compose.yaml" up -d postgres

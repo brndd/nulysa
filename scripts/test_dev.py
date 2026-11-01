@@ -25,6 +25,7 @@ def record(event):
             mail_transport=os.environ.get('Mail__Transport'),
             mail_url=os.environ.get('Mail__PublicUrl'),
             mail_spool=os.environ.get('Mail__SpoolPath'),
+            purchase_balance=os.environ.get('Billing__PurchaseBalanceEnabled'),
             keys=os.environ.get('DataProtection__Path'))) + '\\n')
 record(mode or name)
 if name == 'docker' and 'exec' in args and os.environ.get('DEV_TEST_DB_DOWN'):
@@ -56,7 +57,8 @@ class DevelopmentLauncherTests(unittest.TestCase):
                     "CONTAINER_ENGINE": "docker", "DEV_TEST_LOG": str(self.log),
                     "ConnectionStrings__Database": "production-sentinel",
                     "Mail__Transport": "Smtp", "Mail__PublicUrl": "https://production.invalid/",
-                    "Mail__SpoolPath": "/production-sentinel"}
+                     "Mail__SpoolPath": "/production-sentinel"}
+        self.env.pop("Billing__PurchaseBalanceEnabled", None)
 
     def rows(self):
         return [json.loads(line) for line in self.log.read_text().splitlines()] if self.log.exists() else []
@@ -88,6 +90,7 @@ class DevelopmentLauncherTests(unittest.TestCase):
             self.assertEqual("Smtp", row["mail_transport"])
             self.assertEqual("http://127.0.0.1:5000/", row["mail_url"])
             self.assertEqual(str(ROOT / ".local/data-protection/mail"), row["mail_spool"])
+            self.assertEqual("true", row["purchase_balance"])
         result = subprocess.run(command + ["status"], cwd=self.path, env=self.env, capture_output=True, timeout=10)
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual("status", self.rows()[-1]["event"])
@@ -108,6 +111,12 @@ class DevelopmentLauncherTests(unittest.TestCase):
                 if process.poll() is None:
                     process.terminate()
                     process.communicate(timeout=10)
+
+    def test_purchase_balance_can_be_explicitly_disabled(self):
+        result = subprocess.run(["bash", str(ROOT / "scripts/dev.sh"), "status"], cwd=self.path,
+                                env={**self.env, "Billing__PurchaseBalanceEnabled": "false"}, capture_output=True, timeout=10)
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertEqual("false", self.rows()[-1]["purchase_balance"])
 
     def test_child_failure_and_database_readiness_failure_are_not_hidden(self):
         for setting, expected in (("DEV_TEST_CRASH", 17), ("DEV_TEST_DB_DOWN", 1)):

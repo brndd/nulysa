@@ -52,8 +52,11 @@ To run a maintenance command with the same setup:
 bash scripts/dev.sh status
 ```
 
-Web listens on `http://127.0.0.1:5000`; the worker has no HTTP listener. Web
-startup validates schema but never runs jobs. Migrations and schedule installation
+Web listens on `http://127.0.0.1:5000`; the worker has no HTTP listener. The launcher
+enables purchase balance for both processes by default. Set
+`Billing__PurchaseBalanceEnabled=false` to test the disabled configuration; this
+does not change deployment defaults or stored balances. Restart the launcher after
+changing the setting. Web startup validates schema but never runs jobs. Migrations and schedule installation
 are explicit release commands, not startup side effects. No database is seeded
 automatically. To create a synthetic local login:
 
