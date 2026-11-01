@@ -11,11 +11,6 @@ days are counted after the due date. Existing open requests keep the expiry they
 were issued with; newly issued renewals use the post-due grace. Overdue notices
 begin after the due date.
 
-The `InclusiveBillingDueDates` migration extends only open requests whose old
-expiry was on or before their due date. Already-inclusive windows and completed,
-cancelled or expired purchases stay unchanged. Downgrading does not shorten the
-extended windows. Stop old workers before this release's migration.
-
 ## Local walkthrough
 
 Install the pinned renderer once (requires curl, tar, xz and sha256sum), and put it
@@ -172,6 +167,15 @@ MobilePay is not supported by this release; browser returns are never payment pr
   only minimal name/email for an unspent claim. Claims appear in payments administration;
   refunding the last available funds clears those contact fields. Rejoining never
   matches an old claim by email. Retention/lawful bases still need deployment review.
+- Billing credit is held in dated receipt lots and consumed oldest first. A missed
+  renewal can be funded retroactively only from a lot received before its cutoff;
+  transfers and other corrections use ordinary application-date credit. Per-balance
+  statements show each movement and running balance over the journal.
+
+The billing model is reconciliation-based, not a command queue: a missed scan is
+recomputed from dated state on the next run, with `Recover` and service re-open as
+the correction paths for late facts. A command queue or event-sourced rewrite is
+not planned at this scale.
 
 ## Acceptance evidence
 
@@ -192,12 +196,11 @@ coverage restoration, and price unquoted days through local-date discount withdr
 Browser retries for blank/nonexistent financial accounts retain the intended
 invoice, purpose and operation key without moving money on validation errors.
 
-The final S2 Release runs passed **109/109 standard tests in 59 seconds** and **129/129
-full tests in 3m 13s**, including Chromium/Keycloak and real workers, with no skips.
-The suite has since grown; see the README for current case counts.
-Release compilation, formatting, migration-model consistency, launcher/script
-checks and the production-mode container smoke (including pinned Typst) also passed.
+The S2 Release suites passed with no skips, including Chromium/Keycloak and real
+workers. Run CI for current counts and timings. Release compilation, formatting,
+migration-model consistency, launcher/script checks and the production-mode
+container smoke (including pinned Typst) also passed.
 
-See the README for verified suite totals and commands. Provider tests use synthetic
+See the README for test commands. Provider tests use synthetic
 HTTP fixtures, not live GoCardless credentials. Live bank/SMTP onboarding, MobilePay,
 accountant sign-off, retention and production cutover are not certified here.

@@ -1,6 +1,9 @@
-# Service architecture for review
+# Service architecture
 
-**Foundation reviewed as workable; model details remain proposals. No service implementation yet.**
+**Implemented in S2; this document records the reviewed design rationale.**
+Current behaviour is specified in [SPEC.md](SPEC.md) and documented operationally
+in [docs/billing.md](../docs/billing.md). The implementation is authoritative where
+these conceptual fields differ.
 This builds on [SPEC.md](SPEC.md) and the reviewed [billing design](BILLING_DESIGN.md).
 Confirmed: one self-subscription setting governs joining and returning; sufficiently
 long service nonpayment removes the subscription, not a service-inactive state.
@@ -12,8 +15,8 @@ returning subscription. This association grants 14 initial free door-access days
 Stopping renewal preserves remaining coverage/use and stops future charges. The
 first-payment window defaults to 14 calendar days; door renewal grace defaults to
 7 days. Single visible invoice due dates and original-anniversary interval phases
-are also settled. Model fields remain proposals; section 8 lists engineering and
-deployment follow-up, not more settled service-policy questions.
+are also settled. Section 8 records the review outcome and remaining engineering
+and deployment follow-up.
 
 The first [system architecture draft](ARCHITECTURE.md) composes these services with
 membership, billing, communications, access and storage in one ASP.NET Core modular
@@ -507,11 +510,10 @@ it. This needs a dated query/scheduled command, not another billing model.
 
 ## 8. Review outcome and remaining follow-up
 
-The service foundation has been reviewed as workable. Stopping renewal preserves
+The service foundation was reviewed as workable. Stopping renewal preserves
 remaining time; administrators can explicitly grant configured introductory days
-when adding a returning subscriber. These are confirmed, not outstanding choices.
-Model fields, history representation and transaction details remain engineering
-proposals, not implemented code.
+when adding a returning subscriber. These were confirmed, not outstanding choices.
+The reviewed model is implemented in S2; see [billing operations](../docs/billing.md).
 
 Payment timing is now settled: a configurable association-wide 14-day first-payment
 window, and configurable per-service renewal grace (zero allowed; door default

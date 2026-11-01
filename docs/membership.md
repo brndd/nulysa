@@ -43,9 +43,8 @@ joining anchor, a stable `BillingAccount`, an `InitialMembershipRequest`, and qu
 welcome mail. [S2](billing.md) now consumes that handover in the same transaction,
 issues the real initial invoice and queues its PDF. Standing uses actual coverage
 and charge-specific grace. Deletion closes unfinished charges/releases holds while
-preserving unspent claims. Existing S1 requests are consumed by due work after the
-upgrade; configure a price effective on their original anchor before starting it.
-Cancelled requests are not resurrected. Restoration does not invent grace/coverage.
+preserving unspent claims. Cancelled requests are not resurrected. Restoration does
+not invent grace/coverage.
 
 ## Mail configuration and failure handling
 
@@ -128,11 +127,11 @@ later delivery/cutover gates remain mandatory.
 
 ## Evidence
 
-Validated in Release on PostgreSQL 18.4: **56/56 standard tests** (about 30 seconds)
-and **74/74 full tests** (about 140 seconds), with no skips. The branded Chromium
-journey was rechecked after the final title changes. Release build, formatting,
-migration-model consistency, development-launcher tests and the production-mode
-container smoke also passed. No live SMTP account/delivery was exercised.
+Validated in Release on PostgreSQL 18.4 against the standard and full suites with no
+skips. The branded Chromium journey was rechecked after the final title changes.
+Release build, formatting, migration-model consistency, development-launcher tests
+and the production-mode container smoke also passed. Run CI for current counts and
+timings. No live SMTP account/delivery was exercised.
 
 `MembershipTests`, `MembershipFormTests`, `MailTests` and `MailTransportTests` cover
 PostgreSQL admission/rollback/uniqueness, verification expiry/resends, privacy/live

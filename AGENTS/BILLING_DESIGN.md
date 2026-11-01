@@ -1,14 +1,14 @@
-# Billing design for review
+# Billing design
 
-**Foundation accepted in principle; detailed design remains a proposal.** ASP.NET Core
-is decided; model fields and engineering choices below are not implemented or
-automatically approved. Agreed behaviour comes from
-[SPEC.md](SPEC.md); unresolved policy is not silently replaced by this design.
-This is the human-review entry point, not another copy of the full specification.
-The journal-only foundation, commands and execution traces have been reviewed as
-workable. Independent fulfilment of fully funded lines is now agreed, replacing
-the earlier whole-invoice requirement. Billing-credit ordering, effective dates
-and expired-line removal remain agreed. Field-level design is still a proposal.
+**Implemented in S2; this document records the reviewed design rationale.**
+Current behaviour is specified in [SPEC.md](SPEC.md) and documented operationally
+in [docs/billing.md](../docs/billing.md). The implementation in `src/Nulysa/Billing`
+is authoritative where these conceptual fields differ.
+
+The journal-only foundation, commands and execution traces below were reviewed as
+workable. Independent fulfilment of fully funded lines replaced the earlier
+whole-invoice requirement. Billing-credit ordering, effective dates and
+expired-line removal remain agreed.
 
 The [system architecture](ARCHITECTURE.md) reuses this foundation with EF Core,
 PostgreSQL for all database profiles and Quartz.NET persistent background work.

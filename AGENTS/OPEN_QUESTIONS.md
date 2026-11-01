@@ -7,12 +7,9 @@ new policy decisions.
 
 The [architecture blueprint](ARCHITECTURE.md) carries the reviewed domain design
 into ASP.NET Core/C#, EF Core, PostgreSQL-only database profiles, containers,
-Quartz.NET persistent jobs and local OIDC continuity testing. Its
-[S0 checkpoints](ARCHITECTURE.md#12-review-gate-before-scaffolding) now concern
-verification/package pins and detailed implementation, not another broad architecture
-or membership-policy approval round. S0 is now implemented with independent .NET
-acceptance evidence; see the [foundation status](../docs/foundations.md) for the
-verified contracts and remaining limits, not the separate Django suite's results.
+Quartz.NET persistent jobs and local OIDC continuity testing. S0–S2 are implemented
+with independent .NET acceptance evidence; see the [foundation status](../docs/foundations.md)
+for the verified contracts and remaining limits, not the separate Django suite's results.
 
 S2 billing/subscriptions and their configuration/evidence are now documented in
 [the billing runbook](../docs/billing.md). Bank transfer/GoCardless is the approved
@@ -102,6 +99,11 @@ pricing and allocation rules; a bounded credit ledger and audit records; no
 general ledger, debt collection, document-version platform, configurable workflow
 engine or full-application event-sourcing framework merely to support these rules.
 Manual corrections are already part of the intended administrator workflow.
+
+### Open retirement detail
+
+Retirement leaves an already-issued unpaid renewal line payable. If retirement
+should cancel it, close the line at retirement and document that rule.
 
 ### Outcome of the fixed-bill discussion
 

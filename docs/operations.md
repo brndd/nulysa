@@ -42,9 +42,8 @@ required values privately; `.env` and `.local/` are ignored by Git.
 - Essential mail, membership retention/erasure and terms settings:
   see [S1 operations](membership.md#mail-configuration-and-failure-handling).
 - Invoice payee/Typst and GoCardless settings: see [S2 operations](billing.md).
-  Supply the real checksum-valid `Billing__Iban` in Production. Before upgrading S1,
-  configure a membership price effective on existing initial-request anchors;
-  due work will issue those requests without changing their original deadlines.
+  Supply the real checksum-valid `Billing__Iban` in Production. Configure the
+  membership price before approving members; a missing price rolls back approval.
 - Optional `Association__Name`, `Association__TimeZone` (default Europe/Helsinki),
   `Worker__Concurrency` (default 4, allowed 1–32). All workers share scheduler name
   `Nulysa` and use automatically unique instance IDs. Default cluster check-in is
@@ -81,6 +80,13 @@ atomic with domain writes and can fail or be trimmed. Logs are not a profile arc
   Disabled feeds return without external calls. Inspect provider status separately
   from scheduler success. There is no storage job yet.
   Day-of-month `*/14` is not an anchored fortnightly schedule.
+
+After a complete worker outage, due work can run before bank sync imports an
+on-time receipt. Corrections are order-independent; preferring bank sync on
+recovery is an additional mitigation. `billing-due-work` counts as stale after
+three minutes, so a 15–22 day outage is an operational incident. Late imports with
+a running worker are recovered when the renewal line exists; the no-line cases
+need the worker to miss the invoice-preparation window through expiry.
 
 Recoverable jobs request recovery. Graceful shutdown cancels cooperating jobs and
 hands unfinished firings back; the host's shutdown deadline is 20 seconds. Set the

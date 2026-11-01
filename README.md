@@ -130,20 +130,10 @@ named `nulysa_s0_*` databases and a synthetic realm. They refuse a non-loopback
 database/broker; no production data or legacy importer is involved. The test
 database role needs `CREATEDB`.
 
-Baseline measured when the fast/full split was introduced, with dependencies
-already running (restore/build included):
-
-| Target | Cases | Test execution | Total command |
-| --- | ---: | ---: | ---: |
-| Standard | 27 | 18.7s | 25.4s |
-| Full | 41 | 115.3s | 117.2s |
-
-The S2 release run passed **109/109 standard tests in 59 seconds** and **129/129 full
-tests in 3m 13s**, with no skips. The current assembly has **150 standard** and
-**170 full** test cases; there is no fixed standard-suite time budget. See
-[S2 evidence](docs/billing.md#acceptance-evidence) for billing,
-browser, migration and container coverage; [S1 evidence](docs/membership.md#evidence)
-records its earlier baseline.
+Test counts and timings change as the suite grows; run the commands below or check
+CI for current totals. Historical release evidence and limits are recorded in
+[S0 evidence](docs/foundations.md), [S1 evidence](docs/membership.md) and
+[S2 evidence](docs/billing.md#acceptance-evidence).
 
 Mark new slow tests with `[Trait("Category", "Slow")]`; browser tests use
 `[Trait("Group", "Browser")]`. Fast database tests should stay in the standard suite.

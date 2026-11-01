@@ -142,8 +142,8 @@ holds retain their separate financial claim; deletion cannot silently forfeit th
 Mistaken payment assignments and reversals use the same traceable correction
 discipline. For example, a reversed EUR 50 deposit after EUR 40 was spent cannot
 silently make the remaining EUR 10 balance negative or revoke purchases/rentals.
-**Engineering follow-up:** treasurer review and explicit correction for such
-exceptional reversals; do not fabricate collectible fee debt or an automatic clawback.
+**Implemented:** treasurer review and explicit correction for such exceptional
+reversals; do not fabricate collectible fee debt or an automatic clawback.
 
 ## 4. Account lifecycle exceptions
 

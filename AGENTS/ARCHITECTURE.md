@@ -10,7 +10,7 @@ verification; previous Django tests do not certify this implementation. See
 [the foundation status](../docs/foundations.md). Nulysa remains the project name.
 
 Read sections 1–3 for the overall shape, 4–9 for implementation contracts, and
-10–12 for tests, delivery and the next review. Reuse the reviewed
+10–11 for tests and delivery. Reuse the reviewed
 [billing foundation](BILLING_DESIGN.md) and [service architecture](SERVICE_DESIGN.md)
 rather than replace them with another schema. [POLICY_REVIEW.md](POLICY_REVIEW.md)
 records settled examples; [OPEN_QUESTIONS.md](OPEN_QUESTIONS.md) remains the index
@@ -644,7 +644,7 @@ below are labels, not a commitment to a new test framework or another policy lis
 | `SVC` | Once-only introductory eligibility plus retry-safe admin exception; free days remain free; first-payment window independent of coverage; zero/seven-day renewal grace; stop versus remove; membership lapse without frozen service time. |
 | `RACE` | PostgreSQL transaction tests for competing spends, fulfilment versus removal/deletion, duplicate receipts/grants, simultaneous fob claims and competing storage checkouts. Both success and rollback leave coherent facts. |
 | `WORK` | Quartz/EF shared-transaction rollback/commit visibility including scheduling failure, restart, competing instances, worker death before/after domain commit, shutdown cancellation/recovery, timeout/overlap and stale completion. Bounded ordinary retries and visible crash loops/final failures without depending on history alone; no duplicate domain effects or lost durable intent. Ambiguous sends go to review; completed recipients are not deliberately resent; opt-out/deletion rechecked at dispatch. |
-| `DEV` | PostgreSQL fresh/upgrade EF and Quartz schema checks, preserving existing jobs; intended check/partial-unique constraints and delete behaviour; host/container configuration; real-worker schedule installation/reinstall without phase resets; persisted Data Protection/signing-key continuity across restarts/instances. No SQLite or EF in-memory substitute. |
+| `DEV` | PostgreSQL fresh-install EF schema, Quartz 4.5→4.6 upgrade and intended check/partial-unique constraints and delete behaviour; host/container configuration; real-worker schedule installation/reinstall without phase resets; persisted Data Protection/signing-key continuity across restarts/instances. No SQLite or EF in-memory substitute. |
 | `ERASE` | Default waiting time plus fortnightly batch; admin cancellation before actual deletion; pending-deletion failed-match disposition survives restoration/reimport; new admission restores nothing; retained claims reconcile without a live profile. |
 | `ACCESS` | Qualification-scoped trainer privacy; live denial beats cache; earlier validity end beats TTL; stale Alice grant/revoke after Bob's UID claim; delayed/repeated/conflicting offline uploads and unresolved attribution. |
 | `STORE` | FIFO/skip/decline/expiry; position and member/group uniqueness; manual funded renewal; demand-based caps protect paid terms; clearance/junk-area handover; inactivity does not trigger automatic refund/release. |
@@ -658,7 +658,7 @@ journeys. Proposed tools are xUnit, WebApplicationFactory and Playwright. Inject
 TimeProvider and fake HTTP/provider transports; never sleep to test business
 deadlines. Bounded readiness polling is appropriate for real worker/container tests;
 retain a small real-timer wiring test rather than test only manually invoked jobs.
-Include fresh-install/upgrade migration checks, compiler/nullable/analyzer/format
+Include fresh-install migration and Quartz upgrade checks, compiler/nullable/analyzer/format
 checks and restricted-query/API permission tests in CI.
 
 Run the **full correctness suite on PostgreSQL**, including journal-derived money
@@ -669,62 +669,30 @@ groups; CI must include all acceptance gates. Report missing prerequisites/skips
 clearly; never silently skip an invariant's only test, use a different provider or
 relax assertions to obtain green CI. Package docs are not runtime proof.
 
-## 11. Proposed implementation sequence
+## 11. Delivery sequence
 
-These are bounded build slices, **not operational cutovers**. The association keeps
-one full-replacement cutover after all five agreed delivery phases.
+S0–S2 are implemented with their acceptance suites; see
+[the foundation status](../docs/foundations.md), [S1 evidence](../docs/membership.md)
+and [S2 evidence](../docs/billing.md). The remaining bounded build slices are below;
+these are not operational cutovers. The association keeps one full-replacement
+cutover after all five agreed delivery phases.
 
 | Slice | Deliverable and exit check |
 | --- | --- |
-| S0: foundations | Fresh ASP.NET Core/Identity/EF project, Blazor Web App with static SSR by default and selective Interactive Server support, PostgreSQL migrations, Linux containers and host-run development. Pin compatible SDK/packages and establish compiler/nullable/analyzer/format/test CI. Prove shared EF/Quartz transactional scheduling, restart, crash/shutdown/overlap recovery, concurrency/idempotency and bounded retries on PostgreSQL. Test schema upgrades, named schedule installation/reinstall, heartbeat, daily authentication cleanup, missed-run/calendar/DST/fortnightly behaviour and machine-readable stale/failed-work diagnostics. Implement OpenIddict provider gates and 365-day idle refresh expiry, persistent keys/cookie continuity and synthetic replacement/Keycloak/downstream browser acceptance; no legacy migration rehearsal. |
-| S1: membership + essential mail | Apply → verify → approve → set password/login → edit own details → resign/admin restore → final erasure, with purpose-built review UI and real queued verification/welcome/rejection/warning messages. Provision billing account/anchor and the initial-request boundary; complete its real invoice integration in S2, not a silently successful placeholder. |
-| S2: billing + subscriptions | Implement the reviewed models and pure calendar/pricing functions, then initial/recurring and one-off invoices/PDFs, bank import/review, line fulfilment, credit/transfers, adjustments and service lifecycle. Approval now produces its real initial membership invoice; standing uses actual coverage/grace. Pass `CAL`/`BILL`/`DATE`/`ADJ`/`SVC` and financial `RACE` tests. Complete payment-provider scope/milestones explicitly. |
 | S3: communications | Extend the existing queue/templates to drafts, rich localised newsletters/official notices, preference/fallback previews, test sends, progress and failures. Do not postpone authentication mail until this phase. |
 | S4: access | Qualifications/trainers, resources, claim/revoke/history UI, live device API, cache export and retry-safe offline events. Pass a real reader contract/sandbox test, including reused UIDs and outages. |
 | S5: storage | Runtime groups/positions, FIFO offers, atomic purchase-balance checkout/manual renewal, paid-term protection and handover. Pass multi-member contention and queue/date scenarios. |
 | S6: readiness + single cutover | Migration rehearsal including legacy → replacement Keycloak/broker/downstream identity continuity, accountant reconciliation, privacy/retention and backup/erasure runbooks, provider/identity/device validation and operator/member instructions. Enable production only after cross-phase acceptance. |
 
-S0's placeholder portal now uses Blazor static SSR; login/logout remain HTTP-based
-Razor Pages. `UiTests` verifies portal rendering and antiforgery-protected logout;
+The portal uses Blazor static SSR; login/logout remain HTTP-based Razor Pages.
+`UiTests` verifies portal rendering and antiforgery-protected logout;
 `InteractiveUiTests` uses a test-only component to verify opt-in interactivity,
 transport reconnection/state retention and account-gate revalidation. Preserve the
-authentication/infrastructure gates as S1 adds real pages and domain operations;
-the synthetic widget does not prove future interactive business workflows.
+authentication/infrastructure gates as later slices add real pages and domain
+operations; the synthetic widget does not prove future interactive business
+workflows.
 
-S1 is deliberately not a production-ready billing registry by itself. Its former
-S2 invoice dependency was an acceptance gate, not a new policy
-that approval omits invoices. Later slices extend the same contracts; they must not
-retrofit a second billing path or replace the foundational user model.
-
-S1 implementation and essential-mail failure/retention handling are recorded in
-[`docs/membership.md`](../docs/membership.md). S2 now completes the
-`InitialMembershipRequest` handover, initial PDFs, journal/coverage/grace, bank
-ingestion/review and subscription lifecycle in the same application. See
-[`docs/billing.md`](../docs/billing.md) for configuration, acceptance and limits.
-
-## 12. Review gate before scaffolding
-
-The reviewed domain architecture is preserved with the selected ASP.NET Core,
-PostgreSQL and Quartz direction. No further broad membership-policy approval round
-is required before S0. **This document does not itself scaffold the application.**
-Once implementation is requested, its concrete checkpoints are:
-
-1. Scaffold the modular ASP.NET Core project with Identity, EF Core/Npgsql, a Blazor
-   Web App and PostgreSQL host/container profiles, keeping mappings and package/version
-   pins explicit. No SQLite provider, generic repositories or mediator framework.
-2. Prove Quartz scheduling in the actual EF transaction, restart/crash/shutdown
-   recovery, bounded retries, cancellation limits and duplicate-safe handling before
-   building dependent delivery features; do not prescribe a custom lease scheme.
-3. Run synthetic replacement/Keycloak/downstream integration without production
-   credentials or the legacy registry. Legacy continuity belongs to S6; feature-
-   specific password/admission/deletion checks belong to S1.
-4. Preserve the S0–S6 acceptance gates, essential mail in S1 and real initial-invoice
-   integration in S2 before any operational release.
-
-The membership slice and its rejection-email terminal-failure/erasure handling are
-now implemented; see the S1 evidence above. S2 adds explicit one-off routing and
-source/journal exports. Precise device schemas, accountant export mappings and deployment retention validation remain
-feature/deployment follow-up. Raise a meaningful
-tradeoff or change to agreed behaviour, not every field/package choice. Architectural
-agreement does not mean implementation, recovery tests or production validation have
-already happened.
+Membership and billing are implemented in the same application; later slices
+extend those contracts and must not retrofit a second billing path or replace the
+foundational user model. See [`docs/membership.md`](../docs/membership.md) and
+[`docs/billing.md`](../docs/billing.md) for their configuration, acceptance and limits.

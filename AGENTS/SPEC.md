@@ -1021,7 +1021,6 @@ Correction permissions/workflow are in the [credit review](OPEN_QUESTIONS.md#cre
 - The minimum resolution for membership and recurring services such as door
   access is one month, rather than imposing a January-to-December membership year.
   A longer chosen billing period does not change that underlying resolution.
-  This is the intended future policy, not a claim about the current rules.
 - The monthly membership fee and door-access fee should align so they can appear
   on the same invoice.
 - Members choose the billing period separately for membership and each recurring

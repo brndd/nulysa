@@ -49,8 +49,8 @@ configured, validate required production issuer/key settings when enabled, and
 test deployment configuration reaches all processes that require it.
 
 Registry login denial does not revoke existing Keycloak/downstream sessions.
-S0 must prove direct protocol behaviour and the synthetic local Keycloak browser
-flow. S1 adds real admission/reset/deletion workflows; S6 proves the legacy switch
+S0 proved direct protocol behaviour and the synthetic local Keycloak browser flow;
+S1 added real admission/reset/deletion workflows. S6 will prove the legacy switch
 with retained broker associations and frozen legacy subjects, then operator-assisted
 production mapping validation. See [foundation status](foundations.md).
 
@@ -106,7 +106,8 @@ The local Keycloak test creates a disposable realm, broker alias `mulysa` and sm
 downstream client, validates signed tokens and checks both upstream and downstream
 subjects after email changes. It deliberately records that an existing Keycloak
 session still works after the upstream account is blocked. Synthetic direct DB
-changes in this test are not an implementation of S1 email verification or deletion.
+changes in this test are not an implementation of the real S1 email-verification or
+deletion flows, which are covered by S1 tests.
 
 ### Persistence and initial rotation policy
 
