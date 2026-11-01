@@ -2,8 +2,8 @@
 
 Status after the implementation pass. The corrections and small cleanups below
 are implemented. The remaining 4B decision is resolved in favour of dated credit
-lots, and the per-balance statement is planned. The standard test suite passes
-with 150 cases.
+lots, and the per-balance statement is implemented. The standard test suite passes
+with 151 cases.
 
 ## Decisions
 
@@ -97,7 +97,7 @@ Test: `Missed_membership_renewal_without_an_issued_line_sends_one_inactive_notic
   happen on the first non-grace day.
 - `One_day_renewal_grace` asserts `ExpiresOn` directly.
 
-## Planned work
+## Completed work
 
 ### 4B decision: dated credit lots
 
