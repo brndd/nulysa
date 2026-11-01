@@ -1,3 +1,8 @@
+# Development guidelines
+
+- The project is currently under active development. No live or staging deployment exists. 
+  Do not worry about breaking changes or backward compatibility.
+
 # Testing instructions
 
 - Before `dotnet test` (fast suite), start local PostgreSQL: `docker compose up -d postgres`.
