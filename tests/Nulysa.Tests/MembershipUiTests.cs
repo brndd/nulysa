@@ -24,7 +24,7 @@ public sealed class MembershipFormTests : MembershipTest
         using var administrator = Client();
         await Login(administrator, "board@example.test");
 
-        var html = WebUtility.HtmlDecode(await administrator.GetStringAsync($"admin/billing/{view.AccountId}"));
+        var html = WebUtility.HtmlDecode(await administrator.GetStringAsync($"admin/members/{id}/billing"));
 
         Assert.Contains("admission · System · Initial membership request", html);
         Assert.Contains($"actor #{Nulysa.Accounts.Authority.Id(board)}", html);
@@ -58,7 +58,7 @@ public sealed class MembershipFormTests : MembershipTest
 
         using var administrator = Client();
         await Login(administrator, "board@example.test");
-        var admin = await administrator.GetStringAsync($"admin/billing/{view.AccountId}");
+        var admin = await administrator.GetStringAsync($"admin/members/{id}/billing");
         Assert.Contains("Closing balance:", admin);
         Assert.DoesNotContain("@if", admin);
         Assert.DoesNotContain("showing a page", admin);
@@ -130,7 +130,7 @@ public sealed class MembershipFormTests : MembershipTest
         Assert.DoesNotContain("Remove immediately", html);
         using var administrator = Client();
         await Login(administrator, "board@example.test");
-        var adminHtml = await administrator.GetStringAsync($"admin/members/{id}/billing");
+        var adminHtml = await administrator.GetStringAsync($"admin/members/{id}");
 
         Assert.Contains("Remove immediately", adminHtml);
         var antiforgery = Regex.Match(html, "<input(?=[^>]*name=\"__RequestVerificationToken\")(?=[^>]*value=\"([^\"]+)\")[^>]*>");
@@ -176,21 +176,24 @@ public sealed class MembershipFormTests : MembershipTest
         await using var app = await StartProvider();
         using var client = Client();
         await Login(client, "board@example.test");
-        var html = await client.GetStringAsync("admin/billing-configuration?service=" + service);
+        var page = await client.GetAsync("admin/settings/services/" + service);
+        var html = await page.Content.ReadAsStringAsync();
+        Assert.True(page.IsSuccessStatusCode, html.Split("HEADERS")[0]);
         string Value(string id) => Regex.Match(html, $"<input(?=[^>]*id=\"{id}\")(?=[^>]*value=\"([^\"]*)\")[^>]*>").Groups[1].Value;
 
-        Assert.Equal(service.ToString(), Value("service-id"));
+        Assert.DoesNotContain("service-id", html);
         Assert.Equal("door", Value("service-code"));
         Assert.Equal("Door", Value("service-name"));
         Assert.Equal("space", Value("category"));
         Assert.Equal("21", Value("free-days"));
         Assert.Equal("5", Value("grace-days"));
         Assert.Equal("7", Value("priority"));
-        Assert.Matches("<input(?=[^>]*id=\"service-id\")(?=[^>]*readonly)[^>]*>", html);
         Assert.Matches("<input(?=[^>]*id=\"service-code\")(?=[^>]*readonly)[^>]*>", html);
         Assert.Matches("<input(?=[^>]*id=\"self-subscribe\")(?=[^>]*checked)[^>]*>", html);
         Assert.Matches("<option[^>]*(value=\"active\"[^>]*selected|selected[^>]*value=\"active\")", html);
-        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync("admin/billing-configuration?service=abc")).StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("admin/settings/services/abc")).StatusCode);
+        var create = await client.GetStringAsync("admin/settings/services/new");
+        Assert.DoesNotContain("View this service's fee prices", WebUtility.HtmlDecode(create));
     }
 
     [Fact]
@@ -203,9 +206,11 @@ public sealed class MembershipFormTests : MembershipTest
         await using var app = await StartProvider();
         using var client = Client();
         await Login(client, "board@example.test");
-        var html = await client.GetStringAsync("admin/billing-configuration?service=" + service);
+        var page = await client.GetAsync("admin/settings/services/" + service);
+        var html = await page.Content.ReadAsStringAsync();
+        Assert.True(page.IsSuccessStatusCode, html.Split("HEADERS")[0]);
         var antiforgery = Regex.Match(html, "<input(?=[^>]*name=\"__RequestVerificationToken\")(?=[^>]*value=\"([^\"]+)\")[^>]*>");
-        var response = await client.PostAsync("admin/billing-configuration", new FormUrlEncodedContent(new Dictionary<string, string>
+        var response = await client.PostAsync("admin/settings/services/" + service, new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["_handler"] = "service-definition",
             ["__RequestVerificationToken"] = WebUtility.HtmlDecode(antiforgery.Groups[1].Value),
@@ -258,7 +263,7 @@ public sealed class MembershipFormTests : MembershipTest
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsync("billing", new FormUrlEncodedContent([]))).StatusCode);
         Assert.Contains("Outstanding bills", await client.GetStringAsync("billing"));
         Assert.Equal("/Account/AccessDenied", (await client.GetAsync("admin/payments")).Headers.Location!.AbsolutePath);
-        Assert.Equal("/Account/AccessDenied", (await client.GetAsync("admin/billing-configuration")).Headers.Location!.AbsolutePath);
+        Assert.Equal("/Account/AccessDenied", (await client.GetAsync("admin/settings/services")).Headers.Location!.AbsolutePath);
     }
 }
 
@@ -314,7 +319,7 @@ public sealed class MembershipBrowserTests : MembershipTest
         await boardPage.GetByRole(AriaRole.Link, new() { Name = "Browser Member — " + Email }).ClickAsync();
         await boardPage.GetByRole(AriaRole.Button, new() { Name = "Approve membership", Exact = true }).ClickAsync();
         await boardPage.GetByRole(AriaRole.Button, new() { Name = "Confirm membership", Exact = true }).ClickAsync();
-        await Assertions.Expect(boardPage.GetByRole(AriaRole.Heading, new() { Name = "Member details", Exact = true })).ToBeVisibleAsync();
+        await Assertions.Expect(boardPage.GetByRole(AriaRole.Heading, new() { Name = "Account overview", Exact = true })).ToBeVisibleAsync();
         var id = (await db.Members.SingleAsync()).UserId;
         await Run(commands, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(application.Id));
         await memberPage.GotoAsync(Regex.Match(transport.Sent[^1].Text, @"https?://\S+").Value);
@@ -327,7 +332,7 @@ public sealed class MembershipBrowserTests : MembershipTest
         await memberPage.GetByLabel("Name", new() { Exact = true }).FillAsync("Unsaved draft name");
         foreach (var (label, section) in new[] { ("Personal details", "personal"), ("Email", "email"), ("Communication preferences", "communications"), ("Account and privacy", "account") })
         {
-            await memberPage.GetByRole(AriaRole.Navigation, new() { Name = "Account settings", Exact = true })
+            await memberPage.GetByRole(AriaRole.Navigation, new() { Name = "On this page", Exact = true })
                 .GetByRole(AriaRole.Link, new() { Name = label, Exact = true }).ClickAsync();
             await Assertions.Expect(memberPage).ToHaveURLAsync(root + "profile#" + section);
             await Assertions.Expect(memberPage.Locator("section#" + section)).ToBeInViewportAsync();
@@ -378,7 +383,7 @@ public sealed class MembershipBrowserTests : MembershipTest
         Assert.Contains("14 days", transport.Sent[^1].Text);
         await memberPage.GotoAsync(root);
         await Assertions.Expect(memberPage).ToHaveURLAsync(new Regex("/Account/Login"));
-        await boardPage.GotoAsync(root + "admin/members/" + id);
+        await boardPage.GotoAsync(root + "admin/members/" + id + "/details");
         await boardPage.GetByText("Restore account", new() { Exact = true }).ClickAsync();
         await boardPage.GetByLabel("Reason / verified restoration request").FillAsync("Verified request");
         await boardPage.GetByRole(AriaRole.Button, new() { Name = "Cancel pending deletion" }).ClickAsync();

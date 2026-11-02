@@ -290,13 +290,15 @@ public sealed class BoardUiTests : BoardTest
         var list = WebUtility.HtmlDecode(await administrator.GetStringAsync(listUrl));
         var memberUrl = Regex.Match(list, "href=\"(/admin/members/" + id + "\\?[^\"]*)\"").Groups[1].Value;
         Assert.NotEmpty(memberUrl);
+        var overview = WebUtility.HtmlDecode(await administrator.GetStringAsync(memberUrl));
+        memberUrl = Regex.Match(overview, "href=\"(/admin/members/" + id + "/details[^\"]*)\"").Groups[1].Value;
         var details = WebUtility.HtmlDecode(await administrator.GetStringAsync(memberUrl));
         var billingUrl = Regex.Match(details, "href=\"(/admin/members/" + id + "/billing[^\"]*)\"").Groups[1].Value;
         var billing = WebUtility.HtmlDecode(await administrator.GetStringAsync(billingUrl));
 
         Assert.Contains($"Member #{id}", details);
-        Assert.Contains("You are administering this member's account.", details);
-        Assert.Contains("You are administering this member's account.", billing);
+        Assert.Contains("<h1>Details</h1>", details);
+        Assert.Contains("<h1>Billing details</h1>", billing);
         Assert.Contains("href=\"/admin/members?q=" + id, billing);
         Assert.Contains("#lifecycle", details);
         Assert.Contains("#history", details);

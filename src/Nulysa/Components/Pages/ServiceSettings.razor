@@ -1,0 +1,56 @@
+@page "/admin/settings/services"
+@page "/admin/settings/services/new"
+@page "/admin/settings/services/{Id:long}"
+@attribute [Authorize(Policy = "Administrator")]
+@using System.ComponentModel.DataAnnotations
+@using System.Security.Claims
+@using Nulysa.Billing
+@using Nulysa.Services
+@inject BillingQueries Queries
+@inject BillingCommands Commands
+@inject AuthenticationStateProvider Authentication
+@inject NavigationManager Navigation
+@inject UiFeedback Feedback
+
+<AdminPageHeader Title="@Title" Trail="@Trail" />
+@if (!IsEditor) { <AdminSectionTabs Destination="services" /> }
+@if (notice is not null) { <p class="success-notice" role="status">@notice</p> }
+@if (error is not null) { <p role="alert">@error</p> }
+@if (found)
+{
+    @if (!IsEditor)
+    {
+        <p><a class="task-link" href="/admin/settings/services/new">Create service</a></p>
+        <table><caption>Services</caption><thead><tr><th>Name / code</th><th>Category</th><th>Free days</th><th>Grace days</th><th>Priority</th><th>State</th><th>Prices</th></tr></thead><tbody>
+        @foreach (var service in services)
+        {
+            var fee = fees.SingleOrDefault(fee => fee.ServiceDefinitionId == service.Id);
+            <tr><td><a href="@($"/admin/settings/services/{service.Id}")">@service.Name</a><small> · @service.Code</small></td><td>@fee?.Category</td><td>@service.InitialFreeDays</td><td>@service.RenewalGraceDays</td><td>@service.Priority</td><td>@(service.Retired ? "Retired" : "Active")</td><td>@if (fee is not null) { <a href="@($"/admin/settings/fees/{fee.Id}")">Fee prices</a> }</td></tr>
+        }
+        </tbody></table>
+    }
+    else
+    {
+        <div class="detail-workspace">
+        <p>A service's code is permanent. A returning subscriber gets free days only when an administrator explicitly selects that grant.</p>
+<EditForm Model="Service" method="post" FormName="service-definition" OnValidSubmit="SaveService"><DataAnnotationsValidator /><ValidationSummary />
+    <p><label for="service-code">Stable code</label> <InputText id="service-code" @bind-Value="Service!.Code" required maxlength="80" readonly="@(Id is not null)" /></p>
+    <p><label for="service-name">Name</label> <InputText id="service-name" @bind-Value="Service.Name" required maxlength="200" /></p>
+    <p><label for="category">Accounting category</label> <InputText id="category" @bind-Value="Service.Category" required maxlength="80" /></p>
+    <p><InputCheckbox id="self-subscribe" @bind-Value="Service.SelfSubscribe" /> <label for="self-subscribe">Members may subscribe and resubscribe themselves</label></p>
+    <p><label for="free-days">Initial free calendar days</label> <InputNumber id="free-days" @bind-Value="Service.FreeDays" /></p>
+    <p><label for="grace-days">Renewal grace days after the due date (zero allowed)</label> <InputNumber id="grace-days" @bind-Value="Service.GraceDays" /></p>
+    <p><label for="priority">Funding order after membership (lower first)</label> <InputNumber id="priority" @bind-Value="Service.Priority" /></p>
+    <p><label for="service-retirement">Retirement</label>
+        <InputSelect id="service-retirement" @bind-Value="Service!.Retirement">
+            <option value="leave" selected="@(Service!.Retirement == "leave")">Leave unchanged</option>
+            <option value="retired" selected="@(Service!.Retirement == "retired")">Retired (hidden from members and new subscriptions)</option>
+            <option value="active" selected="@(Service!.Retirement == "active")">Active</option>
+        </InputSelect></p><button>Save service definition</button>
+</EditForm>
+
+        <p><a href="/admin/settings/services">Cancel and return to services</a></p>
+        @if (Id is not null && fees.SingleOrDefault(fee => fee.ServiceDefinitionId == Id) is { } serviceFee) { <p><a href="@($"/admin/settings/fees/{serviceFee.Id}")">View this service's fee prices</a></p> }
+        </div>
+    }
+}

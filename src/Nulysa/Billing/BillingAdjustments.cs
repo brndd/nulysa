@@ -139,19 +139,8 @@ public sealed partial class BillingCommands
         return Change(actor, accountId, key, "membership-grant", new { months }, reason, true, async (facts, operation, scheduler) =>
         {
             Live(facts);
-            if (months is < 1 or > 120)
-                throw new ValidationException("Grant between 1 and 120 whole months.");
-
-            var periods = facts.Periods(Benefit.Membership, null).OrderBy(x => x.Start).ToList();
-            var extensionStart = clock.Today;
-            var hasCurrentCoverage = periods.Any(x => x.Start <= extensionStart && extensionStart < x.End);
-            if (!hasCurrentCoverage)
-                throw new ValidationException("A duration extension requires current paid or granted membership coverage.");
-            foreach (var period in periods)
-                if (period.Start <= extensionStart && period.End > extensionStart)
-                    extensionStart = period.End;
-
-            Grant(facts, operation, Benefit.Membership, null, new(extensionStart, extensionStart.AddMonths(months)), CoverageSource.AdministratorGrant, $"membership-grant:{key}");
+            var period = facts.MembershipGrantPeriod(months, clock.Today);
+            Grant(facts, operation, Benefit.Membership, null, period, CoverageSource.AdministratorGrant, $"membership-grant:{key}");
             await RepriceAdjusted(facts, operation, 1, ct);
             await AllocateCredit(facts, operation, clock.Today, ct);
         }, ct);

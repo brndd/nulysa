@@ -1,0 +1,91 @@
+@page "/admin/settings/fees"
+@page "/admin/settings/fees/{Id:long}"
+@attribute [Authorize(Policy = "Administrator")]
+@using System.ComponentModel.DataAnnotations
+@using System.Security.Claims
+@using Nulysa.Billing
+@inject BillingQueries Queries
+@inject BillingCommands Commands
+@inject AuthenticationStateProvider Authentication
+@inject NavigationManager Navigation
+@inject Nulysa.Membership.AssociationClock Clock
+@inject UiFeedback Feedback
+
+<AdminPageHeader Title="@Title" Trail="@Trail" />
+@if (Id is null) { <AdminSectionTabs Destination="fees" /> }
+@if (notice is not null) { <p role="status" class="success-notice">@notice</p> }
+@if (error is not null) { <p role="alert">@error</p> }
+@if (Id is null)
+{
+    <p>Configure the membership price before approving applicants. Prices are EUR per month. Issued lines keep their quoted prices.</p>
+    <table><caption>Fees and current prices</caption><thead><tr><th>Fee</th><th>Category</th><th>Current monthly price EUR</th><th>State</th></tr></thead><tbody>
+    @foreach (var fee in fees)
+    {
+        var current = prices.Where(price => price.FeeDefinitionId == fee.Id && price.EffectiveOn <= Clock.Today).OrderByDescending(price => price.EffectiveOn).FirstOrDefault();
+        <tr><td><a href="@($"/admin/settings/fees/{fee.Id}")">@fee.Name</a></td><td>@fee.Category</td><td>@(current?.MonthlyAmount.ToString("0.00") ?? "Not configured")</td><td>@(fee.Retired ? "Retired" : "Active")</td></tr>
+    }
+    </tbody></table>
+}
+else if (selected is not null)
+{
+    <div class="detail-workspace">
+    @if (selected.ServiceDefinitionId is { } serviceId) { <p><a href="@($"/admin/settings/services/{serviceId}")">Edit service definition</a></p> }
+    <table><caption>Price history for @selected.Name</caption><thead><tr><th>Effective from</th><th>Monthly price EUR</th></tr></thead><tbody>
+    @foreach (var price in prices.Where(price => price.FeeDefinitionId == Id).OrderByDescending(price => price.EffectiveOn)) { <tr><td>@price.EffectiveOn</td><td>@price.MonthlyAmount.ToString("0.00")</td></tr> }
+    </tbody></table>
+    <h2>Add a dated price</h2>
+    <EditForm Model="Price" method="post" FormName="price" OnValidSubmit="SavePrice"><DataAnnotationsValidator /><ValidationSummary />
+        <label for="price-date">Effective from</label><InputDate id="price-date" @bind-Value="Price!.EffectiveOn" />
+        <label for="price">Monthly EUR</label><InputNumber id="price" @bind-Value="Price.Amount" step="0.01" />
+        <button>Add price</button>
+    </EditForm>
+    <p><a href="/admin/settings/fees">Back to fees and prices</a></p>
+    </div>
+}
+
+@code {
+    public sealed class PriceInput
+    {
+        public DateOnly EffectiveOn { get; set; }
+        [Range(typeof(decimal), "0", "999999999")] public decimal Amount { get; set; }
+    }
+    [Parameter] public long? Id { get; set; }
+    [SupplyParameterFromForm(FormName = "price")] public PriceInput? Price { get; set; }
+    [CascadingParameter] private HttpContext HttpContext { get; set; } = null!;
+    private ClaimsPrincipal actor = null!;
+    private List<FeeDefinition> fees = [];
+    private List<FeePrice> prices = [];
+    private FeeDefinition? selected;
+    private string? error;
+    private string? notice;
+    private string Title => Id is null ? "Fees and prices" : selected is null ? "Fee prices" : selected.Name + " prices";
+    private IReadOnlyList<BreadcrumbItem> Trail => Id is null ? [] : [new("Fees and prices", "/admin/settings/fees"), new(Title)];
+
+    protected override async Task OnInitializedAsync()
+    {
+        actor = (await Authentication.GetAuthenticationStateAsync()).User;
+        notice = Feedback.Read(HttpContext);
+        fees = await Queries.Fees(actor);
+        prices = await Queries.Prices(actor);
+        selected = fees.SingleOrDefault(fee => fee.Id == Id);
+        if (Id is not null && selected is null)
+            HttpContext.Response.StatusCode = 404;
+        Price ??= new() { EffectiveOn = Clock.Today };
+    }
+
+    private async Task SavePrice()
+    {
+        if (selected is null)
+            return;
+        try
+        {
+            await Commands.SetPrice(actor, selected.Id, Price!.EffectiveOn, Price.Amount);
+            Feedback.Save(HttpContext, "Dated price saved. Issued bills retain their quoted prices.");
+            Navigation.NavigateTo(Navigation.Uri);
+        }
+        catch (ValidationException ex)
+        {
+            error = ex.Message;
+        }
+    }
+}

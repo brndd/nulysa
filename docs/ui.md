@@ -1,4 +1,4 @@
-# Member UI and foundation
+# Portal and administration UI
 
 The first UI deliverable adds a responsive shell and shared presentation without
 changing membership/billing commands or database schema. The complete direction
@@ -75,8 +75,9 @@ and remaining deliverables are in [the UI design](../AGENTS/UI_DESIGN.md).
   bank-transfer instructions for open remaining amounts and PDF access. Closed or
   fully funded bills do not request payment. Displayed bill periods include their
   final day; domain dates remain exclusive.
-- The board's existing `/admin/members/{id}/billing` combined view remains available
-  until its separate workflow redesign. All writes still use existing commands.
+- Board records open on Account overview at `/admin/members/{id}`. Details,
+  Billing details and Financial actions have separate pages and shared member tabs.
+  All writes still use existing commands.
 - Compact member bill summaries; item-level funding stays on bill detail.
   History uses readable movement titles, with internal IDs/recording timestamps in
   expandable details. Available credit and allocated funds remain distinct.
@@ -98,6 +99,48 @@ The themes use the confirmed logo colours `#000000` and `#F9FB4C` as references,
 not an exclusive palette. The light variant deliberately adjusts yellow. No logo
 asset is bundled, and the theme is not a claim to reproduce an official full brand
 guide.
+
+## Administration structure
+
+The sidebar has visible Members, Finances, Communications and Association settings
+groups, plus Needs attention. A shared destination definition supplies sidebar links,
+section tabs and selected-parent matching. Every page below `/admin` starts with an
+Administration breadcrumb, one heading, any compact record identity and appropriate
+page tabs. Single-page sections omit tabs. Member records use their own four tabs;
+other record pages use breadcrumbs without an extra tab row. In-page shortcuts and
+action directories have separate visual treatments.
+
+| Destination | URL |
+| --- | --- |
+| Member account overview | `/admin/members/{id}` |
+| Personal/account details | `/admin/members/{id}/details` |
+| Bills and transaction history | `/admin/members/{id}/billing` |
+| Financial task directory / task | `/admin/members/{id}/actions[/{action}]` |
+| Admin bill details | `/admin/members/{id}/billing/invoices/{invoiceId}` |
+| Payment review / bank transaction | `/admin/payments[/{receiptId}]` |
+| Manual import | `/admin/payments/import` |
+| Reconciliation and exports | `/admin/payments/accounting` |
+| Retained balances / financial record | `/admin/payments/retained-balances[/{accountId}]` |
+| Fees / price history and dated-price form | `/admin/settings/fees[/{feeId}]` |
+| Services / create / edit | `/admin/settings/services`, `/new`, `/{serviceId}` |
+
+The `returnUrl` parameter remains restricted to registry list URLs and preserves
+search/filter/sort/page state through member tabs and tasks. Task and bill `backTo`
+links accept only pages within the selected member's workspace, including that
+member's bill routes; invalid origins fall back to the appropriate directory/page.
+Financial task confirmation returns to its validated origin with success feedback.
+Retained-account tasks return to the retained financial record. The invoice route
+checks the selected member's ownership even for administrators.
+
+Service identity comes from the edit route, with no editable ID field. Service and
+fee pages link to each other. Existing combined configuration/financial routes and
+query-selected payment pages have no compatibility aliases.
+
+`AdminStructureTests` checks the route/header/tab/selection matrix, missing records,
+wrong-member bill contexts, admin self-view and revoked authority. Financial workflow
+tests assert scoped return links and unchanged read-only preview/key behaviour.
+`AdminStructureBrowserTests` exercises member/bill/action return journeys, browser
+history, no-script links and 320/375/767/768/1280-pixel layouts in both themes/modes.
 
 ## Deployment configuration
 
@@ -178,9 +221,21 @@ UI2's member experience is delivered for the currently implemented membership an
 billing features. The shared billing pages still use the existing account aggregate;
 their UI pagination is not a claim of query-level financial pagination or a complete
 performance rewrite. The front page and profile email settings use smaller projections.
-UI3's dashboard, registry/member workspace and inline application review are
-implemented. Replacement of numeric-ID-oriented payment/adjustment operations
-remains its next bounded deliverable.
+UI3's board workflows are implemented for the current S1–S2 features. Payment review
+opens `/admin/payments/{receiptId}`, shows immutable source facts and uses explicit
+purpose/member/destination selection, followed by review and confirmation. Member
+search returns at most 25 live members; the unresolved queue shows its oldest 100
+items. Posted-receipt selection shows the latest 100; refinements to broader financial
+history query efficiency remain UI4 work.
+
+`/admin/members/{id}/actions/{action}` offers named discount, withdrawal, future-credit,
+whole-month grant, cancellation, completed-refund, receipt-reversal and one-off actions.
+Their relevant fields are frozen at preview, with the operation key retained through
+confirmation. Domain pricing supplies the future-credit preview and the grant command
+shares its end-date calculation with preview. Final commands revalidate current facts.
+Payment review, manual import, accounting/exports and retained balances use distinct
+pages. Retained account statements/history are supporting disclosures. Neither recording a
+refund nor previewing a disposition initiates an external payment.
 UI4 completes broader accessibility/localisation/visual validation; basic tests here
 are not a WCAG compliance claim. Existing pages still use English, and complex
 administration/history can receive further refinements during that validation.

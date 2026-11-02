@@ -1230,7 +1230,7 @@ public sealed class BillingTests : MembershipTest
         await using var web = await StartProvider();
         using var client = Client();
         await Login(client, "board@example.test");
-        var retainedPage = await client.GetStringAsync("admin/billing/" + account);
+        var retainedPage = await client.GetStringAsync("admin/payments/retained-balances/" + account);
 
         Assert.Contains("Retained invoice evidence", retainedPage);
         Assert.DoesNotContain("/admin/members//billing", retainedPage);

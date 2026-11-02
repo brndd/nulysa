@@ -5,9 +5,7 @@
 @inject AuthenticationStateProvider Authentication
 @inject IConfiguration Configuration
 
-<PageTitle>Review application — @Configuration["Association:Name"]</PageTitle>
-<nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/admin/applications">Application review</a></nav>
-<h1>Review application</h1>
+<AdminPageHeader Title="Review application" Trail="@(new BreadcrumbItem[] { new("Application review", "/admin/applications"), new("Review application") })" />
 @if (application is null) { <p>This verified application is no longer awaiting review.</p> }
 else { <div class="detail-workspace"><ApplicationReviewCard Application="application" /></div> }
 

@@ -7,8 +7,8 @@
 @inject IConfiguration Configuration
 @inject Nulysa.Components.UiFeedback Feedback
 
-<PageTitle>Member registry — @Configuration["Association:Name"]</PageTitle>
-<h1>Member registry</h1>
+<AdminPageHeader Title="Member registry" />
+<AdminSectionTabs Destination="registry" />
 <p class="page-intro">Find a member to maintain their details, review membership and services, or manage payments. Standing uses current membership coverage and grace; unpaid optional services do not make membership inactive.</p>
 @if (notice is not null) { <p role="status" class="success-notice">@notice</p> }
 <form method="get" action="/admin/members" class="filter-panel">

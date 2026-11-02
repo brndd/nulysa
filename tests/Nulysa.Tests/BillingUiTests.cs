@@ -49,7 +49,7 @@ public sealed class BillingBrowserTests : MembershipTest
         await Assertions.Expect(page.Locator("#outstanding-bills .bill-summary")).ToHaveCountAsync(1);
         await Assertions.Expect(page.Locator("#funds")).ToHaveCountAsync(0);
         Assert.Null(await page.Locator("#bill-history").GetAttributeAsync("open"));
-        await page.GetByRole(AriaRole.Navigation, new() { Name = "Payments sections" }).GetByRole(AriaRole.Link, new() { Name = "Previous bills", Exact = true }).ClickAsync();
+        await page.GetByRole(AriaRole.Navigation, new() { Name = "On this page" }).GetByRole(AriaRole.Link, new() { Name = "Previous bills", Exact = true }).ClickAsync();
         await Assertions.Expect(page.Locator("#bill-history .bill-summary")).ToHaveCountAsync(10);
         await page.GetByRole(AriaRole.Link, new() { Name = "Next bills", Exact = true }).ClickAsync();
         await Assertions.Expect(page.Locator("#bill-history .bill-summary")).ToHaveCountAsync(2);
@@ -100,7 +100,7 @@ public sealed class BillingBrowserTests : MembershipTest
             await Assertions.Expect(target.GetByRole(AriaRole.Heading, new() { Name = "Member portal", Exact = true })).ToBeVisibleAsync();
         }
         await LoginPage(admin, "board@example.test");
-        var configurationPage = await admin.GotoAsync(root + "admin/billing-configuration");
+        var configurationPage = await admin.GotoAsync(root + "admin/settings/services/new");
 
         Assert.True(configurationPage!.Ok, "Configuration page failed: " + string.Join(" ", await admin.Locator(".titleerror").AllTextContentsAsync()));
         Assert.Contains("Stable code", await admin.ContentAsync());
@@ -110,13 +110,13 @@ public sealed class BillingBrowserTests : MembershipTest
         await admin.GetByLabel("Members may subscribe").CheckAsync();
         await admin.GetByLabel("Initial free calendar days").FillAsync("0");
         await admin.GetByRole(AriaRole.Button, new() { Name = "Save service definition" }).ClickAsync();
-        await Assertions.Expect(admin.GetByRole(AriaRole.Cell, new() { NameRegex = new System.Text.RegularExpressions.Regex(@"^#\d+ Door$") })).ToBeVisibleAsync();
+        await Assertions.Expect(admin.GetByRole(AriaRole.Link, new() { Name = "Door", Exact = true })).ToBeVisibleAsync();
         await using var db = Context();
         var fee = await db.Fees.SingleAsync(x => x.ServiceDefinitionId != null);
-        await admin.GetByLabel("Fee", new() { Exact = true }).SelectOptionAsync(fee.Id.ToString());
+        await admin.GotoAsync(root + "admin/settings/fees/" + fee.Id);
         await admin.GetByLabel("Monthly EUR").FillAsync("30");
         await admin.GetByRole(AriaRole.Button, new() { Name = "Add price", Exact = true }).ClickAsync();
-        await Assertions.Expect(admin.GetByText("30.00 EUR/month")).ToBeVisibleAsync();
+        await Assertions.Expect(admin.GetByRole(AriaRole.Cell, new() { Name = "30.00", Exact = true })).ToBeVisibleAsync();
 
         await LoginPage(page, Email);
         await page.GotoAsync(root + "profile");
@@ -147,7 +147,7 @@ public sealed class BillingBrowserTests : MembershipTest
 
         async Task Import(string externalId, string reference, string amount)
         {
-            await admin.GotoAsync(root + "admin/payments");
+            await admin.GotoAsync(root + "admin/payments/import");
             await admin.GetByLabel("Source bank account ID").FillAsync("synthetic-bank-account");
             await admin.GetByLabel("External transaction ID").FillAsync(externalId);
             await admin.GetByLabel("Amount", new() { Exact = true }).FillAsync(amount);
@@ -161,12 +161,11 @@ public sealed class BillingBrowserTests : MembershipTest
         await Assertions.Expect(invoiceTables.GetByRole(AriaRole.Row).Filter(new() { HasText = "Door" })).ToContainTextAsync("5.00");
         await Import("unknown", "not-a-reference", "7");
         var receipt = await db.Receipts.SingleAsync(x => x.ExternalId == "unknown");
-        await admin.GetByLabel("Receipt ID", new() { Exact = true }).FillAsync(receipt.Id.ToString());
-        await admin.GetByLabel("Disposition / purpose").SelectOptionAsync("billing");
-        await admin.GetByLabel("Financial account ID").FillAsync(view.AccountId.ToString());
+        await admin.GotoAsync(root + $"admin/payments/{receipt.Id}?purpose=billing&account={view.AccountId}");
         await admin.GetByLabel("Reason", new() { Exact = true }).FillAsync("Verified bank payment and member");
-        await admin.GetByRole(AriaRole.Button, new() { Name = "Save reviewed disposition" }).ClickAsync();
-        await Assertions.Expect(admin.GetByRole(AriaRole.Row).Filter(new() { HasText = "not-a-reference" })).ToHaveCountAsync(0);
+        await admin.GetByRole(AriaRole.Button, new() { Name = "Review disposition", Exact = true }).ClickAsync();
+        await admin.GetByRole(AriaRole.Button, new() { Name = "Confirm disposition", Exact = true }).ClickAsync();
+        await Assertions.Expect(admin.GetByRole(AriaRole.Status)).ToContainTextAsync("Transaction disposition saved");
 
         await Import("deposit", view.DepositReference, "10");
         await page.GotoAsync(root + "services");
@@ -198,12 +197,13 @@ public sealed class BillingBrowserTests : MembershipTest
         await page.GetByRole(AriaRole.Button, new() { Name = "Change next unissued period" }).ClickAsync();
         await Assertions.Expect(page.GetByLabel("Membership (currently 3 months)")).ToBeVisibleAsync();
 
-        await admin.GotoAsync(root + "admin/billing/" + view.AccountId);
+        await admin.GotoAsync(root + "admin/members/" + id + "/actions/one-off");
         await admin.GetByLabel("Description", new() { Exact = true }).FillAsync("Workshop");
         await admin.GetByLabel("Category", new() { Exact = true }).FillAsync("workshop");
         await admin.GetByLabel("Amount EUR", new() { Exact = true }).FillAsync("5");
-        await admin.GetByRole(AriaRole.Button, new() { Name = "Issue one-off request" }).ClickAsync();
-        await Assertions.Expect(admin.GetByLabel("Description", new() { Exact = true })).ToBeEmptyAsync();
+        await admin.GetByRole(AriaRole.Button, new() { Name = "Review one-off request", Exact = true }).ClickAsync();
+        await admin.GetByRole(AriaRole.Button, new() { Name = "Confirm one-off request", Exact = true }).ClickAsync();
+        await Assertions.Expect(admin.GetByRole(AriaRole.Status)).ToContainTextAsync("Financial action saved");
         await page.GotoAsync(root + "billing");
         var download = await page.RunAndWaitForDownloadAsync(() => page.GetByRole(AriaRole.Link, new() { Name = "Download current PDF" }).First.ClickAsync());
         var path = Path.Combine(DirectoryPath, "browser-invoice.pdf");
@@ -213,34 +213,15 @@ public sealed class BillingBrowserTests : MembershipTest
         var workshop = await db.Invoices.AsNoTracking().SingleAsync(x => x.OneOffReference != null);
         await Import("workshop", "unknown-workshop-reference", "5");
         var workshopReceipt = await db.Receipts.AsNoTracking().SingleAsync(x => x.ExternalId == "workshop");
-        await admin.GetByLabel("Receipt ID", new() { Exact = true }).FillAsync(workshopReceipt.Id.ToString());
-        await admin.GetByLabel("Disposition / purpose").SelectOptionAsync("invoice");
-        await admin.GetByLabel("Financial account ID").FillAsync(view.AccountId.ToString());
+        await admin.GotoAsync(root + $"admin/payments/{workshopReceipt.Id}?purpose=invoice&account={view.AccountId}");
         await admin.GetByLabel("Reason", new() { Exact = true }).FillAsync("Verified workshop payment");
-        await admin.GetByRole(AriaRole.Button, new() { Name = "Save reviewed disposition" }).ClickAsync();
-        await Assertions.Expect(admin.GetByRole(AriaRole.Alert)).ToContainTextAsync("Choose a one-off invoice ID");
-        await Assertions.Expect(admin.GetByLabel("Disposition / purpose")).ToHaveValueAsync("invoice");
-        await admin.GetByLabel("Invoice ID (one-off assignment only)").FillAsync(workshop.Id.ToString());
-        var reviewKey = await admin.Locator("input[name='Review.Key']").InputValueAsync();
-        foreach (var invalidAccount in new[] { "", long.MaxValue.ToString() })
-        {
-            await admin.GetByLabel("Financial account ID").FillAsync(invalidAccount);
-            var response = await admin.RunAndWaitForResponseAsync(() => admin.GetByRole(AriaRole.Button, new() { Name = "Save reviewed disposition" }).ClickAsync(),
-                response => response.Request.Method == "POST" && response.Url == root + "admin/payments");
-
-            Assert.Equal(200, response.Status);
-            await Assertions.Expect(admin.GetByRole(AriaRole.Alert)).ToContainTextAsync("Choose an existing financial account ID");
-            await Assertions.Expect(admin.GetByLabel("Disposition / purpose")).ToHaveValueAsync("invoice");
-            await Assertions.Expect(admin.GetByLabel("Invoice ID (one-off assignment only)")).ToHaveValueAsync(workshop.Id.ToString());
-            await Assertions.Expect(admin.GetByLabel("Reason", new() { Exact = true })).ToHaveValueAsync("Verified workshop payment");
-
-            Assert.Equal(reviewKey, await admin.Locator("input[name='Review.Key']").InputValueAsync());
-            Assert.Equal(ReceiptState.Review, (await db.Receipts.AsNoTracking().SingleAsync(x => x.Id == workshopReceipt.Id)).State);
-            Assert.False(await db.MoneyMovements.AnyAsync(x => x.ReceiptId == workshopReceipt.Id));
-        }
-        await admin.GetByLabel("Financial account ID").FillAsync(view.AccountId.ToString());
-        await admin.GetByRole(AriaRole.Button, new() { Name = "Save reviewed disposition" }).ClickAsync();
-        await Assertions.Expect(admin.GetByLabel("Receipt ID", new() { Exact = true })).ToHaveValueAsync("0");
+        await admin.GetByRole(AriaRole.Button, new() { Name = "Review disposition", Exact = true }).ClickAsync();
+        await Assertions.Expect(admin.GetByRole(AriaRole.Alert)).ToContainTextAsync("Choose an available destination");
+        await admin.GetByLabel("One-off bill", new() { Exact = true }).SelectOptionAsync(workshop.Id.ToString());
+        await admin.GetByRole(AriaRole.Button, new() { Name = "Review disposition", Exact = true }).ClickAsync();
+        Assert.Equal(ReceiptState.Review, (await db.Receipts.AsNoTracking().SingleAsync(x => x.Id == workshopReceipt.Id)).State);
+        await admin.GetByRole(AriaRole.Button, new() { Name = "Confirm disposition", Exact = true }).ClickAsync();
+        await Assertions.Expect(admin.GetByRole(AriaRole.Status)).ToContainTextAsync("Transaction disposition saved");
 
         Assert.Equal(ReceiptState.Posted, (await db.Receipts.AsNoTracking().SingleAsync(x => x.Id == workshopReceipt.Id)).State);
         await Assertions.Expect(admin.GetByRole(AriaRole.Row).Filter(new() { HasText = "unknown-workshop-reference" })).ToHaveCountAsync(0);

@@ -1,0 +1,19 @@
+@inject IConfiguration Configuration
+
+<PageTitle>@Title@(Context is null ? "" : $" — {Context}") — @Configuration["Association:Name"]</PageTitle>
+<nav class="breadcrumbs" aria-label="Breadcrumb">
+    <a href="/admin">Administration</a>
+    @foreach (var item in Trail.Count == 0 ? new[] { new BreadcrumbItem(Title) } : Trail)
+    {
+        <span aria-hidden="true">/</span>
+        @if (item.Href is not null) { <a href="@item.Href">@item.Label</a> }
+        else { <span aria-current="page">@item.Label</span> }
+    }
+</nav>
+<h1>@Title</h1>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = "";
+    [Parameter] public string? Context { get; set; }
+    [Parameter] public IReadOnlyList<BreadcrumbItem> Trail { get; set; } = [];
+}

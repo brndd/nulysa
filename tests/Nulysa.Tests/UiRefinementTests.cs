@@ -73,7 +73,7 @@ public sealed class UiRefinementTests : BoardTest
         using var administrator = Client();
         await Login(administrator, "board@example.test");
 
-        foreach (var (client, route) in new[] { (member, "services"), (administrator, $"admin/members/{id}/billing") })
+        foreach (var (client, route) in new[] { (member, "services"), (administrator, $"admin/members/{id}") })
         {
             var html = WebUtility.HtmlDecode(await client.GetStringAsync(route));
             Assert.Contains("50% discount", html);
@@ -157,7 +157,7 @@ public sealed class UiRefinementTests : BoardTest
         Assert.Contains("id=\"outstanding-bills\"", billing);
         Assert.Contains("id=\"transactions\"", billing);
         Assert.DoesNotContain("id=\"funds\"", billing);
-        var admin = await administrator.GetStringAsync($"admin/members/{id}/billing");
+        var admin = await administrator.GetStringAsync($"admin/members/{id}");
         Assert.Contains("name=\"Action.Grant\"", admin);
         var overview = await administrator.GetStringAsync("services");
         var forged = await administrator.PostAsync("services", new FormUrlEncodedContent(new Dictionary<string, string>
@@ -172,7 +172,7 @@ public sealed class UiRefinementTests : BoardTest
         }));
         Assert.Contains("Free-day grants must be made in the administration view", await forged.Content.ReadAsStringAsync());
         Assert.Empty(await db.ServiceEnrollments.ToListAsync());
-        var profile = await administrator.GetStringAsync($"admin/members/{id}");
+        var profile = await administrator.GetStringAsync($"admin/members/{id}/details");
         Assert.Contains("dialog-trigger danger-action", profile);
         Assert.Contains("Account removal and restoration", profile);
         Assert.DoesNotContain("Membership lifecycle", profile);

@@ -131,6 +131,7 @@ public static class FoundationHost
         builder.Services.AddScoped<MembershipMaintenance>();
         builder.Services.AddScoped<BillingCommands>();
         builder.Services.AddScoped<BillingQueries>();
+        builder.Services.AddScoped<AdministrationBillingQueries>();
         builder.Services.AddScoped<MemberPortalQueries>();
         if (development)
             builder.Services.AddScoped<DevelopmentSeed>();

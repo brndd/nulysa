@@ -12,8 +12,7 @@ transaction boundaries. This document records UI direction and acceptance criter
 it does not introduce new membership, payment or storage policies. S0–S2 provide
 working membership and billing features; the shared shell and member-facing tasks
 are now styled and organised. The board dashboard and registry/member workspace
-are implemented; financial workflows still use their baseline
-task layouts. Later feature descriptions constrain their
+and contextual financial workflows are implemented. Later feature descriptions constrain their
 delivery slices; they are not instructions to implement future features now.
 
 The first UI foundation increment now implements the shared responsive shell,
@@ -23,10 +22,10 @@ includes a general front page, account overview and separate billing details,
 highlighted attention, compact bills/readable history, profile and
 invoice-email settings, action confirmations and success feedback. **UI1's shared
 foundation and UI2's member experience are delivered for the current feature set.**
-UI3 board administration is in progress: its first bounded deliverable covers the
-attention dashboard and registry/member workspace. Inline application review is
-also implemented; contextual financial workflows follow, then the remaining UI4
-validation/localisation work. Section 13 is the current UI work docket; later
+UI3 board administration is delivered for the current feature set: the attention
+dashboard, registry/member workspace, inline application review and contextual
+financial workflows are implemented. The remaining UI4
+validation/localisation work follows. Section 13 is the current UI work docket; later
 feature descriptions elsewhere are not unfinished UI2 requirements.
 
 ## 1. Goals and boundaries
@@ -98,15 +97,23 @@ resignation access, plus convenient membership/services-page access.
 
 ### Administration navigation
 
-- **Needs attention:** actionable queues and board-relevant operational warnings.
-- **Members:** registry search/filtering and member details.
-- **Applications:** verified applications awaiting review.
-- **Payments & accounting:** unmatched payments, corrections, reconciliation, exports.
-- **Communications — S3:** drafts, templates, audiences, delivery progress.
-- **Access — S4:** doors, machines, qualifications, trainers and credentials.
-- **Storage — S5:** groups, positions, allocations, queues, offers and handover.
-- **Association settings:** supported fees/services/business settings, not arbitrary
-  configuration or superuser grants.
+The sidebar uses visible groups with non-link headings. Only implemented destinations
+appear; sibling page tabs mirror each group on its main pages.
+
+| Section | Current destinations |
+| --- | --- |
+| Needs attention | Board landing page at `/admin`. |
+| Members | Member registry; Application review. |
+| Finances | Payment review; Manual import; Accounting and exports; Retained balances. |
+| Communications | Mail problems. Drafts/templates/audiences arrive with S3. |
+| Association settings | Fees and prices; Services. |
+
+Access/training (S4) and Storage (S5) add their groups when implemented. The System
+Console remains a separate authorised workspace. Single-page groups need no redundant
+tab row. Record pages use breadcrumbs; member records replace area tabs with their
+four member tabs. At most one row of page tabs appears on a page. In-page heading
+shortcuts use a smaller “On this page” treatment, and task choices use ordinary links
+or buttons rather than tab styling.
 
 Use compact controls, lists and field groups on busy task pages; large overview
 controls should not set the density of every page. Rarely adjusted review thresholds
@@ -124,8 +131,13 @@ its initial implementation remains read-only.
   `/billing` holds outstanding bills and both histories. Account overview and Billing
   details share reciprocal page tabs.
   There are no separate `/balances` or `/billing/history` destinations.
-- Use breadcrumbs on deeper administration/member/payment/storage pages, not
-  automatically on every shallow member page.
+- Every administration page below `/admin` has a breadcrumb beginning with
+  Administration, followed by actual parent destinations and a plain current item.
+  Do not add breadcrumbs automatically to shallow member-portal pages.
+- One sidebar destination is selected. Nested records select their parent destination;
+  exact pages use `aria-current="page"`, parents use `aria-current="location"`.
+- Admin headers use breadcrumbs, one page heading, compact record identity, page tabs,
+  then feedback and content. Record identity does not introduce a second page heading.
 - Returning from a record preserves the originating search/filter where practical.
 - No universal member search. Registry and trainer lookups have different data
   permissions and must not be conflated.
@@ -341,10 +353,20 @@ and inactivity duration. Make pagination/result limits clear and preserve URL
 filter state. Exact inactivity thresholds remain explicit decisions, not automatic
 termination rules.
 
-Member detail has a persistent subject heading and linked sections for profile,
-membership/services, payments, relevant access/storage records and history. Show
-only implemented sections. Separate ordinary edits, financial corrections and
-destructive lifecycle actions.
+Opening a registry member goes to Account overview at `/admin/members/{id}`.
+Four shared member tabs provide Account overview, Details (`/details`), Billing details
+(`/billing`) and Financial actions (`/actions`). A compact identity strip shows name,
+member number, email and relevant account status on every member page. Details holds
+profile/account maintenance and membership history; overview holds standing, balances,
+subscriptions and billing settings; billing holds outstanding bills, independently
+paged bill/transaction history and financial command history.
+
+Named tasks live under `/actions/{action}` and keep Financial actions selected. Admin
+bill detail stays under `/billing/invoices/{invoiceId}` and validates both the member
+and bill. Preserve registry filters through all tabs, bills and tasks. A validated
+`backTo` link returns completed/cancelled tasks to their originating member page;
+direct task entry returns to Financial actions. Retained accounts live under Finances
+and expose only their financial evidence and permitted refund/reversal tasks.
 
 Account removal uses a confirmation dialog near the bottom of member details. Its
 freeform note is optional; the command still records a standard audit reason if the
@@ -685,9 +707,9 @@ assembly hierarchy or generic renderer.
   without weakening authorization.
 - `src/Nulysa/Pages/Shared/_Layout.cshtml`: consistent public/account presentation.
 - `src/Nulysa/Components/Pages/Billing.razor`: account overview (`/services`) and billing details (`/billing`) with explicit audience/page sections.
-- `src/Nulysa/Components/Pages/Billing.razor`: unified member Payments and distinct
-  membership/services tasks, with shared commands and separately scoped history
-  paging. The combined administrative view remains until the remaining UI3 financial workflows.
+- `src/Nulysa/Components/Pages/Payments.razor`, `ReceiptReview.razor` and
+  `BillingAdministration.razor`: separate board review/import/accounting sections,
+  contextual bank matching and named financial adjustments with explicit previews.
 - `src/Nulysa/Components/Pages/Profile.razor`, `Registry.razor` and payment/configuration
   pages: contextual tasks and administrative hierarchy. Member/admin views can
   differ while sharing commands and appropriate display fragments.
@@ -715,7 +737,7 @@ S3–S6 or change the single full-replacement cutover plan.
 | --- | --- | --- |
 | UI1: foundation | Delivered for current pages | Shared responsive shells, top-bar mobile menu, both themes/modes, browser preferences and local stylesheet contract are implemented. Carry their patterns forward; no additional theme framework is needed. |
 | UI2: member tasks | Delivered for S1–S2 features | Homepage standing/attention, services, unified Payments, bill details, balances/transfers, independently paged histories, profile/invoice preferences and resignation are implemented. Remaining cross-cutting validation belongs to UI4, not another member-page split. |
-| UI3: board tasks | Dashboard, member workspace and application review implemented | Contextual payment matching and dedicated financial adjustment workflows remain. |
+| UI3: board tasks | Delivered for S1–S2 features | Attention dashboard, registry/member workspace, application review, contextual bank dispositions and named financial adjustments are implemented. Further cross-cutting checks belong to UI4. |
 | UI4: validation/handoff | Partially covered; not complete | Existing fast/browser tests and theme configuration documentation are in place. Broader accessibility, responsive/visual and localisation work remains below. |
 | S3–S5 UI | Future feature work | Communications, access/training and storage interfaces ship with their domain slices, not as prerequisites for completing the current member UI. |
 
@@ -738,13 +760,17 @@ S3–S6 or change the single full-replacement cutover plan.
    opens a dialog with an optional message and cancel/confirm actions. Both routes
    use the same commands, verified-only queries and safe failure feedback. Under-18
    review still uses external consent handling; no admission policy was added.
-3. **Contextual payments and financial adjustments.** Replace manual account/group/
-   invoice/receipt-ID entry with record selection and human-readable context. Split
-   the large adjustment form into named actions with only relevant fields, reviewed
-   effects, required reasons/dates and confirmation. Keep bank review, reconciliation,
-   exports and retained claims discoverable but separate from routine actions.
-   Preserve all current commands, permissions, retry keys and financial invariants;
-   uncertain sends/payments are not candidates for a blind retry button.
+3. **Contextual payments and financial adjustments — implemented.** Bank rows open
+   a source-fact detail page with explicit disposition, bounded member search and
+   labelled group/bill/balance selection. Preview and confirmation preserve the retry
+   key and selected record. Financial accounts offer separate discount, withdrawal,
+   future-credit, whole-month grant, cancellation, refund, receipt-reversal and one-off
+   actions. Only relevant fields are shown; previews freeze the entered fields before
+   confirmation. Grant end dates and discount-credit amounts reuse domain calculations.
+   Accounting exports, manual imports and retained balances have separate pages;
+   retained financial statements/history are expandable supporting evidence. Existing commands,
+   permissions and final validation remain authoritative; no uncertain external sends
+   or payments gained a blind retry button.
 
 These are presentation/workflow deliverables over already implemented features,
 not a replacement billing engine or an expansion of board permissions. Test each

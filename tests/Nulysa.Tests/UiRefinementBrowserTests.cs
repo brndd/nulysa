@@ -43,6 +43,9 @@ public sealed class UiRefinementBrowserTests : BoardTest
         await firstCard.GetByRole(AriaRole.Button, new() { Name = "Confirm membership", Exact = true }).ClickAsync();
         await Assertions.Expect(page.GetByRole(AriaRole.Status)).ToContainTextAsync("Membership approved");
         Assert.Equal(first, (await db.Approvals.SingleAsync()).Id);
+        await page.GetByRole(AriaRole.Navigation, new() { Name = "Member workspace", Exact = true })
+            .GetByRole(AriaRole.Link, new() { Name = "Details", Exact = true }).ClickAsync();
+        await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Name = "Details", Exact = true })).ToBeFocusedAsync();
         await page.SetViewportSizeAsync(1920, 1080);
         Assert.True(await page.EvaluateAsync<bool>("""
             (() => {

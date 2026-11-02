@@ -1,40 +1,35 @@
 @page "/admin/payments"
+@page "/admin/payments/import"
+@page "/admin/payments/accounting"
+@page "/admin/payments/retained-balances"
 @attribute [Authorize(Policy = "Administrator")]
 @using System.ComponentModel.DataAnnotations
 @using System.Security.Claims
 @using Nulysa.Billing
 @using Nulysa.Integrations
+@inject Nulysa.Components.UiFeedback Feedback
 @inject BillingQueries Queries
 @inject BillingCommands Commands
 @inject AuthenticationStateProvider Authentication
 @inject NavigationManager Navigation
 @inject Nulysa.Membership.AssociationClock Clock
 
-<PageTitle>Payments and accounting</PageTitle><h1>Payments and accounting</h1>
+<AdminPageHeader Title="@Title" />
+<AdminSectionTabs Destination="@Destination" />
+@if (notice is not null) { <p role="status" class="success-notice">@notice</p> }
 @if (error is not null) { <p role="alert">@error</p> }
+@if (Area == "review")
+{
 <h2>Bank synchronization</h2>
 <ul>@foreach (var status in statuses) { <li>@status.Account · @status.Status · last success: @(status.LastSuccess?.ToString("u") ?? "never") · last attempt: @status.LastAttempt?.ToString("u")</li> }</ul>
 @if (statuses.Count == 0) { <p>No bank synchronization recorded. Configure the GoCardless feed before relying on automatic payment status.</p> }
-<h2 id="payment-review">Failed-match review</h2><p>Assign a known member and purpose explicitly. Ignoring preserves source facts and keeps donations/outgoing transactions out of member funds. Pending-deletion receipts require manual repair after restoration.</p>
+<h2 id="payment-review">Failed-match review</h2><p>Oldest 100 unresolved transactions. Processing these reveals the next items in the queue.</p><p>Assign a known member and purpose explicitly. Ignoring preserves source facts and keeps donations/outgoing transactions out of member funds. Pending-deletion receipts require manual repair after restoration.</p>
 <table><caption>Unresolved bank transactions</caption><thead><tr><th>ID / received</th><th>Amount</th><th>Reference / source</th><th>Message / counterparty</th><th>Review reason</th></tr></thead><tbody>
-@foreach (var receipt in receipts) { <tr><td>#@receipt.Id · @receipt.ReceivedOn</td><td>@receipt.Amount @receipt.Currency</td><td>@receipt.Reference · @receipt.Source / @receipt.SourceAccount / @receipt.ExternalId</td><td>@receipt.Message · @receipt.Counterparty</td><td>@receipt.ReviewReason</td></tr> }
+@foreach (var receipt in receipts) { <tr><td><a href="@($"/admin/payments/{receipt.Id}")">Review transaction · @receipt.ReceivedOn</a><small> #@receipt.Id</small></td><td>@receipt.Amount @receipt.Currency</td><td>@receipt.Reference · @receipt.Source / @receipt.SourceAccount / @receipt.ExternalId</td><td>@receipt.Message · @receipt.Counterparty</td><td>@receipt.ReviewReason</td></tr> }
 </tbody></table>
-<EditForm Model="Review" method="post" FormName="receipt-review" OnValidSubmit="ReviewReceipt"><DataAnnotationsValidator /><ValidationSummary />
-    <input type="hidden" name="Review.Key" value="@Review!.Key" />
-    <p><label for="receipt-id">Receipt ID</label> <InputNumber id="receipt-id" @bind-Value="Review.Id" /></p>
-    <p><label for="review-purpose">Disposition / purpose</label> <InputSelect id="review-purpose" @bind-Value="Review.Purpose">
-        <option value="ignore" selected="@(Review.Purpose == "ignore")">Read / ignore without allocation</option>
-        <option value="billing" selected="@(Review.Purpose == "billing")">Member billing credit</option>
-        <option value="group" selected="@(Review.Purpose == "group")">Recurring group</option>
-        <option value="invoice" selected="@(Review.Purpose == "invoice")">One-off invoice</option>
-        <option value="deposit" selected="@(Review.Purpose == "deposit")">Purchase balance deposit</option>
-    </InputSelect></p>
-    <p><label for="account-id">Financial account ID (see member's payments page)</label> <InputNumber id="account-id" @bind-Value="Review.AccountId" /></p>
-    <p><label for="group-id">Group ID (group assignment only)</label> <InputNumber id="group-id" @bind-Value="Review.GroupId" /></p>
-    <p><label for="review-invoice-id">Invoice ID (one-off assignment only)</label> <InputNumber id="review-invoice-id" @bind-Value="Review.InvoiceId" /></p>
-    <p><label for="review-reason">Reason</label> <InputTextArea id="review-reason" @bind-Value="Review.Reason" required maxlength="1000" /></p>
-    <button>Save reviewed disposition</button>
-</EditForm>
+}
+@if (Area == "import")
+{
 <h2>Import a confirmed bank transaction manually</h2>
 <p>Use the bank's stable transaction ID and actual booked date. Reimporting the same source must not change its facts. Outgoing transactions use a negative amount and are retained for review.</p>
 <EditForm Model="Import" method="post" FormName="manual-receipt" OnValidSubmit="ImportReceipt"><DataAnnotationsValidator /><ValidationSummary />
@@ -47,6 +42,9 @@
     <p><label for="message">Bank message</label> <InputTextArea id="message" @bind-Value="Import.Message" maxlength="4000" /></p>
     <p><label for="counterparty">Counterparty (recipient for outgoing transfers)</label> <InputText id="counterparty" @bind-Value="Import.Counterparty" maxlength="1000" /></p><button>Import source fact and match</button>
 </EditForm>
+}
+@if (Area == "accounting")
+{
 <h2>Journal reconciliation</h2>
 @if (reconciliation is { } r)
 {
@@ -56,24 +54,11 @@
 }
 <p>Reconciliation above is lifetime-to-date. CSV ranges use movement effective dates or bank booked dates, not processing timestamps. Bank export includes ignored/outgoing transactions and review dispositions.</p>
 <form method="get" action="/admin/payments/export"><label for="export-start">From (inclusive)</label> <input id="export-start" type="date" name="start" required /> <label for="export-end">Until (exclusive)</label> <input id="export-end" type="date" name="end" required /> <button>Export journal CSV</button> <button formaction="/admin/payments/receipts-export">Export bank transactions CSV</button></form>
-<h2>Retained unspent claims after erasure</h2>
+}
+@if (Area == "claims")
+{
+<h2>Balances retained after account erasure</h2>
 <p>These financial claims do not restore accounts or recognize returning applicants. Refunds require treasurer verification.</p>
-<ul>@foreach (var claim in claims) { <li><a href="@($"/admin/billing/{claim.AccountId}")">Account #@claim.AccountId</a> · @claim.Name · @claim.Email · billing @claim.BillingCredit EUR · purchase @claim.PurchaseBalance EUR</li> }</ul>
+<ul>@foreach (var claim in claims) { <li><a href="@($"/admin/payments/retained-balances/{claim.AccountId}")">Account #@claim.AccountId</a> · @claim.Name · @claim.Email · billing @claim.BillingCredit EUR · purchase @claim.PurchaseBalance EUR</li> }</ul>
 
-@code {
-    public sealed class ReviewInput { public Guid Key { get; set; } = Guid.NewGuid(); public long Id { get; set; } public string Purpose { get; set; } = "ignore"; public long AccountId { get; set; } public long? GroupId { get; set; } public long? InvoiceId { get; set; } [Required, StringLength(1000)] public string Reason { get; set; } = ""; }
-    public sealed class ImportInput { [Required, StringLength(40)] public string Source { get; set; } = "bank"; [Required, StringLength(200)] public string SourceAccount { get; set; } = ""; [Required, StringLength(200)] public string ExternalId { get; set; } = ""; public decimal Amount { get; set; } public string Currency { get; set; } = "EUR"; public DateOnly ReceivedOn { get; set; } public string Reference { get; set; } = ""; public string Message { get; set; } = ""; public string Counterparty { get; set; } = ""; }
-    [SupplyParameterFromForm(FormName = "receipt-review")] public ReviewInput? Review { get; set; }
-    [SupplyParameterFromForm(FormName = "manual-receipt")] public ImportInput? Import { get; set; }
-    private ClaimsPrincipal actor = null!; private List<Receipt> receipts = []; private List<BankSyncState> statuses = []; private List<FinancialClaim> claims = []; private Reconciliation? reconciliation; private string? error;
-    protected override async Task OnInitializedAsync() { Review ??= new(); Import ??= new() { ReceivedOn = Clock.Today }; actor = (await Authentication.GetAuthenticationStateAsync()).User; receipts = await Queries.Review(actor); statuses = await Queries.BankStatus(actor); claims = await Queries.Claims(actor); reconciliation = await Queries.Reconcile(actor); }
-    private Task ReviewReceipt() => Handle(async () =>
-    {
-        if (Review!.Purpose == "invoice" && Review.InvoiceId is null) throw new ValidationException("Choose a one-off invoice ID.");
-        if (Review!.Purpose == "ignore") await Commands.IgnoreReceipt(actor, Review.Id, Review.Reason);
-        else if (Review.Purpose is "billing" or "group" or "invoice" or "deposit") await Commands.AssignReceipt(actor, Review.Id, Review.AccountId, Review.Purpose == "group" ? Review.GroupId : null, Review.Purpose == "deposit", Review.Key, Review.Reason, invoiceId: Review.Purpose == "invoice" ? Review.InvoiceId : null);
-        else throw new ValidationException("Choose a payment purpose.");
-    });
-    private Task ImportReceipt() => Handle(async () => await Commands.ImportManual(actor, new(Import!.Source, Import.SourceAccount, Import.ExternalId, Import.Amount, Import.Currency, Import.ReceivedOn, Import.Reference, Import.Message, Import.Counterparty)));
-    private async Task Handle(Func<Task> action) { try { await action(); Navigation.NavigateTo(Navigation.Uri); } catch (ValidationException ex) { error = ex.Message; } }
 }

@@ -26,39 +26,42 @@ The launcher supplies a **synthetic** IBAN, never a deployment payment destinati
 The explicit `create-development-user` command seeds a synthetic EUR 10 monthly
 membership price only if no price exists (`DevelopmentUser__MembershipMonthlyPrice`
 overrides it). Neither migrations nor ordinary startup seed prices. For a fresh
-deployment, set the membership price at `/admin/billing-configuration` **before
+deployment, set the membership price under `/admin/settings/fees` **before
 approval**; a missing price rolls back approval, including its mail intents.
 
-1. Open `/billing` (also `/services`) as a member. It shows standing, current PDFs,
-   line funding, coverage, forecasts, both balances and recent money history.
-   Forecasts are not issued invoices. Invoice email can be disabled without hiding
-   the portal invoice or suppressing mandatory membership notices.
-2. Configure a service and its dated monthly price at `/admin/billing-configuration`.
+1. Open `/services` as a member for standing, coverage, forecasts, balances and
+   billing settings. Open `/billing` for outstanding bills, PDFs, line funding and
+   bill/transaction history. Forecasts are not issued invoices. Invoice email can be
+   disabled without hiding bills or suppressing mandatory membership notices.
+2. Configure a service at `/admin/settings/services`, then follow its fee-prices link
+   to set dated monthly prices under `/admin/settings/fees`.
    Set self-subscription, initial free days, renewal grace (zero allowed), and funding
    priority. Membership always funds first. No service is seeded by migrations or
    startup; the optional `seed-development-data` command creates a synthetic Door
    access service (14 free days, seven renewal-grace days, no self-subscription) and
    a self-subscribable Trailer access service for local testing.
-3. Use `/admin/members/{user-id}/billing` to add an admin-only service. The unchecked
+3. Use the Account overview at `/admin/members/{user-id}` to add an admin-only service. The unchecked
    free-days exception is an explicit, retry-safe grant for a returning subscriber.
    Stopping renewal preserves purchased/granted time; immediate removal is separate.
    Retirement hides the service, prevents new subscriptions, and stops future renewal
    charges for the service's existing subscribers; already-paid coverage remains and
    existing subscriptions stay visible with stop-renewal/member and
    immediate-removal/administrator controls. The membership fee itself is not retired.
-4. At `/admin/payments`, manually import a **synthetic** confirmed bank transaction
+4. At `/admin/payments/import`, manually import a **synthetic** confirmed bank transaction
    with its stable source/account/transaction ID and actual booked date. Use the
    invoice's recurring-group reference, not the purchase-deposit reference. Partial
    funding stays held; each fully funded line completes independently. Reimports
    cannot duplicate cash or overwrite source facts.
-5. Unknown references go to review. Assign the member's financial account and
-   billing/group/one-off invoice/deposit purpose explicitly, or ignore the item.
-   One-off assignment requires its invoice ID as well as the financial account.
-   Names and amounts never guess ownership. Ignoring retains the source fact and
-   survives reimport.
-6. `/admin/billing/{account-id}` issues one-off requests and handles reasoned,
-   confirmed discounts, whole-month grants, reviewed future-discount credits,
-   cancellations, unspent-receipt reversals and completed external refunds.
+5. Unknown references go to `/admin/payments`. Open a transaction, inspect its source
+   facts, and explicitly choose a purpose and member. Select any relevant group or
+   one-off bill by its label, then review and confirm. Names and amounts never guess
+   ownership. Ignoring retains the source fact and survives reimport.
+6. `/admin/members/{user-id}/actions` offers one-off requests, reasoned discounts,
+   whole-month grants, reviewed future-discount credits, cancellations,
+   unspent-receipt reversals and completed external refunds. Each named task has a
+   review/confirmation step. `/admin/payments/retained-balances` handles erased
+   accounts' financial evidence and permitted refund/reversal tasks. Reconciliation
+   and CSV exports are under `/admin/payments/accounting`.
 
 Recurring references are stable per member/interval; one-off requests have separate
 references. Changing an interval affects the next **unissued** period, preserving

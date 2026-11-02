@@ -96,6 +96,26 @@ internal sealed class BillingFacts
         .Where(x => x.Benefit == benefit && x.ServiceDefinitionId == service)
         .Select(x => new Period(x.StartsOn, x.EndsOn));
 
+    public Period MembershipGrantPeriod(int months, DateOnly on)
+    {
+        if (months is < 1 or > 120)
+            throw new ValidationException("Grant between 1 and 120 whole months.");
+        var periods = Periods(Benefit.Membership, null)
+            .OrderBy(period => period.Start)
+            .ToList();
+        var hasCurrentCoverage = periods.Any(period => period.Start <= on && on < period.End);
+        if (!hasCurrentCoverage)
+            throw new ValidationException("A duration extension requires current paid or granted membership coverage.");
+        var extensionStart = on;
+        foreach (var period in periods)
+        {
+            var extendsCoverage = period.Start <= extensionStart && period.End > extensionStart;
+            if (extendsCoverage)
+                extensionStart = period.End;
+        }
+        return new(extensionStart, extensionStart.AddMonths(months));
+    }
+
     public Standing Membership(DateOnly on)
         => MembershipStanding(User is { MayLogIn: true }, Coverage, Lines, Items.Any(x => x.MembershipId != null && x.EndedAt == null), MembershipRenewalGraceDays, on);
 

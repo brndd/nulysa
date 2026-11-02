@@ -7,9 +7,8 @@
 @inject AuthenticationStateProvider Authentication
 @inject IConfiguration Configuration
 
-<PageTitle>Mail needing attention — @Configuration["Association:Name"]</PageTitle>
-<nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/admin">Needs attention</a><span aria-hidden="true">/</span><span aria-current="page">Mail problems</span></nav>
-<h1>Mail needing attention</h1>
+<AdminPageHeader Title="Mail problems" />
+<AdminSectionTabs Destination="mail" />
 <p class="page-intro">Essential mail includes verification, welcome, security, membership and deletion notices. Invoice emails are optional and can be included below.</p>
 <div class="status-panel operational-warning">
     <p><strong>Uncertain delivery requires reconciliation.</strong> Review means a send may have been accepted. Check the delivery ID and provider reference with the mail provider before taking further action. Do not blindly resend.</p>

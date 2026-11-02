@@ -26,12 +26,17 @@
                     {
                         <nav aria-label="Board administration">
                             <span class="nav-heading">Administration</span>
-                            <NavLink href="/admin" Match="NavLinkMatch.All">Needs attention</NavLink>
-                            <NavLink href="/admin/members">Member registry</NavLink>
-                            <NavLink href="/admin/applications">Application review</NavLink>
-                            <NavLink href="/admin/payments">Payments and accounting</NavLink>
-                            <NavLink href="/admin/mail-attention">Mail problems</NavLink>
-                            <NavLink href="/admin/billing-configuration">Fees and services</NavLink>
+                            <a href="@AdminNavigation.Home.Href" class="@SelectedClass(AdminNavigation.Home)" aria-current="@Current(AdminNavigation.Home)">@AdminNavigation.Home.Label</a>
+                            @foreach (var section in AdminNavigation.Sections)
+                            {
+                                <div class="navigation-section" role="group" aria-labelledby="@($"admin-{section.Key}-heading")">
+                                    <span id="@($"admin-{section.Key}-heading")" class="nav-section-heading">@(section.Label)</span>
+                                    @foreach (var page in section.Pages)
+                                    {
+                                        <a href="@(page.Href)" class="@SelectedClass(page)" aria-current="@Current(page)">@(page.Label)</a>
+                                    }
+                                </div>
+                            }
                         </nav>
                     }
                     else if (Workspace == "System Console")
@@ -77,6 +82,9 @@
 <footer class="site-footer"><small>Powered by Nulysa</small></footer>
 
 @code {
+    private string AdminPath => "/" + Navigation.ToBaseRelativePath(Navigation.Uri).Split('?', '#')[0].TrimEnd('/');
+    private string? SelectedClass(AdminDestination page) => AdminNavigation.Resolve(AdminPath)?.Key == page.Key ? "active" : null;
+    private string? Current(AdminDestination page) => SelectedClass(page) is null ? null : AdminPath.Equals(page.Href, StringComparison.OrdinalIgnoreCase) ? "page" : "location";
     private string Workspace => Navigation.ToBaseRelativePath(Navigation.Uri).Split('?', '#')[0].TrimEnd('/') switch
     {
         var path when path.Equals("admin", StringComparison.OrdinalIgnoreCase) => "Administration",

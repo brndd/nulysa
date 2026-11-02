@@ -1,26 +1,134 @@
-@page "/admin/billing/{AccountId:long}"
+@page "/admin/members/{UserId:long}/actions"
+@page "/admin/members/{UserId:long}/actions/{RequestedTask}"
+@page "/admin/payments/retained-balances/{AccountId:long}"
+@page "/admin/payments/retained-balances/{AccountId:long}/{RequestedTask}"
 @attribute [Authorize(Policy = "Administrator")]
 @using System.ComponentModel.DataAnnotations
 @using System.Security.Claims
 @using Nulysa.Billing
+@inject AdministrationBillingQueries Administration
+@inject Nulysa.Membership.MembershipQueries Members
+@inject UiFeedback Feedback
 @inject BillingQueries Queries
 @inject BillingCommands Commands
 @inject AuthenticationStateProvider Authentication
 @inject NavigationManager Navigation
 @inject Nulysa.Membership.AssociationClock Clock
 
-<PageTitle>Financial adjustments</PageTitle><h1>Financial account #@AccountId</h1>
+@if (subject is not null)
+{
+    <MemberWorkspace Member="subject" ReturnUrl="@ReturnUrl" Section="MemberSection.Actions" Title="@(TaskName.Length > 0 ? Title : null)" />
+}
+else
+{
+    <AdminPageHeader Title="@Title" Trail="@(TaskName.Length > 0
+        ? new BreadcrumbItem[] { new("Retained balances", "/admin/payments/retained-balances"), new($"Account #{AccountId}", DirectoryUrl), new(Title) }
+        : new BreadcrumbItem[] { new("Retained balances", "/admin/payments/retained-balances"), new(Title) })" />
+}
+@if (notice is not null) { <p role="status" class="success-notice">@notice</p> }
+@if (error is not null) { <p role="alert">@error</p> }
+<div class="detail-workspace">
 @if (view is not null)
 {
-    @if (view.UserId is { } userId) { <p><a href="@($"/admin/members/{userId}/billing")">Invoices, coverage, funding and services</a></p> }
-    else
+    @if (UserId is null)
     {
-        <p>The member account was erased. Only financial evidence and any unspent claim remain.</p>
+        <p>Retained financial account #@AccountId. The member account was erased. Only financial evidence and any unspent claim remain.</p>
         <table><caption>Retained invoice evidence</caption><thead><tr><th>Invoice / PDF</th><th>Line / period</th><th>State</th><th>Amount EUR</th></tr></thead><tbody>
         @foreach (var invoice in view.Invoices) { @foreach (var row in invoice.Lines) { <tr><td><a href="@($"/billing/invoices/{invoice.Invoice.Id}/pdf")">#@invoice.Invoice.Id</a></td><td>#@row.Line.Id @row.Line.Description · @row.Line.StartsOn–@row.Line.EndsOn</td><td>@row.Line.State</td><td>@row.Line.Amount.ToString("0.00")</td></tr> } }
         </tbody></table>
     }
     <p>Available billing credit: @view.Balances.BillingCredit.ToString("0.00") EUR · purchase balance: @view.Balances.PurchaseBalance.ToString("0.00") EUR · held: @view.Balances.Held.ToString("0.00") EUR</p>
+    @if (TaskName.Length == 0)
+    {
+        @foreach (var group in TaskGroups)
+        {
+            var tasks = group.Tasks.Where(task => UserId is not null || task is "refund" or "unassign").ToList();
+            @if (tasks.Count > 0)
+            {
+                <section><h2>@group.Label</h2><ul class="task-list">
+                @foreach (var task in tasks) { <li><a href="@ActionUrl(task)">@Actions[task]</a></li> }
+                </ul></section>
+            }
+        }
+    }
+    <section id="adjustment">
+    @if (TaskName == "one-off" && view.UserId is not null)
+    {
+        <p>Issue a separate advance request with its own reference. No subscription, reservation or debt is created.</p>
+        <EditForm Model="OneOff" method="post" FormName="one-off" OnValidSubmit="CreateOneOff"><DataAnnotationsValidator /><ValidationSummary />
+            <input type="hidden" name="OneOff.Key" value="@OneOff!.Key" />
+            <fieldset disabled="@reviewing">
+            <label for="description">Description</label><InputText id="description" @bind-Value="OneOff.Description" required />
+            <label for="category">Category</label><InputText id="category" @bind-Value="OneOff.Category" required />
+            <label for="amount">Amount EUR</label><InputNumber id="amount" @bind-Value="OneOff.Amount" step="0.01" />
+            <label for="due">Due date (inclusive)</label><InputDate id="due" @bind-Value="OneOff.DueOn" />
+            </fieldset>
+            @if (reviewing) { @foreach (var pair in OneOffValues) { <input type="hidden" name="@pair.Key" value="@pair.Value" /> } }
+            @if (reviewing) { <p class="status-panel">Issue @OneOff.Description (@OneOff.Category): @OneOff.Amount.ToString("0.00") EUR, payable through @OneOff.DueOn.</p><button name="OneOff.Confirmed" value="true">Confirm one-off request</button> }
+            else { <button name="OneOff.Confirmed" value="false">Review one-off request</button> }
+        </EditForm>
+    }
+    else if (AvailableTask)
+    {
+        <p>@Explanation</p>
+        <EditForm Model="Adjustment" method="post" FormName="adjustment" OnValidSubmit="Adjust"><DataAnnotationsValidator /><ValidationSummary />
+            <input type="hidden" name="Adjustment.Key" value="@Adjustment!.Key" />
+            <fieldset disabled="@reviewing">
+            @if (TaskName == "discount")
+            {
+                <label for="adjust-fee">Fee</label><InputSelect id="adjust-fee" @bind-Value="Adjustment.FeeId">@foreach (var fee in fees.Where(fee => !fee.Retired)) { <option value="@fee.Id">@fee.Name</option> }</InputSelect>
+                <label for="discount-type">Discount type</label><InputSelect id="discount-type" @bind-Value="Adjustment.Kind"><option value="Percentage">Percentage</option><option value="MonthlyPrice">Replacement monthly price</option></InputSelect>
+                <label for="adjust-value">Discount value</label><InputNumber id="adjust-value" @bind-Value="Adjustment.Value" step="0.01" />
+                <label for="adjust-start">Starts on</label><InputDate id="adjust-start" @bind-Value="Adjustment.Start" />
+                <label for="adjust-end">Expires on (exclusive)</label><InputDate id="adjust-end" @bind-Value="Adjustment.End" />
+            }
+            @if (TaskName is "withdraw" or "credit")
+            {
+                <label for="discount-choice">Discount</label><InputSelect id="discount-choice" @bind-Value="Adjustment.DiscountId"><option value="0">Choose a discount</option>
+                    @foreach (var discount in view.Discounts.Where(discount => discount.WithdrawnAt == null)) { <option value="@discount.Id">@DiscountLabel(discount)</option> }
+                </InputSelect>
+            }
+            @if (TaskName == "credit")
+            {
+                <label for="line-choice">Completed purchase</label><InputSelect id="line-choice" @bind-Value="Adjustment.LineId"><option value="0">Choose a purchase</option>
+                    @foreach (var row in view.Invoices.SelectMany(invoice => invoice.Lines).Where(row => row.Line.State == LineState.Fulfilled)) { <option value="@row.Line.Id">@row.Line.Description · @row.Line.StartsOn – @row.Line.EndsOn (exclusive) · @row.Line.Amount.ToString("0.00") EUR · bill #@row.Line.InvoiceId</option> }
+                </InputSelect>
+                <input type="hidden" name="Adjustment.Value" value="@Adjustment.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)" />
+            }
+            @if (TaskName == "grant")
+            {
+                <label for="grant-months">Whole membership months</label><InputNumber id="grant-months" @bind-Value="Adjustment.Months" />
+                <input type="hidden" name="Adjustment.End" value="@Adjustment.End.ToString("yyyy-MM-dd")" />
+            }
+            @if (TaskName == "cancel")
+            {
+                <label for="bill-choice">Bill with unfinished lines</label><InputSelect id="bill-choice" @bind-Value="Adjustment.InvoiceId"><option value="0">Choose a bill</option>
+                    @foreach (var invoice in view.Invoices.Where(invoice => invoice.Lines.Any(row => row.Line.State == LineState.Open))) { <option value="@invoice.Invoice.Id">Bill #@invoice.Invoice.Id · @string.Join(", ", invoice.Lines.Select(row => row.Line.Description)) · @invoice.Remaining.ToString("0.00") EUR remaining</option> }
+                </InputSelect>
+            }
+            @if (TaskName == "refund")
+            {
+                <label for="refund-source">Refund source</label><InputSelect id="refund-source" @bind-Value="Adjustment.Purchase"><option value="false">Billing credit (@view.Balances.BillingCredit.ToString("0.00") EUR available)</option><option value="true">Purchase balance (@view.Balances.PurchaseBalance.ToString("0.00") EUR available)</option></InputSelect>
+                <label for="refund-value">Completed refund amount EUR</label><InputNumber id="refund-value" @bind-Value="Adjustment.Value" step="0.01" />
+            }
+            @if (TaskName == "unassign")
+            {
+                <label for="receipt-choice">Posted bank receipt</label><InputSelect id="receipt-choice" @bind-Value="Adjustment.ReceiptId"><option value="0">Choose a receipt</option>
+                    @foreach (var receipt in receipts) { <option value="@receipt.Id">@receipt.ReceivedOn · @receipt.Amount.ToString("0.00") @receipt.Currency · @receipt.Counterparty · @receipt.Reference · source @receipt.ExternalId</option> }
+                </InputSelect><small>Latest 100 posted receipts. Completed purchases and spent money cannot be reversed here.</small>
+            }
+            <label for="reason">@(TaskName == "refund" ? "Completed bank refund reference and reason" : "Reason")</label><InputTextArea id="reason" @bind-Value="Adjustment.Reason" required maxlength="1000" />
+            </fieldset>
+            @if (reviewing) { @foreach (var pair in AdjustmentValues) { <input type="hidden" name="@pair.Key" value="@pair.Value" /> } }
+            @if (reviewing) { <div class="status-panel"><h2>Review proposed effect</h2><p>@effect</p><p>Reason: @Adjustment.Reason</p><p>Current facts and authority will be rechecked when confirmed.</p></div><button name="Adjustment.Confirmed" value="true">Confirm adjustment</button> }
+            else { <button name="Adjustment.Confirmed" value="false">Review adjustment</button> }
+        </EditForm>
+    }
+    @if (TaskName.Length > 0) { <p><a href="@CancelUrl">Cancel and return</a></p> }
+    </section>
+    @if (UserId is null)
+    {
+    <details class="financial-history" open="@(Page > 1)"><summary>Financial history and balance statements</summary>
     <h2>Balance statements</h2>
     <p>Running statements are derived from the immutable journal. <a href="/admin/payments">Open Payments and accounting for the full journal export and reconciliation</a>.</p>
     @foreach (var statement in view.Statements)
@@ -52,75 +160,9 @@
             @if (view.Statements.Any(x => x.HasMore)) { <a href="@Navigation.GetUriWithQueryParameter("page", Page + 1)">Next</a> }
         </p>
     }
-    @if (error is not null) { <p role="alert">@error</p> }
-    <h2>One-off advance request</h2><p>Uses its own permanent invoice reference. It does not create a subscription or storage reservation.</p>
-    <EditForm Model="OneOff" method="post" FormName="one-off" OnValidSubmit="CreateOneOff"><DataAnnotationsValidator /><ValidationSummary />
-        <input type="hidden" name="OneOff.Key" value="@OneOff!.Key" />
-        <p><label for="description">Description</label> <InputText id="description" @bind-Value="OneOff.Description" required /></p>
-        <p><label for="category">Category</label> <InputText id="category" @bind-Value="OneOff.Category" required /></p>
-        <p><label for="amount">Amount EUR</label> <InputNumber id="amount" @bind-Value="OneOff.Amount" step="0.01" /></p>
-        <p><label for="due">Due date (payment may arrive on this date)</label> <InputDate id="due" @bind-Value="OneOff.DueOn" /></p><button>Issue one-off request</button>
-    </EditForm>
-    <h2>Discount or coverage adjustment</h2>
-    <p>Future discounts reprice unfinished purchases. Completed purchases retain their original facts; use a reviewed future-discount credit. A whole-month grant extends current coverage and releases holds for now-covered days.</p>
-    <EditForm Model="Adjustment" method="post" FormName="adjustment" OnValidSubmit="Adjust"><DataAnnotationsValidator /><ValidationSummary />
-        <input type="hidden" name="Adjustment.Key" value="@Adjustment!.Key" />
-        <p><label for="adjust-action">Action</label> <InputSelect id="adjust-action" @bind-Value="Adjustment.Action"><option value="discount">Add discount</option><option value="withdraw">Withdraw discount</option><option value="credit">Credit reviewed future discount</option><option value="grant">Grant whole membership months</option><option value="cancel">Cancel unfinished invoice lines</option><option value="refund">Record completed refund</option><option value="unassign">Reverse unspent receipt allocation for review/reassignment</option></InputSelect></p>
-        <p><label for="adjust-fee">Fee (discount)</label> <InputSelect id="adjust-fee" @bind-Value="Adjustment.FeeId">@foreach (var fee in fees) { <option value="@fee.Id">@fee.Name</option> }</InputSelect></p>
-        <p><label for="discount-type">Discount type</label> <InputSelect id="discount-type" @bind-Value="Adjustment.Kind"><option value="Percentage">Percentage</option><option value="MonthlyPrice">Replacement monthly price</option></InputSelect></p>
-        <p><label for="adjust-value">Discount value / reviewed credit / confirmed refund EUR</label> <InputNumber id="adjust-value" @bind-Value="Adjustment.Value" step="0.01" /></p>
-        <p><label for="adjust-start">Discount starts</label> <InputDate id="adjust-start" @bind-Value="Adjustment.Start" /> <label for="adjust-end">Expires (exclusive)</label> <InputDate id="adjust-end" @bind-Value="Adjustment.End" /></p>
-        <p><label for="discount-id">Discount ID (withdrawal/credit)</label> <InputNumber id="discount-id" @bind-Value="Adjustment.DiscountId" /></p>
-        <p><label for="line-id">Completed line ID (credit)</label> <InputNumber id="line-id" @bind-Value="Adjustment.LineId" /></p>
-        <p><label for="invoice-id">Invoice ID (cancellation)</label> <InputNumber id="invoice-id" @bind-Value="Adjustment.InvoiceId" /></p>
-        <p><label for="receipt-id">Receipt ID (reverse unspent allocation)</label> <InputNumber id="receipt-id" @bind-Value="Adjustment.ReceiptId" /></p>
-        <p><label for="grant-months">Whole months (grant)</label> <InputNumber id="grant-months" @bind-Value="Adjustment.Months" /></p>
-        <p><InputCheckbox id="refund-purchase" @bind-Value="Adjustment.Purchase" /> <label for="refund-purchase">Refund from purchase balance (otherwise billing credit)</label></p>
-        <p><label for="reason">Reason, including bank refund reference where applicable</label> <InputTextArea id="reason" @bind-Value="Adjustment.Reason" required maxlength="1000" /></p>
-        <p><InputCheckbox id="confirm-adjustment" @bind-Value="Adjustment.Confirmed" /> <label for="confirm-adjustment">I reviewed the affected invoice/coverage and confirm this action. Recording a refund requires a completed external payment; this form does not send money.</label></p>
-        <button>Apply reviewed adjustment</button>
-    </EditForm>
     <h2>Discounts</h2><ul>@foreach (var discount in view.Discounts) { <li>#@discount.Id · fee #@discount.FeeDefinitionId · @discount.Kind @discount.Value · @discount.StartsOn–@discount.EndsOn · @(discount.WithdrawnAt is null ? "Current" : "Withdrawn")</li> }</ul>
     <h2>Command history</h2><ul>@foreach (var operation in view.History) { <li>@operation.OccurredAt.ToString("u") · @operation.Kind · @(operation.ActorId is { } actorId ? $"actor #{actorId}" : "System") · @operation.Reason · @operation.Id</li> }</ul>
-}
-
-@code {
-    public sealed class OneOffInput { public Guid Key { get; set; } = Guid.NewGuid(); [Required, StringLength(300)] public string Description { get; set; } = ""; [Required, StringLength(80)] public string Category { get; set; } = ""; public decimal Amount { get; set; } public DateOnly DueOn { get; set; } }
-    public sealed class AdjustmentInput
-    {
-        public Guid Key { get; set; } = Guid.NewGuid(); public string Action { get; set; } = "discount"; public long FeeId { get; set; } = 1; public DiscountKind Kind { get; set; }
-        public decimal Value { get; set; } public DateOnly Start { get; set; } public DateOnly End { get; set; } public long DiscountId { get; set; } public long LineId { get; set; } public long InvoiceId { get; set; }
-        public long ReceiptId { get; set; } public int Months { get; set; } = 1; public bool Purchase { get; set; } [Required, StringLength(1000)] public string Reason { get; set; } = "";
-        [Range(typeof(bool), "true", "true", ErrorMessage = "Review and confirm the adjustment.")] public bool Confirmed { get; set; }
+    </details>
     }
-    [Parameter] public long AccountId { get; set; }
-    [SupplyParameterFromQuery] public int Page { get; set; } = 1;
-    [SupplyParameterFromQuery] public int PageSize { get; set; } = 25;
-    [SupplyParameterFromForm(FormName = "one-off")] public OneOffInput? OneOff { get; set; }
-    [SupplyParameterFromForm(FormName = "adjustment")] public AdjustmentInput? Adjustment { get; set; }
-    private ClaimsPrincipal actor = null!; private BillingView? view; private List<FeeDefinition> fees = []; private string? error;
-    protected override async Task OnInitializedAsync() { actor = (await Authentication.GetAuthenticationStateAsync()).User; view = await Queries.Account(actor, AccountId, skip: (Page - 1) * PageSize, take: PageSize); fees = await Queries.Fees(actor); OneOff ??= new() { DueOn = Clock.Today.AddDays(14) }; Adjustment ??= new() { Start = Clock.Today, End = Clock.Today.AddMonths(1) }; }
-    private Task CreateOneOff() => Handle(async () => await Commands.OneOff(actor, AccountId, OneOff!.Key, OneOff.Description, OneOff.Category, OneOff.Amount, OneOff.DueOn));
-    private Task Adjust() => Handle(async () =>
-    {
-        var a = Adjustment!;
-        switch (a.Action)
-        {
-            case "discount": await Commands.AddDiscount(actor, AccountId, a.FeeId, a.Start, a.End, a.Kind, a.Value, a.Key, a.Reason); break;
-            case "withdraw": await Commands.WithdrawDiscount(actor, AccountId, a.DiscountId, a.Key, a.Reason); break;
-            case "credit": await Commands.CreditFutureDiscount(actor, AccountId, a.LineId, a.DiscountId, a.Value, a.Key, a.Reason); break;
-            case "grant": await Commands.GrantMembershipMonths(actor, AccountId, a.Months, a.Key, a.Reason); break;
-            case "cancel": await Commands.CancelInvoice(actor, AccountId, a.InvoiceId, a.Key, a.Reason); break;
-            case "refund": await Commands.Refund(actor, AccountId, a.Key, a.Value, a.Purchase, a.Reason); break;
-            case "unassign": await Commands.UnassignReceipt(actor, AccountId, a.ReceiptId, a.Key, a.Reason); break;
-            default: throw new ValidationException("Choose an adjustment.");
-        }
-    });
-    private async Task Handle(Func<Task> action) { try { await action(); Navigation.NavigateTo(Navigation.Uri); } catch (ValidationException ex) { error = ex.Message; } }
-    private static string StatementTitle(BalanceKind balance) => balance switch
-    {
-        BalanceKind.BillingCredit => "Billing credit statement",
-        BalanceKind.PurchaseBalance => "Purchase balance statement",
-        _ => "Held/funding movements"
-    };
 }
+</div>

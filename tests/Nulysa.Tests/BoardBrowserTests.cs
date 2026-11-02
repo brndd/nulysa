@@ -59,13 +59,13 @@ public sealed class BoardBrowserTests : BoardTest
         var memberUrl = page.Url;
         await Assertions.Expect(page.Locator(".member-subject")).ToContainTextAsync("Jäsenrekisterin pitkä suomalainen esimerkkijäsen");
         await page.GetByRole(AriaRole.Navigation, new() { Name = "Member workspace", Exact = true })
-            .GetByRole(AriaRole.Link, new() { Name = "Membership, services and payments" }).ClickAsync();
+            .GetByRole(AriaRole.Link, new() { Name = "Billing details" }).ClickAsync();
         await Assertions.Expect(page.Locator(".member-subject")).ToContainTextAsync("Jäsenrekisterin pitkä suomalainen esimerkkijäsen");
         await page.GetByRole(AriaRole.Navigation, new() { Name = "Member workspace", Exact = true })
-            .GetByRole(AriaRole.Link, new() { Name = "Member details", Exact = true }).ClickAsync();
+            .GetByRole(AriaRole.Link, new() { Name = "Account overview", Exact = true }).ClickAsync();
         await Assertions.Expect(page).ToHaveURLAsync(memberUrl);
         await page.GetByRole(AriaRole.Navigation, new() { Name = "Breadcrumb", Exact = true })
-            .GetByRole(AriaRole.Link, new() { Name = "Members", Exact = true }).ClickAsync();
+            .GetByRole(AriaRole.Link, new() { Name = "Member registry", Exact = true }).ClickAsync();
         await Assertions.Expect(page.GetByLabel("Search name, email or member ID")).ToHaveValueAsync("Jäsen");
         await Assertions.Expect(page.GetByLabel("Membership lifecycle")).ToHaveValueAsync("inactive");
         await Assertions.Expect(page.GetByText("Page 2 of 2", new() { Exact = true })).ToBeVisibleAsync();
@@ -74,6 +74,7 @@ public sealed class BoardBrowserTests : BoardTest
 
         await page.GotoAsync(root + $"admin/members?q={id}&state=active&sort=name&pageSize=50");
         await page.Locator(".registry-member h2 a").ClickAsync();
+        await page.GetByRole(AriaRole.Navigation, new() { Name = "Member workspace", Exact = true }).GetByRole(AriaRole.Link, new() { Name = "Details", Exact = true }).ClickAsync();
         await page.GetByText("Remove account", new() { Exact = true }).ClickAsync();
         await page.GetByRole(AriaRole.Dialog).GetByRole(AriaRole.Button, new() { Name = "Cancel", Exact = true }).ClickAsync();
         await using var db = Context();
@@ -87,6 +88,7 @@ public sealed class BoardBrowserTests : BoardTest
         await page.GotoAsync(root + $"admin/members?q={id}&state=pending-deletion");
         await page.Locator(".registry-member h2 a").ClickAsync();
         await Assertions.Expect(page.Locator(".member-subject")).ToContainTextAsync($"Member #{id}");
+        await page.GetByRole(AriaRole.Navigation, new() { Name = "Member workspace", Exact = true }).GetByRole(AriaRole.Link, new() { Name = "Details", Exact = true }).ClickAsync();
         await page.GetByText("Restore account", new() { Exact = true }).ClickAsync();
         await page.GetByLabel("Reason / verified restoration request").FillAsync("Verified restoration request");
         await page.GetByRole(AriaRole.Button, new() { Name = "Cancel pending deletion", Exact = true }).ClickAsync();

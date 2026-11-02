@@ -1,0 +1,13 @@
+@if (AdminNavigation.Section(Destination) is { Pages.Count: > 1 } section)
+{
+    <nav class="section-navigation" aria-label="@($"{section.Label} pages")">
+        @foreach (var page in section.Pages)
+        {
+            <a href="@(page.Href)" aria-current="@(page.Key == Destination ? "page" : null)">@(page.Label)</a>
+        }
+    </nav>
+}
+
+@code {
+    [Parameter, EditorRequired] public string Destination { get; set; } = "";
+}

@@ -1,5 +1,5 @@
 @page "/profile"
-@page "/admin/members/{Id:long}"
+@page "/admin/members/{Id:long}/details"
 @attribute [Authorize]
 @using Nulysa.Accounts
 @using Nulysa.Membership
@@ -17,14 +17,18 @@
 @inject Nulysa.Components.UiFeedback Feedback
 @inject Microsoft.Extensions.Options.IOptions<BillingOptions> Options
 
-<PageTitle>Member details — @Configuration["Association:Name"]</PageTitle>
-<h1>Member details</h1>
+@if (Id is null)
+{
+    <PageTitle>Member details — @Configuration["Association:Name"]</PageTitle>
+    <h1>Member details</h1>
+}
+else if (details is null) { <AdminPageHeader Title="Details" /> }
 <div class="detail-workspace">
 @if (details is not null)
 {
     @if (Id is not null)
     {
-        <MemberWorkspace Member="@(new RegistryEntry(details.Id, details.Profile.Name, details.Email, details.JoinedOn, details.PendingDeletionAt))" ReturnUrl="@ReturnUrl" />
+        <MemberWorkspace Member="@(new RegistryEntry(details.Id, details.Profile.Name, details.Email, details.JoinedOn, details.PendingDeletionAt))" ReturnUrl="@ReturnUrl" Section="MemberSection.Details" />
     }
     else
     {
@@ -35,7 +39,7 @@
     @if (notice is not null) { <p role="status" class="success-notice">@notice</p> }
     @if (details.PendingDeletionAt is null)
     {
-        <nav class="section-navigation" aria-label="@(Id is null ? "Account settings" : "Member detail sections")">
+        <nav class="on-this-page" aria-label="On this page"><span>On this page:</span>
             <a href="@(PageUrl + "#personal")">Personal details</a><a href="@(PageUrl + "#email")">Email</a><a href="@(PageUrl + "#communications")">Communication preferences</a>
             @if (Id is null) { <a href="@(PageUrl + "#account")">Account and privacy</a> }
             else { <a href="@(PageUrl + "#lifecycle")">Account removal and restoration</a><a href="@(PageUrl + "#history")">Membership history</a> }

@@ -1,14 +1,27 @@
 @page "/billing/invoices/{InvoiceId:long}"
+@page "/admin/members/{UserId:long}/billing/invoices/{InvoiceId:long}"
 @attribute [Authorize]
 @using Nulysa.Billing
 @inject BillingQueries Queries
+@inject AdministrationBillingQueries Administration
+@inject Nulysa.Membership.MembershipQueries Members
 @inject AuthenticationStateProvider Authentication
 @inject IConfiguration Configuration
+@inject NavigationManager Navigation
 @inject Microsoft.Extensions.Options.IOptions<BillingOptions> Options
 
-<PageTitle>Bill details</PageTitle>
-<h1>Bill details</h1>
-<p><a href="/billing">Back to payments</a> · <a href="/services">Membership and services</a></p>
+@if (UserId is null)
+{
+    <PageTitle>Bill details</PageTitle>
+    <h1>Bill details</h1>
+    <p><a href="/billing">Back to payments</a> · <a href="/services">Membership and services</a></p>
+}
+else if (subject is not null)
+{
+    <MemberWorkspace Member="subject" Section="MemberSection.Billing" ReturnUrl="@ReturnUrl" Title="@($"Bill #{InvoiceId}")" />
+    <p><a href="@BillingReturn">@ReturnLabel</a></p>
+}
+else { <AdminPageHeader Title="Bill details" /> }
 @if (error is not null) { <p role="alert">@error</p> }
 @if (invoice is not null)
 {
@@ -31,9 +44,19 @@
     }
     else { <p>No payment is requested for this bill.</p> }
     <p><a href="@($"/billing/invoices/{InvoiceId}/pdf")">Download current PDF</a></p>
+    @if (UserId is { } memberId && invoice.Lines.Any(row => row.Line.State == LineState.Open))
+    {
+        <p><a href="@(Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(RegistryNavigation.ActionUrl(memberId, "cancel", ReturnUrl, "/" + Navigation.ToBaseRelativePath(Navigation.Uri)), "invoice", InvoiceId.ToString()))">Cancel unfinished bill</a></p>
+    }
 }
 
 @code {
+    [Parameter] public long? UserId { get; set; }
+    [SupplyParameterFromQuery(Name = "returnUrl")] public string? ReturnUrl { get; set; }
+    [SupplyParameterFromQuery(Name = "backTo")] public string? BackTo { get; set; }
+    private Nulysa.Membership.RegistryEntry? subject;
+    private string BillingReturn => RegistryNavigation.BackTo(UserId!.Value, BackTo, ReturnUrl, MemberSection.Billing);
+    private string ReturnLabel => AdminNavigation.Path(BillingReturn) == $"/admin/members/{UserId}" ? "Back to account overview" : "Back to billing details";
     [Parameter] public long InvoiceId { get; set; }
     [CascadingParameter] private HttpContext HttpContext { get; set; } = null!;
     private InvoiceView? invoice;
@@ -43,7 +66,17 @@
     {
         invoice = null;
         error = null;
-        try { invoice = await Queries.InvoiceForMember((await Authentication.GetAuthenticationStateAsync()).User, InvoiceId, HttpContext.RequestAborted); }
+        try
+        {
+            var actor = (await Authentication.GetAuthenticationStateAsync()).User;
+            if (UserId is { } memberId)
+            {
+                subject = await Members.Subject(actor, memberId, HttpContext.RequestAborted);
+                if (subject is null || !await Administration.InvoiceBelongsToMember(actor, InvoiceId, memberId, HttpContext.RequestAborted))
+                    throw new KeyNotFoundException("Bill not found for this member.");
+            }
+            invoice = await Queries.InvoiceForMember(actor, InvoiceId, HttpContext.RequestAborted);
+        }
         catch (UnauthorizedAccessException) { HttpContext.Response.StatusCode = 403; error = "You cannot view this bill."; }
         catch (KeyNotFoundException) { HttpContext.Response.StatusCode = 404; error = "Bill not found."; }
     }

@@ -41,6 +41,31 @@ public sealed record BillingView(long AccountId, long? UserId, string DepositRef
 
 public sealed class BillingQueries(AppDbContext db, AssociationClock clock, IOptions<BillingOptions> options)
 {
+    public async Task<DateOnly> MembershipGrantEnd(ClaimsPrincipal actor, long accountId, int months, CancellationToken ct = default)
+    {
+        await Authority.RequireAdministrator(db, actor, ct);
+        var facts = await BillingFacts.Load(db, accountId, ct, options.Value.MembershipRenewalGraceDays);
+        return facts.MembershipGrantPeriod(months, clock.Today).End;
+    }
+
+    public async Task<decimal> DiscountCreditPreview(ClaimsPrincipal actor, long accountId, long lineId, long discountId, CancellationToken ct = default)
+    {
+        await Authority.RequireAdministrator(db, actor, ct);
+        var facts = await BillingFacts.Load(db, accountId, ct, options.Value.MembershipRenewalGraceDays);
+        var line = facts.Lines.SingleOrDefault(line => line.Id == lineId && line.State == LineState.Fulfilled)
+            ?? throw new System.ComponentModel.DataAnnotations.ValidationException("Choose a completed purchase in this account.");
+        var discount = facts.Discounts.SingleOrDefault(discount => discount.Id == discountId && discount.FeeDefinitionId == line.FeeDefinitionId && discount.WithdrawnAt == null)
+            ?? throw new System.ComponentModel.DataAnnotations.ValidationException("Choose an applicable discount.");
+        if (discount.StartsOn < clock.Today)
+            throw new System.ComponentModel.DataAnnotations.ValidationException("Used time is not automatically refundable; review future effective time only.");
+        var previous = facts.Movements
+            .Where(movement => movement.InvoiceLineId == lineId && movement.Kind == MovementKind.PurchaseCredit)
+            .OrderBy(movement => movement.Id)
+            .Select(movement => (facts.Discounts.Single(discount => discount.Id == movement.DiscountId), movement.Amount))
+            .ToList();
+        return Pricing.FutureDiscountCredit(System.Text.Json.JsonSerializer.Deserialize<List<PriceSegment>>(line.PricingJson)!, discount, previous);
+    }
+
     public async Task<InvoiceView> InvoiceForMember(ClaimsPrincipal actor, long invoiceId, CancellationToken ct = default)
     {
         var invoice = await db.Invoices.AsNoTracking().SingleOrDefaultAsync(x => x.Id == invoiceId, ct)

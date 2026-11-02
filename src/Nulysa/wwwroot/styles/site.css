@@ -189,9 +189,9 @@ section[id] { scroll-margin-top: 1rem; }
 .registry-member p { margin: .25rem 0; }
 .breadcrumbs { display: flex; flex-wrap: wrap; gap: .65rem; margin-bottom: 1rem; }
 .breadcrumbs a { padding-block: .25rem; }
-.member-subject { padding: 1.25rem; margin: 1rem 0; border: 1px solid var(--nulysa-border); border-inline-start: 5px solid var(--nulysa-focus); border-radius: var(--nulysa-radius); background: var(--nulysa-surface); }
+.member-subject { padding: .65rem 0; margin: 0 0 .85rem; border-bottom: 1px solid var(--nulysa-border); display: grid; gap: .15rem; }
 .member-subject p { margin: .25rem 0; }
-.member-subject .subject-name { margin: 0 0 .5rem; font-size: 1.3rem; font-weight: 700; }
+.member-subject .subject-name { font-size: 1rem; margin: 0; }
 .subject-name span { display: inline-block; margin-inline-start: .5rem; font-size: 1rem; font-weight: 500; }
 .operational-warning { border-inline-start: 5px solid var(--nulysa-focus); }
 .operational-warning h3, .status-panel > h3:first-child { margin-top: 0; }
@@ -282,3 +282,14 @@ section[id] { scroll-margin-top: 1rem; }
 @media (max-width: 767px) {
     .overview-links, .attention-queues, .filter-fields, .payment-tools, .profile-fields-grid { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Page navigation, content shortcuts and tasks have distinct treatments. */
+.member-subject .subject-name span { font-weight: 400; margin-inline-start: .5rem; }
+.member-account-warning { color: var(--nulysa-danger); }
+.on-this-page, .balance-filter { display: flex; flex-wrap: wrap; align-items: baseline; gap: .25rem 1rem; margin: .5rem 0 1rem; font-size: .9rem; }
+.on-this-page > span { color: var(--nulysa-secondary); }
+.on-this-page a, .balance-filter a { padding-block: .25rem; }
+.balance-filter [aria-current="page"] { font-weight: 700; color: var(--nulysa-text); }
+.section-navigation a[aria-current="location"] { background: var(--nulysa-muted); color: var(--nulysa-text); font-weight: 650; }
+.task-list { list-style: none; padding: 0; margin: .5rem 0; display: grid; gap: .25rem; }
+.task-list a, .task-link { display: inline-block; padding: .4rem 0; }
