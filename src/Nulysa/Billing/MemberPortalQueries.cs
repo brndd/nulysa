@@ -32,7 +32,7 @@ public sealed class MemberPortalQueries(AppDbContext db, AssociationClock clock,
         var today = clock.Today;
         var coverage = await db.Coverage.AsNoTracking()
             .Where(period => period.BillingAccountId == accountId && period.Benefit == Benefit.Membership && period.StartsOn <= today)
-            .OrderByDescending(period => period.EndsOn)
+            .OrderByDescending(period => period.EndExclusive)
             .Take(1)
             .ToListAsync(ct);
         var lines = await (from line in db.InvoiceLines.AsNoTracking()
@@ -43,7 +43,7 @@ public sealed class MemberPortalQueries(AppDbContext db, AssociationClock clock,
         var membership = BillingFacts.MembershipStanding(true, coverage, lines, renewing, options.Value.MembershipRenewalGraceDays, today);
         var bills = await db.Invoices.AsNoTracking()
             .Where(invoice => invoice.BillingAccountId == accountId && invoice.ClosedAt == null &&
-                db.InvoiceLines.Any(line => line.InvoiceId == invoice.Id && line.State == LineState.Open && line.Amount > 0 && line.ExpiresOn > today))
+                db.InvoiceLines.Any(line => line.InvoiceId == invoice.Id && line.State == LineState.Open && line.Amount > 0 && line.PaymentCutoffExclusive > today))
             .OrderBy(invoice => invoice.DueOn)
             .ThenBy(invoice => invoice.Id)
             .Select(invoice => new OpenBillSummary(invoice.Id, invoice.DueOn))

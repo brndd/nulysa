@@ -75,7 +75,7 @@ else if (subject is null) { <AdminPageHeader Title="@Title" /> }
     {
     <div class="status-panel">
         <strong>Membership: @view.Membership.Description</strong>
-        @if (view.Membership.Until is { } until) { <p>This standing applies through @until.AddDays(-1).ToString("d MMM yyyy").</p> }
+        @if (view.Membership.ActiveUntilExclusive is not null) { <p><StandingThroughDate Standing="view.Membership" /></p> }
         @if (!view.Membership.Active)
         {
             @if (UserId is not null)
@@ -168,7 +168,7 @@ else if (subject is null) { <AdminPageHeader Title="@Title" /> }
     <DiscountSummary View="view" />
     @if (ShowServices && !view.Membership.Active)
     {
-        var returnInvoice = view.Invoices.FirstOrDefault(invoice => invoice.Lines.Any(line => line.Line.Purpose == PurchasePurpose.Resumption && line.Line.State == LineState.Open && line.Line.ExpiresOn > Clock.Today));
+        var returnInvoice = view.Invoices.FirstOrDefault(invoice => invoice.Lines.Any(line => line.Line.Purpose == PurchasePurpose.Resumption && line.Line.State == LineState.Open && line.Line.PaymentCutoffExclusive > Clock.Today));
         @if (returnInvoice is not null)
         {
             <p>A return-period request is already available. <a href="@InvoiceUrl(returnInvoice.Invoice.Id)">Review your return-period bill</a>.</p>
@@ -206,7 +206,7 @@ else if (subject is null) { <AdminPageHeader Title="@Title" /> }
     {
         <section class="service-row"><h3>@subscription.Name</h3>
             <p>@subscription.Standing.Description
-                @if (subscription.Standing.Until is { } end) { <span>through @end.AddDays(-1).ToString("d MMM yyyy")</span> }
+                <StandingThroughDate Standing="subscription.Standing" />
             </p>
             @if (subscription.Enrollment.RenewalStoppedAt is not null) { <p>Renewal stopped. Remaining covered time keeps its original dates and still requires active membership.</p> }
             else
@@ -268,8 +268,8 @@ else if (subject is null) { <AdminPageHeader Title="@Title" /> }
     }
     </section>
     <h2>Forecasts — not issued invoices</h2>
-    <ul>@foreach (var forecast in view.Forecasts) { <li>@forecast.Description · @forecast.Start.ToString("d MMM yyyy") – @forecast.End.AddDays(-1).ToString("d MMM yyyy") · @Money(forecast.Amount) EUR · @forecast.Months months</li> }</ul>
-    <details><summary>Coverage history</summary><ul>@foreach (var coverage in view.Coverage.OrderByDescending(x => x.StartsOn)) { <li>@coverage.Benefit @(view.Services.SingleOrDefault(x => x.Id == coverage.ServiceDefinitionId)?.Name) · @coverage.StartsOn.ToString("d MMM yyyy") – @coverage.EndsOn.AddDays(-1).ToString("d MMM yyyy") · @(coverage.Source == CoverageSource.Purchase ? "Purchased coverage" : "Granted coverage")</li> }</ul></details>
+    <ul>@foreach (var forecast in view.Forecasts) { <li>@forecast.Description · @BillingDateText.Period(forecast.Start, forecast.EndExclusive) · @Money(forecast.Amount) EUR · @forecast.Months months</li> }</ul>
+    <details><summary>Coverage history</summary><ul>@foreach (var coverage in view.Coverage.OrderByDescending(x => x.StartsOn)) { <li>@coverage.Benefit @(view.Services.SingleOrDefault(x => x.Id == coverage.ServiceDefinitionId)?.Name) · @BillingDateText.Period(coverage.StartsOn, coverage.EndExclusive) · @(coverage.Source == CoverageSource.Purchase ? "Purchased coverage" : "Granted coverage")</li> }</ul></details>
     <p>Coverage history and forecasts include both displayed dates. Forecasts are estimates, not payment requests.</p>
     }
     @if (ShowBillingDetails)

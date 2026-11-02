@@ -214,7 +214,7 @@ public sealed partial class BillingCommands
         ReceiptDestination destination, IScheduler scheduler, CancellationToken ct)
     {
         var recoverableLines = facts.Lines
-            .Where(x => x.State == LineState.Expired && receipt.ReceivedOn < x.ExpiresOn && destination.Includes(facts.Invoices.Single(invoice => invoice.Id == x.InvoiceId)))
+            .Where(x => x.State == LineState.Expired && receipt.ReceivedOn < x.PaymentCutoffExclusive && destination.Includes(facts.Invoices.Single(invoice => invoice.Id == x.InvoiceId)))
             .ToList();
         if (recoverableLines.Any(line => !AssessRecovery(facts, line).Allowed))
             return false;
@@ -223,7 +223,7 @@ public sealed partial class BillingCommands
 
         // Preserve these requests through today's expiry pass: the bank date is still timely.
         var timelyLineIds = facts.Lines
-            .Where(x => x.State == LineState.Open && receipt.ReceivedOn < x.ExpiresOn && destination.Includes(facts.Invoices.Single(invoice => invoice.Id == x.InvoiceId)))
+            .Where(x => x.State == LineState.Open && receipt.ReceivedOn < x.PaymentCutoffExclusive && destination.Includes(facts.Invoices.Single(invoice => invoice.Id == x.InvoiceId)))
             .Select(x => x.Id)
             .ToHashSet();
         // Existing credit lots must repair missed renewals before expiry or resumption decisions.

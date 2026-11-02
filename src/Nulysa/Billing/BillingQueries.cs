@@ -20,7 +20,7 @@ public sealed record InvoiceView(Invoice Invoice, string Reference, List<LineVie
     public decimal Remaining => Lines.Sum(x => x.Remaining);
 }
 public sealed record SubscriptionView(ServiceEnrollment Enrollment, string Name, Standing Standing);
-public sealed record Forecast(string Description, DateOnly Start, DateOnly End, decimal Amount, int Months);
+public sealed record Forecast(string Description, DateOnly Start, DateOnly EndExclusive, decimal Amount, int Months);
 public sealed record Reconciliation(decimal Receipts, decimal BillingCredit, decimal PurchaseBalance, decimal Held, decimal Purchases,
     decimal Corrections, decimal Refunds, decimal Difference, List<long> InvalidLines, List<long> InvalidReceipts);
 public sealed record FinancialClaim(long AccountId, string? Name, string? Email, decimal BillingCredit, decimal PurchaseBalance);
@@ -41,11 +41,11 @@ public sealed record BillingView(long AccountId, long? UserId, string DepositRef
 
 public sealed class BillingQueries(AppDbContext db, AssociationClock clock, IOptions<BillingOptions> options)
 {
-    public async Task<DateOnly> MembershipGrantEnd(ClaimsPrincipal actor, long accountId, int months, CancellationToken ct = default)
+    public async Task<DateOnly> MembershipGrantEndExclusive(ClaimsPrincipal actor, long accountId, int months, CancellationToken ct = default)
     {
         await Authority.RequireAdministrator(db, actor, ct);
         var facts = await BillingFacts.Load(db, accountId, ct, options.Value.MembershipRenewalGraceDays);
-        return facts.MembershipGrantPeriod(months, clock.Today).End;
+        return facts.MembershipGrantPeriod(months, clock.Today).EndExclusive;
     }
 
     public async Task<decimal> DiscountCreditPreview(ClaimsPrincipal actor, long accountId, long lineId, long discountId, CancellationToken ct = default)
@@ -113,8 +113,8 @@ public sealed class BillingQueries(AppDbContext db, AssociationClock clock, IOpt
                 var nextStart = item.NextUnissuedPeriodStartsOn;
                 var benefit = item.MembershipUserId is not null ? Benefit.Membership : Benefit.Service;
                 foreach (var covered in facts.Periods(benefit, fee.ServiceDefinitionId).OrderBy(x => x.Start))
-                    if (covered.Start <= nextStart && nextStart < covered.End)
-                        nextStart = covered.End;
+                    if (covered.Start <= nextStart && nextStart < covered.EndExclusive)
+                        nextStart = covered.EndExclusive;
 
                 var hasEffectivePrice = facts.Prices.Any(x => x.FeeDefinitionId == fee.Id && x.EffectiveOn <= nextStart);
                 if (!hasEffectivePrice)
@@ -124,7 +124,7 @@ public sealed class BillingQueries(AppDbContext db, AssociationClock clock, IOpt
                 var prices = facts.Prices.Where(x => x.FeeDefinitionId == fee.Id).ToList();
                 var discounts = facts.Discounts.Where(x => x.FeeDefinitionId == fee.Id).ToList();
                 var price = Pricing.Calculate(group.Anchor, group.IntervalMonths, period, prices, discounts, facts.Periods(benefit, fee.ServiceDefinitionId));
-                forecasts.Add(new(fee.Name, period.Start, period.End, price.Amount, group.IntervalMonths));
+                forecasts.Add(new(fee.Name, period.Start, period.EndExclusive, price.Amount, group.IntervalMonths));
             }
         }
 
@@ -392,7 +392,7 @@ public sealed class BillingQueries(AppDbContext db, AssociationClock clock, IOpt
             var m = row.movement;
             csv.AppendLine(string.Join(',', new object?[] { m.Id, m.BillingAccountId, m.OperationId, m.EffectiveOn, row.OccurredAt, m.Kind, m.Amount, "EUR", m.ReceiptId,
                 row.receipt?.Source, row.receipt?.SourceAccount, row.receipt?.ExternalId, row.receipt?.Reference, m.InvoiceLineId, row.line?.InvoiceId, row.line?.Category,
-                row.line?.StartsOn, row.line?.EndsOn, m.DiscountId, m.ReversesMovementId, row.Reason }.Select(Csv)));
+                row.line?.StartsOn, row.line?.EndExclusive, m.DiscountId, m.ReversesMovementId, row.Reason }.Select(Csv)));
         }
         return csv.ToString();
     }

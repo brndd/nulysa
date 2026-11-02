@@ -121,7 +121,7 @@ public sealed partial class BillingCommands(AppDbContext db, AssociationClock cl
     {
         if (facts.Coverage.Any(x => x.Origin == origin))
             return;
-        var coverage = new Coverage { BillingAccountId = facts.Account.Id, Benefit = benefit, ServiceDefinitionId = service, StartsOn = period.Start, EndsOn = period.End, Source = source, Origin = origin, InvoiceLineId = line, OperationId = operation.Id };
+        var coverage = new Coverage { BillingAccountId = facts.Account.Id, Benefit = benefit, ServiceDefinitionId = service, StartsOn = period.Start, EndExclusive = period.EndExclusive, Source = source, Origin = origin, InvoiceLineId = line, OperationId = operation.Id };
         facts.Coverage.Add(coverage);
         db.Coverage.Add(coverage);
     }
@@ -180,7 +180,7 @@ public sealed partial class BillingCommands(AppDbContext db, AssociationClock cl
     }
 
     private async Task<InvoiceLine> Issue(BillingFacts facts, BillingOperation operation, RecurringItem item, DateOnly start,
-        PurchasePurpose purpose, DateOnly expires, CancellationToken ct)
+        PurchasePurpose purpose, DateOnly requestDeadline, CancellationToken ct)
     {
         var group = facts.Groups.Single(x => x.Id == item.BillingGroupId);
         var fee = facts.Fees.Single(x => x.Id == item.FeeDefinitionId);
@@ -190,12 +190,12 @@ public sealed partial class BillingCommands(AppDbContext db, AssociationClock cl
         var benefit = item.MembershipUserId is null ? Benefit.Service : Benefit.Membership;
         var coveredPeriods = facts.Periods(benefit, fee.ServiceDefinitionId).ToList();
         foreach (var period in coveredPeriods.OrderBy(x => x.Start))
-            if (period.Start <= start && start < period.End)
-                start = period.End;
+            if (period.Start <= start && start < period.EndExclusive)
+                start = period.EndExclusive;
 
         var mergeShortBridge = purpose is PurchasePurpose.Alignment || (benefit == Benefit.Service && purpose == PurchasePurpose.Initial);
         var billingPeriod = BillingCalendar.Bridge(group.Anchor, group.IntervalMonths, start, mergeShortBridge);
-        var purchaseKey = $"item:{item.Id}:{purpose}:{start:yyyy-MM-dd}:{billingPeriod.End:yyyy-MM-dd}" + (purpose == PurchasePurpose.Resumption ? $":{operation.Id}" : "");
+        var purchaseKey = $"item:{item.Id}:{purpose}:{start:yyyy-MM-dd}:{billingPeriod.EndExclusive:yyyy-MM-dd}" + (purpose == PurchasePurpose.Resumption ? $":{operation.Id}" : "");
         var existingLine = facts.Lines.SingleOrDefault(x => x.PurchaseKey == purchaseKey);
         if (existingLine is not null)
             return existingLine;
@@ -213,8 +213,11 @@ public sealed partial class BillingCommands(AppDbContext db, AssociationClock cl
             await db.SaveChangesAsync(ct);
         }
 
+        // Initial/return requests supply a due date; renewals supply their already-calculated cutoff.
         var chargeDueOn = purpose is PurchasePurpose.Initial or PurchasePurpose.Resumption
-            ? (benefit == Benefit.Service && billingPeriod.End < expires ? billingPeriod.End : expires) : start;
+            ? (benefit == Benefit.Service && billingPeriod.EndExclusive < requestDeadline ? billingPeriod.EndExclusive : requestDeadline) : start;
+        var paymentCutoffExclusive = requestDeadline > chargeDueOn
+            ? requestDeadline : BillingCalendar.PaymentCutoffExclusive(chargeDueOn, 0);
         var pricingJson = JsonSerializer.Serialize(quote.Segments);
 
         var line = new InvoiceLine
@@ -230,12 +233,12 @@ public sealed partial class BillingCommands(AppDbContext db, AssociationClock cl
             Description = fee.Name,
             Category = fee.Category,
             StartsOn = billingPeriod.Start,
-            EndsOn = billingPeriod.End,
+            EndExclusive = billingPeriod.EndExclusive,
             OriginalStartsOn = billingPeriod.Start,
-            OriginalEndsOn = billingPeriod.End,
+            OriginalEndExclusive = billingPeriod.EndExclusive,
             ChargeDueOn = chargeDueOn,
             // The due date itself must stay payable, even without renewal grace.
-            ExpiresOn = expires > chargeDueOn ? expires : BillingCalendar.ExclusiveExpiry(chargeDueOn, 0),
+            PaymentCutoffExclusive = paymentCutoffExclusive,
             Amount = quote.Amount,
             PricingJson = pricingJson,
             OriginalPricingJson = pricingJson
@@ -243,7 +246,7 @@ public sealed partial class BillingCommands(AppDbContext db, AssociationClock cl
 
         facts.Lines.Add(line);
         db.InvoiceLines.Add(line);
-        item.NextUnissuedPeriodStartsOn = line.EndsOn;
+        item.NextUnissuedPeriodStartsOn = line.EndExclusive;
         invoice.Revision++;
         await db.SaveChangesAsync(ct);
         operation.ResultId ??= line.Id;
@@ -272,7 +275,7 @@ public sealed partial class BillingCommands(AppDbContext db, AssociationClock cl
         if (line.Benefit != Benefit.OneOff)
         {
             var segments = JsonSerializer.Deserialize<List<PriceSegment>>(line.PricingJson)!;
-            foreach (var period in segments.Select(x => new Period(x.Start, x.End)).Distinct())
+            foreach (var period in segments.Select(x => new Period(x.Start, x.EndExclusive)).Distinct())
                 Grant(facts, operation, line.Benefit, line.ServiceDefinitionId, period, CoverageSource.Purchase, $"purchase:{line.Id}:{period.Start:yyyy-MM-dd}", line.Id);
         }
 
@@ -297,7 +300,7 @@ public sealed partial class BillingCommands(AppDbContext db, AssociationClock cl
         var pricingJson = JsonSerializer.Serialize(quote.Segments);
         var isUnchanged = line.Amount == quote.Amount
             && line.StartsOn == period.Start
-            && line.EndsOn == period.End
+            && line.EndExclusive == period.EndExclusive
             && line.PricingJson == pricingJson;
         if (isUnchanged)
             return;
@@ -309,21 +312,21 @@ public sealed partial class BillingCommands(AppDbContext db, AssociationClock cl
             OldAmount = line.Amount,
             NewAmount = quote.Amount,
             OldStart = line.StartsOn,
-            OldEnd = line.EndsOn,
+            OldEndExclusive = line.EndExclusive,
             NewStart = period.Start,
-            NewEnd = period.End,
+            NewEndExclusive = period.EndExclusive,
             PricingJson = line.PricingJson
         });
         if (line.RecurringItemId is { } itemId)
         {
             var item = facts.Items.Single(x => x.Id == itemId);
-            if (item.NextUnissuedPeriodStartsOn == line.EndsOn)
-                item.NextUnissuedPeriodStartsOn = period.End;
+            if (item.NextUnissuedPeriodStartsOn == line.EndExclusive)
+                item.NextUnissuedPeriodStartsOn = period.EndExclusive;
         }
 
         line.Amount = quote.Amount;
         line.StartsOn = period.Start;
-        line.EndsOn = period.End;
+        line.EndExclusive = period.EndExclusive;
         line.PricingJson = pricingJson;
         if (facts.Held(line) > line.Amount)
             Move(facts, operation, MovementKind.LineToBilling, facts.Held(line) - line.Amount, clock.Today, line.Id);

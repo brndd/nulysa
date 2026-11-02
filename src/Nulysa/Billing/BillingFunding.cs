@@ -11,7 +11,7 @@ public sealed partial class BillingCommands
         var effectiveFundingOn = line.LastFundingOn is { } previousFunding && previousFunding > fundsAvailableOn
             ? previousFunding : fundsAvailableOn;
         var canFund = line.State == LineState.Open
-            && effectiveFundingOn < line.ExpiresOn
+            && effectiveFundingOn < line.PaymentCutoffExclusive
             && (line.ServiceEnrollmentId is not { } enrollmentId
                 || facts.Enrollments.Any(x => x.Id == enrollmentId && x.EndedAt is null && x.RenewalStoppedAt is null));
         if (!canFund)
@@ -51,7 +51,7 @@ public sealed partial class BillingCommands
         {
             var quoteDate = effectiveFundingOn > line.OriginalStartsOn ? effectiveFundingOn : line.OriginalStartsOn;
             pricingJson = await db.LineAdjustments
-                .Where(x => x.InvoiceLineId == line.Id && x.OldStart <= quoteDate && quoteDate < x.OldEnd)
+                .Where(x => x.InvoiceLineId == line.Id && x.OldStart <= quoteDate && quoteDate < x.OldEndExclusive)
                 .OrderByDescending(x => x.Id)
                 .Select(x => x.PricingJson)
                 .FirstOrDefaultAsync(ct)
@@ -66,7 +66,7 @@ public sealed partial class BillingCommands
             quote = QuoteUnquotedDays(facts, line, effectiveFundingOn, quote);
 
         return quote.Segments.Count == 0 ? null : new(quote,
-            new(quote.Segments.Min(segment => segment.Start), quote.Segments.Max(segment => segment.End)));
+            new(quote.Segments.Min(segment => segment.Start), quote.Segments.Max(segment => segment.EndExclusive)));
     }
 
     private Quote QuoteUnquotedDays(BillingFacts facts, InvoiceLine line, DateOnly effectiveFundingOn, Quote quote)
@@ -75,8 +75,8 @@ public sealed partial class BillingCommands
         var invoice = facts.Invoices.Single(candidate => candidate.Id == line.InvoiceId);
         var group = facts.Groups.Single(candidate => candidate.Id == invoice.BillingGroupId);
         var period = BillingCalendar.Bridge(group.Anchor, group.IntervalMonths, effectiveFundingOn, false);
-        var unquotedEnd = quote.Segments.Count == 0 || period.End < quote.Segments[0].Start
-            ? period.End
+        var unquotedEnd = quote.Segments.Count == 0 || period.EndExclusive < quote.Segments[0].Start
+            ? period.EndExclusive
             : quote.Segments[0].Start;
         var discounts = facts.Discounts
             .Where(discount => discount.FeeDefinitionId == line.FeeDefinitionId)
@@ -84,24 +84,24 @@ public sealed partial class BillingCommands
             {
                 var end = discount.WithdrawnAt is { } withdrawn
                     ? DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(withdrawn, clock.Zone).DateTime)
-                    : discount.EndsOn;
+                    : discount.EndExclusive;
                 return new Discount
                 {
                     Id = discount.Id,
                     StartsOn = discount.StartsOn,
-                    EndsOn = end < discount.EndsOn ? end : discount.EndsOn,
+                    EndExclusive = end < discount.EndExclusive ? end : discount.EndExclusive,
                     Kind = discount.Kind,
                     Value = discount.Value
                 };
             })
-            .Where(discount => discount.StartsOn < discount.EndsOn)
+            .Where(discount => discount.StartsOn < discount.EndExclusive)
             .ToList();
         var prices = facts.Prices.Where(x => x.FeeDefinitionId == line.FeeDefinitionId).ToList();
         var prefix = Pricing.Calculate(group.Anchor, group.IntervalMonths, new(effectiveFundingOn, unquotedEnd), prices,
             discounts, facts.Periods(line.Benefit, line.ServiceDefinitionId));
         return Pricing.FromSegments(prefix.Segments.Concat(quote.Segments
-            .Where(x => x.Start < period.End)
-            .Select(x => x with { End = x.End > period.End ? period.End : x.End })));
+            .Where(x => x.Start < period.EndExclusive)
+            .Select(x => x with { EndExclusive = x.EndExclusive > period.EndExclusive ? period.EndExclusive : x.EndExclusive })));
     }
 
     private async Task AllocateCredit(BillingFacts facts, BillingOperation operation, DateOnly appliedOn, CancellationToken ct)

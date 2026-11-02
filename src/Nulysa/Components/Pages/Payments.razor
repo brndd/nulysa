@@ -53,7 +53,7 @@
     @if (r.InvalidLines.Count > 0 || r.InvalidReceipts.Count > 0) { <p role="alert">Investigate lines @string.Join(", ", r.InvalidLines) and receipts @string.Join(", ", r.InvalidReceipts). No automatic repairs were applied.</p> }
 }
 <p>Reconciliation above is lifetime-to-date. CSV ranges use movement effective dates or bank booked dates, not processing timestamps. Bank export includes ignored/outgoing transactions and review dispositions.</p>
-<form method="get" action="/admin/payments/export"><label for="export-start">From (inclusive)</label> <input id="export-start" type="date" name="start" required /> <label for="export-end">Until (exclusive)</label> <input id="export-end" type="date" name="end" required /> <button>Export journal CSV</button> <button formaction="/admin/payments/receipts-export">Export bank transactions CSV</button></form>
+<form method="get" action="/admin/payments/export"><label for="export-start">From</label> <input id="export-start" type="date" name="start" required /> <label for="export-end">Before</label> <input id="export-end" type="date" name="end" required /> <button>Export journal CSV</button> <button formaction="/admin/payments/receipts-export">Export bank transactions CSV</button></form>
 }
 @if (Area == "claims")
 {

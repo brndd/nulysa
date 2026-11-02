@@ -6,14 +6,33 @@ namespace Nulysa.Tests;
 public sealed class BillingCalendarTests
 {
     [Fact]
+    public void Explicit_boundary_names_preserve_saved_price_segment_JSON_and_pricing()
+    {
+        const string saved = """
+            [{"Start":"2026-06-01","End":"2026-07-01","BasisStart":"2026-06-01","BasisEnd":"2026-07-01","BasePrice":30,"Price":15,"DiscountId":null}]
+            """;
+
+        var segments = System.Text.Json.JsonSerializer.Deserialize<List<PriceSegment>>(saved)!;
+        var quote = Pricing.FromSegments(segments);
+        using var serialized = System.Text.Json.JsonDocument.Parse(System.Text.Json.JsonSerializer.Serialize(segments));
+
+        Assert.Equal(new DateOnly(2026, 7, 1), segments[0].EndExclusive);
+        Assert.Equal(new DateOnly(2026, 7, 1), segments[0].BasisEndExclusive);
+        Assert.Equal(15, quote.Amount);
+        Assert.Equal("2026-07-01", serialized.RootElement[0].GetProperty("End").GetString());
+        Assert.Equal("2026-07-01", serialized.RootElement[0].GetProperty("BasisEnd").GetString());
+        Assert.False(serialized.RootElement[0].TryGetProperty("EndExclusive", out _));
+    }
+
+    [Fact]
     public void Overlapping_discount_credits_follow_the_days_actually_compensated_by_each_prior_credit()
     {
         var original = new[] { new PriceSegment(new(2026, 6, 1), new(2027, 6, 1), new(2026, 6, 1), new(2027, 6, 1), 120, 120, null) };
-        var july = new Discount { StartsOn = new(2026, 7, 1), EndsOn = new(2026, 8, 1), Value = 50 };
-        var combined = new Discount { StartsOn = new(2026, 7, 1), EndsOn = new(2026, 9, 1), Value = 50 };
+        var july = new Discount { StartsOn = new(2026, 7, 1), EndExclusive = new(2026, 8, 1), Value = 50 };
+        var combined = new Discount { StartsOn = new(2026, 7, 1), EndExclusive = new(2026, 9, 1), Value = 50 };
 
         Assert.Equal(5.10m, Pricing.FutureDiscountCredit(original, combined, [(july, 5.10m)]));
-        var julyFree = new Discount { StartsOn = july.StartsOn, EndsOn = july.EndsOn, Value = 100 };
+        var julyFree = new Discount { StartsOn = july.StartsOn, EndExclusive = july.EndExclusive, Value = 100 };
 
         Assert.Equal(5.09m, Pricing.FutureDiscountCredit(original, julyFree, [(july, 5.10m), (combined, 5.10m)]));
         Assert.Equal(0m, Pricing.FutureDiscountCredit(original, combined, [(july, 5.10m), (combined, 5.10m)]));
@@ -39,7 +58,7 @@ public sealed class BillingCalendarTests
     {
         var due = new DateOnly(2026, 6, 20);
 
-        Assert.Equal(due.AddDays(expectedOffset), BillingCalendar.ExclusiveExpiry(due, graceDays));
+        Assert.Equal(due.AddDays(expectedOffset), BillingCalendar.PaymentCutoffExclusive(due, graceDays));
     }
 
     [Fact]
@@ -50,7 +69,7 @@ public sealed class BillingCalendarTests
         var quote = Pricing.Calculate(anchor, 1, new(new(2026, 3, 27), new(2026, 4, 12)), prices, [], []);
 
         Assert.Equal(5.16m, quote.Amount);
-        var discount = new Discount { StartsOn = anchor, EndsOn = new(2026, 3, 27), Kind = DiscountKind.Percentage, Value = 50 };
+        var discount = new Discount { StartsOn = anchor, EndExclusive = new(2026, 3, 27), Kind = DiscountKind.Percentage, Value = 50 };
         quote = Pricing.Calculate(anchor, 1, new(anchor, new(2026, 4, 12)), prices, [discount], []);
 
         Assert.Equal(7.58m, quote.Amount);
@@ -59,12 +78,12 @@ public sealed class BillingCalendarTests
         Assert.Equal(-1.01m, Pricing.Round(-1.005m));
         var shortPeriod = BillingCalendar.Bridge(new(2026, 3, 1), 1, new(2026, 3, 28), true);
 
-        Assert.Equal(new DateOnly(2026, 5, 1), shortPeriod.End);
+        Assert.Equal(new DateOnly(2026, 5, 1), shortPeriod.EndExclusive);
         var merged = Pricing.Calculate(new(2026, 3, 1), 1, shortPeriod, [new FeePrice { EffectiveOn = new(2000, 1, 1), MonthlyAmount = 30 }], [], []);
 
         Assert.Equal(33.87m, merged.Amount);
         Assert.Equal(28m, Pricing.Slice(merged.Segments, new(2026, 4, 3)).Amount);
-        Assert.Equal(new DateOnly(2026, 5, 1), Pricing.Slice(merged.Segments, new(2026, 4, 3)).Segments[^1].End);
+        Assert.Equal(new DateOnly(2026, 5, 1), Pricing.Slice(merged.Segments, new(2026, 4, 3)).Segments[^1].EndExclusive);
         var uncovered = BillingCalendar.Uncovered(new(new(2026, 1, 1), new(2026, 4, 1)), [new(new(2026, 1, 1), new(2026, 2, 1)), new(new(2026, 3, 1), new(2026, 4, 1))]);
 
         Assert.Equal(new Period(new(2026, 2, 1), new(2026, 3, 1)), Assert.Single(uncovered));

@@ -51,7 +51,7 @@ public partial class ReceiptReview
             destinations = Purpose == "group"
                 ? view.Groups.ToDictionary(group => group.Id, group => $"{group.IntervalMonths}-month group · {string.Join(", ", view.Items.Where(item => item.BillingGroupId == group.Id).Select(item => view.FeeNames[item.FeeDefinitionId]))} · reference {group.PaymentReference}")
                 : view.Invoices.Where(invoice => invoice.Invoice.BillingGroupId is null && invoice.Invoice.ClosedAt is null && invoice.Remaining > 0)
-                    .ToDictionary(invoice => invoice.Invoice.Id, invoice => $"{string.Join(", ", invoice.Lines.Select(row => row.Line.Description))} · bill #{invoice.Invoice.Id} · {invoice.Remaining:0.00} EUR remaining · due {invoice.Invoice.DueOn}");
+                    .ToDictionary(invoice => invoice.Invoice.Id, invoice => $"{string.Join(", ", invoice.Lines.Select(row => row.Line.Description))} · bill #{invoice.Invoice.Id} · {invoice.Remaining:0.00} EUR remaining · pay by {invoice.Invoice.DueOn:d MMM yyyy}");
         }
     }
     private async Task Submit()

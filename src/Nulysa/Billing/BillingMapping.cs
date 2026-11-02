@@ -56,6 +56,7 @@ public static class BillingMapping
         });
         builder.Entity<Discount>(e =>
         {
+            e.Property(x => x.EndExclusive).HasColumnName("EndsOn");
             e.HasOne<BillingAccount>().WithMany().HasForeignKey(x => x.BillingAccountId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne<FeeDefinition>().WithMany().HasForeignKey(x => x.FeeDefinitionId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne<BillingOperation>().WithMany().HasForeignKey(x => x.OperationId).OnDelete(DeleteBehavior.Restrict);
@@ -94,6 +95,9 @@ public static class BillingMapping
         });
         builder.Entity<InvoiceLine>(e =>
         {
+            e.Property(x => x.EndExclusive).HasColumnName("EndsOn");
+            e.Property(x => x.OriginalEndExclusive).HasColumnName("OriginalEndsOn");
+            e.Property(x => x.PaymentCutoffExclusive).HasColumnName("ExpiresOn");
             e.HasOne<Invoice>().WithMany().HasForeignKey(x => x.InvoiceId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne<RecurringItem>().WithMany().HasForeignKey(x => x.RecurringItemId).OnDelete(DeleteBehavior.SetNull);
             e.HasOne<ServiceEnrollment>().WithMany().HasForeignKey(x => x.ServiceEnrollmentId).OnDelete(DeleteBehavior.SetNull);
@@ -171,6 +175,7 @@ public static class BillingMapping
         });
         builder.Entity<Coverage>(e =>
         {
+            e.Property(x => x.EndExclusive).HasColumnName("EndsOn");
             e.HasOne<BillingAccount>().WithMany().HasForeignKey(x => x.BillingAccountId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne<ServiceDefinition>().WithMany().HasForeignKey(x => x.ServiceDefinitionId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne<InvoiceLine>().WithMany().HasForeignKey(x => x.InvoiceLineId).OnDelete(DeleteBehavior.Restrict);
@@ -189,6 +194,8 @@ public static class BillingMapping
         });
         builder.Entity<LineAdjustment>(e =>
         {
+            e.Property(x => x.OldEndExclusive).HasColumnName("OldEnd");
+            e.Property(x => x.NewEndExclusive).HasColumnName("NewEnd");
             e.HasOne<InvoiceLine>().WithMany().HasForeignKey(x => x.InvoiceLineId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne<BillingOperation>().WithMany().HasForeignKey(x => x.OperationId).OnDelete(DeleteBehavior.Restrict);
             e.Property(x => x.OldAmount).HasPrecision(18, 2);

@@ -79,7 +79,7 @@ public sealed class MailRenderer(AppDbContext db, UserManager<User> users, Membe
                 subject = delivery.Kind == MailKind.MembershipInactive ? (fi ? "Jäsenpalvelut keskeytetty" : "Membership benefits paused") : (fi ? "Jäsenmaksun lisäaika" : "Membership payment grace");
                 text = (delivery.Kind == MailKind.MembershipInactive
                     ? (fi ? "Jäsenmaksun määräaika päättyi. Jäsenyys jatkuu, mutta jäsenpalvelut ja jäsenlaskutus on keskeytetty. Voit palata maksamalla uuden paluujakson. " : "Your membership payment grace ended. You remain a member; benefits and membership billing are paused. Request a return period to resume. ")
-                    : (fi ? $"Jäsenmaksu on maksamatta. Jäsenpalvelut jatkuvat {standing.Until:yyyy-MM-dd} asti. " : $"Your membership payment is overdue. Benefits remain active until {standing.Until:yyyy-MM-dd}. ")) + Link("billing", new());
+                    : (fi ? $"Jäsenmaksu on maksamatta. Jäsenpalvelut jatkuvat {standing.ActiveUntilExclusive?.AddDays(-1):yyyy-MM-dd} asti. " : $"Your membership payment is overdue. Benefits remain active through {standing.ActiveUntilExclusive?.AddDays(-1):yyyy-MM-dd}. ")) + Link("billing", new());
             }
             else if (delivery.Kind == MailKind.BankAlert)
             {

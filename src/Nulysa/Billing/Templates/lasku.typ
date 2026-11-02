@@ -57,12 +57,12 @@
       #grid(columns: (auto, 1fr), column-gutter: 4mm, row-gutter: 2mm,
         [#label("Number", "Numero")], [*#invoice.number*],
         [#label("Issued", "Päiväys")], [#date.display("[day].[month].[year]")],
-        [#label("Due", "Eräpäivä")], [*#due-date.display("[day].[month].[year]")*],
+        [#label("Pay by", "Eräpäivä")], [*#due-date.display("[day].[month].[year]")*],
       )
     ]
   ]
 ]
-#label("Advance payment request. Unpaid requests expire; they are not debt. Period end dates are exclusive.", "Ennakkomaksupyyntö. Maksamaton pyyntö raukeaa eikä muodosta velkaa. Jakson päättymispäivä ei sisälly jaksoon.")
+#label("Advance payment request. Unpaid requests expire; they are not debt. Periods include both displayed dates.", "Ennakkomaksupyyntö. Maksamaton pyyntö raukeaa eikä muodosta velkaa. Jakson molemmat päivämäärät sisältyvät jaksoon.")
 #v(4mm)
 #table(columns: (1fr, auto, auto), inset: (x: 5pt, y: 7pt), align: (left, left, right),
   stroke: (x, y) => (bottom: 0.4pt + luma(210)), fill: (x, y) => if y == 0 { luma(245) },
@@ -89,7 +89,7 @@
   #v(5mm) #line(length: 100%, stroke: 0.6pt) #v(3mm)
   #grid(columns: (1fr, 1fr), column-gutter: 8mm, row-gutter: 3mm,
     field(label("Payee", "Maksun saaja"), sender.name), field(label("Reference", "Viitenumero"), reference),
-    field("IBAN", sender.iban), field(label("Due", "Eräpäivä"), due-date.display("[day].[month].[year]")),
+    field("IBAN", sender.iban), field(label("Pay by", "Eräpäivä"), due-date.display("[day].[month].[year]")),
     field("BIC / Bank", [#sender.bic / #sender.bank]), field(label("Payable", "Maksettava"), strong(money(payable))),
   )
   #if payload != none [#v(8mm) #align(center)[#bank-barcode(payload)]]

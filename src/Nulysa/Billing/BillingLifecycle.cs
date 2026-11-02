@@ -85,15 +85,15 @@ public sealed partial class BillingCommands
                 var nextStart = item.NextUnissuedPeriodStartsOn;
                 var coveredPeriods = facts.Periods(item.MembershipUserId is null ? Benefit.Service : Benefit.Membership, fee.ServiceDefinitionId).OrderBy(x => x.Start).ToList();
                 foreach (var period in coveredPeriods)
-                    if (period.Start <= nextStart && nextStart < period.End)
-                        nextStart = period.End;
+                    if (period.Start <= nextStart && nextStart < period.EndExclusive)
+                        nextStart = period.EndExclusive;
 
                 if (nextStart > on.AddDays(Settings.InvoiceLeadDays))
                     break;
 
                 var previousLine = facts.Lines.Where(x => x.RecurringItemId == item.Id).OrderByDescending(x => x.Id).FirstOrDefault();
                 var previousPeriodHasGap = previousLine is { State: LineState.Expired or LineState.Cancelled }
-                    && BillingCalendar.Uncovered(new(previousLine.StartsOn, previousLine.EndsOn), coveredPeriods).Count > 0;
+                    && BillingCalendar.Uncovered(new(previousLine.StartsOn, previousLine.EndExclusive), coveredPeriods).Count > 0;
                 // Nonpayment pauses future purchases; it must not generate a chain of fee debt.
                 if (previousPeriodHasGap)
                     break;
@@ -109,14 +109,14 @@ public sealed partial class BillingCommands
                 var graceDays = item.MembershipUserId is not null
                     ? Settings.MembershipRenewalGraceDays
                     : facts.Services.Single(x => x.Id == fee.ServiceDefinitionId).RenewalGraceDays;
-                var renewalExpiresOn = BillingCalendar.ExclusiveExpiry(nextStart, graceDays);
-                var shouldStopCatchUp = quote.Amount > 0 && (!membershipIsActive || renewalExpiresOn <= on);
+                var renewalCutoffExclusive = BillingCalendar.PaymentCutoffExclusive(nextStart, graceDays);
+                var shouldStopCatchUp = quote.Amount > 0 && (!membershipIsActive || renewalCutoffExclusive <= on);
                 if (shouldStopCatchUp)
                     break;
 
                 var isPeriodStart = BillingCalendar.Containing(group.Anchor, group.IntervalMonths, nextStart).Start == nextStart;
                 var purpose = isPeriodStart ? PurchasePurpose.Renewal : PurchasePurpose.Alignment;
-                await Issue(facts, operation, item, nextStart, purpose, renewalExpiresOn, ct);
+                await Issue(facts, operation, item, nextStart, purpose, renewalCutoffExclusive, ct);
             }
         }
     }
@@ -130,7 +130,7 @@ public sealed partial class BillingCommands
             if (preserved?.Contains(line.Id) == true)
                 continue;
 
-            if (clock.Today >= line.ExpiresOn)
+            if (clock.Today >= line.PaymentCutoffExclusive)
             {
                 CloseLine(facts, operation, line, LineState.Expired);
                 var needsInactiveNotice = line.Benefit == Benefit.Membership && line.ExpiryNotifiedAt is null;
@@ -155,7 +155,7 @@ public sealed partial class BillingCommands
 
             var initialServicePeriodEnded = line.Benefit == Benefit.Service
                 && line.Purpose == PurchasePurpose.Initial
-                && clock.Today >= line.EndsOn;
+                && clock.Today >= line.EndExclusive;
             if (!initialServicePeriodEnded)
                 continue;
 
@@ -175,7 +175,7 @@ public sealed partial class BillingCommands
             && !hadOpenMembershipLine
             && facts.Account.UserId is { } userId
             && facts.Membership(clock.Today) is { Active: false, InactiveSince: { } inactiveSince }
-            && !facts.Lines.Any(x => x.Benefit == Benefit.Membership && x.ExpiresOn == inactiveSince && x.ExpiryNotifiedAt is not null))
+            && !facts.Lines.Any(x => x.Benefit == Benefit.Membership && x.PaymentCutoffExclusive == inactiveSince && x.ExpiryNotifiedAt is not null))
             await mail.Add(scheduler, StableGuid($"membership-inactive:{facts.Account.Id}:{inactiveSince.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}"),
                 MailKind.MembershipInactive, userId, ct: ct);
 
@@ -185,9 +185,9 @@ public sealed partial class BillingCommands
                 continue;
 
             var coveredPeriods = facts.Periods(Benefit.Service, enrollment.ServiceDefinitionId).ToList();
-            var hasRemainingCoverage = coveredPeriods.Any(x => x.End > clock.Today);
-            var hasValidInitial = facts.Lines.Any(x => x.ServiceEnrollmentId == enrollment.Id && x.Purpose == PurchasePurpose.Initial && x.State == LineState.Open && clock.Today < x.ExpiresOn);
-            var graceEnd = facts.ServiceGraceEnd(enrollment, clock.Today);
+            var hasRemainingCoverage = coveredPeriods.Any(x => x.EndExclusive > clock.Today);
+            var hasValidInitial = facts.Lines.Any(x => x.ServiceEnrollmentId == enrollment.Id && x.Purpose == PurchasePurpose.Initial && x.State == LineState.Open && clock.Today < x.PaymentCutoffExclusive);
+            var graceEnd = facts.ServiceGraceEndExclusive(enrollment, clock.Today);
             var graceExpired = graceEnd is null || graceEnd <= clock.Today;
             // Expiring the request does not revoke free days or already-purchased future time.
             if (hasRemainingCoverage || hasValidInitial || !graceExpired)
@@ -284,7 +284,7 @@ public sealed partial class BillingCommands
                     CloseLine(facts, operation, line, LineState.Cancelled);
 
                 db.ServiceChanges.Add(new() { ServiceEnrollmentId = enrollmentId, OperationId = operation.Id, Action = "stop-renewal" });
-                if (!facts.Periods(Benefit.Service, enrollment.ServiceDefinitionId).Any(x => x.End > clock.Today))
+                if (!facts.Periods(Benefit.Service, enrollment.ServiceDefinitionId).Any(x => x.EndExclusive > clock.Today))
                     EndService(facts, operation, enrollment, ServiceEndReason.Stopped, LineState.Cancelled);
             }
 
@@ -345,8 +345,8 @@ public sealed partial class BillingCommands
 
         var nextUncoveredStart = clock.Today;
         foreach (var period in facts.Periods(Benefit.Membership, null).OrderBy(x => x.Start))
-            if (period.Start <= nextUncoveredStart && nextUncoveredStart < period.End)
-                nextUncoveredStart = period.End;
+            if (period.Start <= nextUncoveredStart && nextUncoveredStart < period.EndExclusive)
+                nextUncoveredStart = period.EndExclusive;
         if (nextUncoveredStart == clock.Today)
             return;
 

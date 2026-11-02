@@ -6,7 +6,7 @@
     <tbody>
     @foreach (var row in Invoice.Lines)
     {
-        <tr><td>@row.Line.Description<br />@row.Line.StartsOn.ToString("d MMM yyyy") – @row.Line.EndsOn.AddDays(-1).ToString("d MMM yyyy")</td><td>@Status(row)</td><td>@row.Line.Amount.ToString("0.00")</td><td>@row.Held.ToString("0.00")</td><td>@row.Remaining.ToString("0.00")</td></tr>
+        <tr><td>@row.Line.Description<br />@BillingDateText.PurchasePeriod(row.Line)</td><td>@Status(row)</td><td>@row.Line.Amount.ToString("0.00")</td><td>@row.Held.ToString("0.00")</td><td>@row.Remaining.ToString("0.00")</td></tr>
     }
     </tbody>
 </table>

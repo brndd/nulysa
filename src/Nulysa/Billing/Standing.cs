@@ -14,7 +14,7 @@ public enum StandingState
     AwaitingPayment
 }
 
-public sealed record Standing(StandingState State, DateOnly? Until, DateOnly? InactiveSince = null, bool DueToday = false)
+public sealed record Standing(StandingState State, DateOnly? ActiveUntilExclusive, DateOnly? InactiveSince = null, bool DueToday = false)
 {
     public bool Active => State is StandingState.Covered or StandingState.MembershipInitialGrace
         or StandingState.MembershipRenewalGrace or StandingState.CoveredWithRenewalStopped or StandingState.ServiceRenewalGrace;

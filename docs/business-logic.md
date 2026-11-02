@@ -186,9 +186,30 @@ zone, defaulting to `Europe/Helsinki`. `Now` is the audit timestamp. Business da
 use `DateOnly`; timestamps use `DateTimeOffset`.
 
 Coverage, discount and pricing periods use `[start, end)`: the start is included
-and the end is excluded. Payment due dates are inclusive. `ExpiresOn` is the
+and the end is excluded. Payment due dates are inclusive. `PaymentCutoffExclusive` is the
 exclusive cutoff, so funding is timely when its effective date is **before**
-`ExpiresOn`.
+`PaymentCutoffExclusive`.
+
+The code names upper boundaries explicitly: `Coverage.EndExclusive`,
+`Discount.EndExclusive`, `Period.EndExclusive` and `PriceSegment.EndExclusive`
+exclude that day. `Standing.ActiveUntilExclusive` bounds benefit availability,
+including grace. `InvoiceLine.PaymentCutoffExclusive` is the first day funding
+is too late. Inclusive `DueOn`/`ChargeDueOn` remain deadlines stated as “pay by.”
+
+Portal, administration, invoice PDF and grace-mail displays convert an exclusive
+end to the last included day. Paid/granted standing says “Covered through”; grace
+says “Benefits available through,” without describing grace as purchased time.
+For example, coverage ending on December 1 is shown as covered through November
+30; a renewal due December 1 with zero grace is payable on December 1 and has a
+December 2 cutoff. The discount form also accepts an inclusive “Through” date
+and adds one day at the command boundary. One-off requests show their payment
+deadline rather than presenting a coverage period.
+
+The database columns (`EndsOn`, `OriginalEndsOn`, `ExpiresOn`, `OldEnd`, `NewEnd`)
+and saved quote JSON keys (`End`, `BasisEnd`) retain their original names through
+explicit mappings. This preserves financial history without a schema/data
+migration. Machine-readable journal CSV period ends remain exclusive; the
+inclusive wording applies to human-facing displays.
 
 | Request | Due date and expiry |
 | --- | --- |
@@ -699,6 +720,7 @@ The tests provide executable examples:
 
 | Test source | What to look for |
 | --- | --- |
+| [BillingDateWordingTests.cs](../tests/Nulysa.Tests/BillingDateWordingTests.cs) | Portal coverage/grace dates, inclusive payment labels and English/Finnish grace mail without changing cutoffs. |
 | [BillingCalendarTests.cs](../tests/Nulysa.Tests/BillingCalendarTests.cs) | Month-end anchors, short bridges, actual-day proration, final rounding, grace boundaries and overlapping discount credits. |
 | [BillingTests.cs](../tests/Nulysa.Tests/BillingTests.cs) | Shared date, payment, service and query scenario helpers. The partial class retains the test identities and shared billing trait. |
 | [Allocation](../tests/Nulysa.Tests/BillingTests.Allocation.cs), [Dates](../tests/Nulysa.Tests/BillingTests.Dates.cs), [Recovery](../tests/Nulysa.Tests/BillingTests.Recovery.cs) | Funding conservation, typed receipt destinations and retained fingerprints; date/quote boundaries; delayed receipts and outage recovery. |

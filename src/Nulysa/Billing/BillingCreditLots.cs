@@ -53,8 +53,8 @@ public sealed partial class BillingCommands
             return lastLine.StartsOn;
         var nextStart = item.NextUnissuedPeriodStartsOn;
         foreach (var period in facts.Periods(benefit, fee.ServiceDefinitionId).OrderBy(x => x.Start))
-            if (period.Start <= nextStart && nextStart < period.End)
-                nextStart = period.End;
+            if (period.Start <= nextStart && nextStart < period.EndExclusive)
+                nextStart = period.EndExclusive;
         return nextStart;
     }
 
@@ -81,7 +81,7 @@ public sealed partial class BillingCommands
         if (line is not null)
         {
             nextStart = line.StartsOn;
-            cutoff = line.ExpiresOn;
+            cutoff = line.PaymentCutoffExclusive;
             if (cutoff > on)
                 return false;
             amount = line.State == LineState.Open ? line.Amount - facts.Held(line) : line.Amount;
@@ -99,13 +99,13 @@ public sealed partial class BillingCommands
 
             nextStart = item.NextUnissuedPeriodStartsOn;
             foreach (var period in facts.Periods(benefit, fee.ServiceDefinitionId).OrderBy(x => x.Start))
-                if (period.Start <= nextStart && nextStart < period.End)
-                    nextStart = period.End;
+                if (period.Start <= nextStart && nextStart < period.EndExclusive)
+                    nextStart = period.EndExclusive;
             if (nextStart > on)
                 return false;
 
             var graceDays = item.MembershipUserId is not null ? Settings.MembershipRenewalGraceDays : service!.RenewalGraceDays;
-            cutoff = BillingCalendar.ExclusiveExpiry(nextStart, graceDays);
+            cutoff = BillingCalendar.PaymentCutoffExclusive(nextStart, graceDays);
             if (cutoff > on)
                 return false;
 

@@ -25,7 +25,7 @@ public partial class BillingAdministration
         public DiscountKind Kind { get; set; }
         public decimal Value { get; set; }
         public DateOnly Start { get; set; }
-        public DateOnly End { get; set; }
+        public DateOnly Through { get; set; }
         public long DiscountId { get; set; }
         public long LineId { get; set; }
         public long InvoiceId { get; set; }
@@ -57,7 +57,7 @@ public partial class BillingAdministration
         ["Adjustment.Kind"] = Adjustment.Kind.ToString(),
         ["Adjustment.Value"] = Number(Adjustment.Value),
         ["Adjustment.Start"] = Adjustment.Start.ToString("yyyy-MM-dd"),
-        ["Adjustment.End"] = Adjustment.End.ToString("yyyy-MM-dd"),
+        ["Adjustment.Through"] = Adjustment.Through.ToString("yyyy-MM-dd"),
         ["Adjustment.DiscountId"] = Adjustment.DiscountId.ToString(),
         ["Adjustment.LineId"] = Adjustment.LineId.ToString(),
         ["Adjustment.InvoiceId"] = Adjustment.InvoiceId.ToString(),
@@ -95,7 +95,7 @@ public partial class BillingAdministration
         "refund" => "Record money already sent through the bank. This form does not send money. Only available funds can be refunded.",
         _ => "Return an eligible unspent receipt to payment review for reassignment. Source facts remain unchanged; purchased coverage cannot be clawed back."
     };
-    private string DiscountLabel(Discount discount) => $"{view!.FeeNames.GetValueOrDefault(discount.FeeDefinitionId)} · {discount.Kind} {discount.Value:0.##} · {discount.StartsOn} – {discount.EndsOn} (exclusive) · #{discount.Id}";
+    private string DiscountLabel(Discount discount) => $"{view!.FeeNames.GetValueOrDefault(discount.FeeDefinitionId)} · {discount.Kind} {discount.Value:0.##} · {BillingDateText.Period(discount.StartsOn, discount.EndExclusive)} · #{discount.Id}";
     protected override async Task OnInitializedAsync()
     {
         actor = (await Authentication.GetAuthenticationStateAsync()).User;
@@ -126,7 +126,7 @@ public partial class BillingAdministration
         if (TaskName == "unassign")
             receipts = await Administration.PostedReceipts(actor, AccountId);
         OneOff ??= new() { DueOn = Clock.Today.AddDays(14) };
-        Adjustment ??= new() { Start = Clock.Today, End = Clock.Today.AddMonths(1), InvoiceId = SelectedInvoice ?? 0 };
+        Adjustment ??= new() { Start = Clock.Today, Through = Clock.Today.AddMonths(1).AddDays(-1), InvoiceId = SelectedInvoice ?? 0 };
         reviewing = TaskName == "one-off" ? OneOff.Confirmed : Adjustment.Confirmed;
     }
     private Task CreateOneOff() => Handle(async () =>
@@ -159,12 +159,12 @@ public partial class BillingAdministration
         {
             case "discount":
                 var isAvailableFee = fees.Any(fee => fee.Id == a.FeeId && !fee.Retired);
-                var areValidDates = a.Start >= Clock.Today && a.End > a.Start;
+                var areValidDates = a.Start >= Clock.Today && a.Through >= a.Start && a.Through < DateOnly.MaxValue;
                 var isValidValue = a.Value >= 0 && Pricing.Round(a.Value) == a.Value
                     && (a.Kind != DiscountKind.Percentage || a.Value <= 100);
                 if (!isAvailableFee || !areValidDates || !isValidValue)
                     throw new ValidationException("Choose a fee, future dates and a valid discount value.");
-                effect += $" {fees.Single(fee => fee.Id == a.FeeId).Name}: {a.Kind} {a.Value}, {a.Start} – {a.End} (exclusive).";
+                effect += $" {fees.Single(fee => fee.Id == a.FeeId).Name}: {a.Kind} {a.Value}, {a.Start:d MMM yyyy} through {a.Through:d MMM yyyy}.";
                 break;
             case "withdraw":
             case "credit":
@@ -180,11 +180,11 @@ public partial class BillingAdministration
                 }
                 break;
             case "grant":
-                var end = await Queries.MembershipGrantEnd(actor, AccountId, a.Months);
-                if (a.Confirmed && a.End != end)
+                var end = await Queries.MembershipGrantEndExclusive(actor, AccountId, a.Months);
+                if (a.Confirmed && a.Through != end.AddDays(-1))
                     throw new ValidationException("Coverage changed. Review the grant again.");
-                a.End = end;
-                effect += $" {a.Months} months; new coverage ends {end} (exclusive).";
+                a.Through = end.AddDays(-1);
+                effect += $" {a.Months} months; covered through {a.Through:d MMM yyyy}.";
                 break;
             case "cancel":
                 var bill = view!.Invoices.SingleOrDefault(invoice => invoice.Invoice.Id == a.InvoiceId && invoice.Lines.Any(row => row.Line.State == LineState.Open)) ?? throw new ValidationException("Choose a bill with unfinished lines in this account.");
@@ -209,7 +209,7 @@ public partial class BillingAdministration
         switch (TaskName)
         {
             case "discount":
-                await Commands.AddDiscount(actor, AccountId, a.FeeId, a.Start, a.End, a.Kind, a.Value, a.Key, a.Reason);
+                await Commands.AddDiscount(actor, AccountId, a.FeeId, a.Start, a.Through.AddDays(1), a.Kind, a.Value, a.Key, a.Reason);
                 break;
             case "withdraw":
                 await Commands.WithdrawDiscount(actor, AccountId, a.DiscountId, a.Key, a.Reason);

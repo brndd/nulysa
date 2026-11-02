@@ -37,13 +37,14 @@ public sealed partial class BillingCommands
                 Description = description.Trim(),
                 Category = category.Trim(),
                 Amount = amount,
+                // These describe request history; a one-off purchase grants no coverage period.
                 StartsOn = clock.Today,
-                EndsOn = dueOn,
+                EndExclusive = dueOn,
                 OriginalStartsOn = clock.Today,
-                OriginalEndsOn = dueOn,
+                OriginalEndExclusive = dueOn,
                 ChargeDueOn = dueOn,
                 // Due dates are inclusive; the request expires at the start of the next day.
-                ExpiresOn = BillingCalendar.ExclusiveExpiry(dueOn, 0)
+                PaymentCutoffExclusive = BillingCalendar.PaymentCutoffExclusive(dueOn, 0)
             };
             facts.Lines.Add(line);
             db.InvoiceLines.Add(line);
@@ -87,11 +88,11 @@ public sealed partial class BillingCommands
                 && (kind != DiscountKind.Percentage || value <= 100);
             if (!hasValidFee || !hasValidDates || !hasValidValue)
                 throw new ValidationException("A discount requires a valid fee, future effective dates, and a percentage (0–100) or nonnegative monthly replacement price.");
-            var overlapsExisting = facts.Discounts.Any(x => x.FeeDefinitionId == feeId && x.WithdrawnAt is null && x.StartsOn < end && start < x.EndsOn);
+            var overlapsExisting = facts.Discounts.Any(x => x.FeeDefinitionId == feeId && x.WithdrawnAt is null && x.StartsOn < end && start < x.EndExclusive);
             if (overlapsExisting)
                 throw new ValidationException("Discounts for the same fee cannot overlap; withdraw the previous discount first.");
 
-            var discount = new Discount { BillingAccountId = accountId, FeeDefinitionId = feeId, StartsOn = start, EndsOn = end, Kind = kind, Value = value, OperationId = operation.Id };
+            var discount = new Discount { BillingAccountId = accountId, FeeDefinitionId = feeId, StartsOn = start, EndExclusive = end, Kind = kind, Value = value, OperationId = operation.Id };
             facts.Discounts.Add(discount);
             db.Discounts.Add(discount);
             await db.SaveChangesAsync(ct);
@@ -123,11 +124,11 @@ public sealed partial class BillingCommands
         {
             var quote = Pricing.Adjust(JsonSerializer.Deserialize<List<PriceSegment>>(line.PricingJson)!,
                 discounts, clock.Today, facts.Periods(line.Benefit, line.ServiceDefinitionId));
-            Requote(facts, operation, line, quote, new(line.StartsOn, line.EndsOn));
+            Requote(facts, operation, line, quote, new(line.StartsOn, line.EndExclusive));
 
             if (quote.Segments.Count == 0)
                 CloseLine(facts, operation, line, LineState.Cancelled);
-            else if (facts.Held(line) >= line.Amount && clock.Today < line.ExpiresOn)
+            else if (facts.Held(line) >= line.Amount && clock.Today < line.PaymentCutoffExclusive)
                 Complete(facts, operation, line, line.Amount == 0 ? null : clock.Today);
         }
 

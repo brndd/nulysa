@@ -48,7 +48,7 @@ public sealed partial class BillingTests
             .Single(x => x.Line.Benefit == Benefit.Service && x.Line.Purpose == PurchasePurpose.Renewal).Line;
 
         Assert.Equal(LineState.Fulfilled, renewal.State);
-        Assert.Contains(view.Coverage, x => x.Benefit == Benefit.Service && x.StartsOn == new DateOnly(2026, 7, 1) && x.EndsOn == new DateOnly(2026, 8, 1));
+        Assert.Contains(view.Coverage, x => x.Benefit == Benefit.Service && x.StartsOn == new DateOnly(2026, 7, 1) && x.EndExclusive == new DateOnly(2026, 8, 1));
         Assert.Contains(view.Subscriptions, x => x.Enrollment.ServiceDefinitionId == service && x.Standing.Active);
         Assert.Equal(new Balances(0, 0, 0), view.Balances);
     }
@@ -83,8 +83,8 @@ public sealed partial class BillingTests
         Assert.Contains(renewals, x => x.Line.Benefit == Benefit.Membership && x.Line.State == LineState.Fulfilled);
         Assert.Contains(renewals, x => x.Line.Benefit == Benefit.Service && x.Line.State == LineState.Fulfilled);
         Assert.Contains(view.Subscriptions, x => x.Enrollment.ServiceDefinitionId == service && x.Standing.Active);
-        Assert.Contains(view.Coverage, x => x.Benefit == Benefit.Membership && x.StartsOn == new DateOnly(2026, 7, 1) && x.EndsOn == new DateOnly(2026, 8, 1));
-        Assert.Contains(view.Coverage, x => x.Benefit == Benefit.Service && x.StartsOn == new DateOnly(2026, 7, 1) && x.EndsOn == new DateOnly(2026, 8, 1));
+        Assert.Contains(view.Coverage, x => x.Benefit == Benefit.Membership && x.StartsOn == new DateOnly(2026, 7, 1) && x.EndExclusive == new DateOnly(2026, 8, 1));
+        Assert.Contains(view.Coverage, x => x.Benefit == Benefit.Service && x.StartsOn == new DateOnly(2026, 7, 1) && x.EndExclusive == new DateOnly(2026, 8, 1));
         Assert.Equal(new Balances(0, 0, 0), view.Balances);
     }
 
@@ -118,7 +118,7 @@ public sealed partial class BillingTests
         var renewal = view.Invoices.SelectMany(x => x.Lines)
             .Single(x => x.Line.Benefit == Benefit.Service && x.Line.Purpose == PurchasePurpose.Renewal).Line;
         Assert.Equal(LineState.Fulfilled, renewal.State);
-        Assert.Contains(view.Coverage, x => x.Benefit == Benefit.Service && x.StartsOn == new DateOnly(2026, 7, 1) && x.EndsOn == new DateOnly(2026, 8, 1));
+        Assert.Contains(view.Coverage, x => x.Benefit == Benefit.Service && x.StartsOn == new DateOnly(2026, 7, 1) && x.EndExclusive == new DateOnly(2026, 8, 1));
 
         // The lot should be consumed.
         await using var db = Context();
@@ -193,7 +193,7 @@ public sealed partial class BillingTests
             .Single(x => x.Line.Benefit == Benefit.Service && x.Line.Purpose == PurchasePurpose.Renewal).Line;
 
         Assert.Equal(LineState.Fulfilled, renewal.State);
-        Assert.Contains(view.Coverage, x => x.Benefit == Benefit.Service && x.StartsOn == new DateOnly(2026, 7, 1) && x.EndsOn == new DateOnly(2026, 8, 1));
+        Assert.Contains(view.Coverage, x => x.Benefit == Benefit.Service && x.StartsOn == new DateOnly(2026, 7, 1) && x.EndExclusive == new DateOnly(2026, 8, 1));
         Assert.Contains(view.Subscriptions, x => x.Enrollment.ServiceDefinitionId == service && x.Standing.Active);
     }
 
@@ -236,7 +236,7 @@ public sealed partial class BillingTests
             .Single(x => x.Line.Benefit == Benefit.Service && x.Line.Purpose == PurchasePurpose.Renewal).Line;
 
         Assert.Equal(LineState.Fulfilled, serviceLine.State);
-        Assert.Contains(view.Coverage, x => x.Benefit == Benefit.Service && x.StartsOn == new DateOnly(2026, 7, 1) && x.EndsOn == new DateOnly(2026, 8, 1));
+        Assert.Contains(view.Coverage, x => x.Benefit == Benefit.Service && x.StartsOn == new DateOnly(2026, 7, 1) && x.EndExclusive == new DateOnly(2026, 8, 1));
         Assert.Contains(view.Subscriptions, x => x.Enrollment.ServiceDefinitionId == service && x.Standing.Active);
         Assert.Equal(new Balances(0, 0, 0), view.Balances);
     }
@@ -318,7 +318,7 @@ public sealed partial class BillingTests
 
         Assert.Equal(LineState.Fulfilled, renewal.Line.State);
         Assert.Equal(new DateOnly(2026, 7, 1), renewal.Line.StartsOn);
-        Assert.Contains(view.Coverage, x => x.StartsOn == new DateOnly(2026, 7, 1) && x.EndsOn == new DateOnly(2026, 8, 1));
+        Assert.Contains(view.Coverage, x => x.StartsOn == new DateOnly(2026, 7, 1) && x.EndExclusive == new DateOnly(2026, 8, 1));
         Assert.Equal(new Balances(0, 0, 0), view.Balances);
         Assert.True(view.Membership.Active);
     }
@@ -345,7 +345,7 @@ public sealed partial class BillingTests
         view = await View(app, board, id);
 
         Assert.True(view.Membership.Active);
-        Assert.Contains(view.Coverage, x => x.StartsOn == new DateOnly(2026, 7, 1) && x.EndsOn == new DateOnly(2026, 8, 1));
+        Assert.Contains(view.Coverage, x => x.StartsOn == new DateOnly(2026, 7, 1) && x.EndExclusive == new DateOnly(2026, 8, 1));
         var renewal = view.Invoices.SelectMany(x => x.Lines).Single(x => x.Line.StartsOn == new DateOnly(2026, 7, 1)).Line;
 
         Assert.Equal(new DateOnly(2026, 7, 7), renewal.EffectiveOn);
@@ -358,7 +358,7 @@ public sealed partial class BillingTests
         await Pay(app, reference, 10);
         view = await View(app, board, id);
 
-        Assert.Contains(view.Coverage, x => x.StartsOn == new DateOnly(2026, 9, 15) && x.EndsOn == new DateOnly(2026, 10, 1));
+        Assert.Contains(view.Coverage, x => x.StartsOn == new DateOnly(2026, 9, 15) && x.EndExclusive == new DateOnly(2026, 10, 1));
         Assert.DoesNotContain(view.Coverage, x => x.StartsOn == new DateOnly(2026, 8, 1));
         Assert.Equal(4.67m, view.Balances.BillingCredit);
     }

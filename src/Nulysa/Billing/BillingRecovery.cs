@@ -45,7 +45,7 @@ public sealed partial class BillingCommands
         if (!serviceIsOffered)
             return false;
 
-        return facts.ServiceGraceEnd(enrollment, receivedOn) is { } cutoff
+        return facts.ServiceGraceEndExclusive(enrollment, receivedOn) is { } cutoff
             && receivedOn < cutoff
             && facts.Membership(receivedOn).Active;
     }

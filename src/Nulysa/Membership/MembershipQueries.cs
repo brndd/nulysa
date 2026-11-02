@@ -95,7 +95,7 @@ public sealed class MembershipQueries(AppDbContext db, AssociationClock clock, I
             .Where(period => accountIds.Contains(period.BillingAccountId) && period.Benefit == Benefit.Membership && period.StartsOn <= clock.Today);
         var coverage = (await startedCoverage
             .GroupBy(period => period.BillingAccountId)
-            .Select(periods => periods.OrderByDescending(period => period.EndsOn).ThenByDescending(period => period.Id).First())
+            .Select(periods => periods.OrderByDescending(period => period.EndExclusive).ThenByDescending(period => period.Id).First())
             .ToListAsync(ct))
             .ToLookup(x => x.BillingAccountId);
         var membershipLines = from line in db.InvoiceLines.AsNoTracking()
@@ -104,18 +104,18 @@ public sealed class MembershipQueries(AppDbContext db, AssociationClock clock, I
                               select new { invoice.BillingAccountId, line };
         var graceLines = await membershipLines
             .Where(row => row.line.State == LineState.Open && row.line.Purpose != PurchasePurpose.Resumption &&
-                row.line.StartsOn <= clock.Today && clock.Today < row.line.ExpiresOn)
+                row.line.StartsOn <= clock.Today && clock.Today < row.line.PaymentCutoffExclusive)
             .GroupBy(row => row.BillingAccountId)
-            .Select(rows => rows.OrderByDescending(row => row.line.ExpiresOn).ThenByDescending(row => row.line.Id).First())
+            .Select(rows => rows.OrderByDescending(row => row.line.PaymentCutoffExclusive).ThenByDescending(row => row.line.Id).First())
             .ToListAsync(ct);
         var expiredLines = await membershipLines
-            .Where(row => row.line.Purpose != PurchasePurpose.Resumption && row.line.State != LineState.Fulfilled && row.line.ExpiresOn <= clock.Today)
+            .Where(row => row.line.Purpose != PurchasePurpose.Resumption && row.line.State != LineState.Fulfilled && row.line.PaymentCutoffExclusive <= clock.Today)
             .GroupBy(row => row.BillingAccountId)
-            .Select(rows => rows.OrderByDescending(row => row.line.ExpiresOn).ThenByDescending(row => row.line.Id).First())
+            .Select(rows => rows.OrderByDescending(row => row.line.PaymentCutoffExclusive).ThenByDescending(row => row.line.Id).First())
             .ToListAsync(ct);
         var cancelledRenewals = await membershipLines
             .Where(row => (row.line.State == LineState.Cancelled || row.line.State == LineState.Expired) &&
-                row.line.StartsOn == startedCoverage.Where(period => period.BillingAccountId == row.BillingAccountId).Max(period => (DateOnly?)period.EndsOn))
+                row.line.StartsOn == startedCoverage.Where(period => period.BillingAccountId == row.BillingAccountId).Max(period => (DateOnly?)period.EndExclusive))
             .GroupBy(row => row.BillingAccountId)
             .Select(rows => rows.OrderByDescending(row => row.line.Id).First())
             .ToListAsync(ct);

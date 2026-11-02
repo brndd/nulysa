@@ -31,7 +31,7 @@ public sealed class Discount
     public long BillingAccountId { get; set; }
     public long FeeDefinitionId { get; set; }
     public DateOnly StartsOn { get; set; }
-    public DateOnly EndsOn { get; set; }
+    public DateOnly EndExclusive { get; set; }
     public DiscountKind Kind { get; set; }
     public decimal Value { get; set; }
     public Guid OperationId { get; set; }
@@ -88,11 +88,11 @@ public sealed class InvoiceLine
     public string Description { get; set; } = "";
     public string Category { get; set; } = "";
     public DateOnly StartsOn { get; set; }
-    public DateOnly EndsOn { get; set; }
+    public DateOnly EndExclusive { get; set; }
     public DateOnly OriginalStartsOn { get; set; }
-    public DateOnly OriginalEndsOn { get; set; }
+    public DateOnly OriginalEndExclusive { get; set; }
     public DateOnly ChargeDueOn { get; set; }
-    public DateOnly ExpiresOn { get; set; }
+    public DateOnly PaymentCutoffExclusive { get; set; }
     public decimal Amount { get; set; }
     public string PricingJson { get; set; } = "[]";
     public string OriginalPricingJson { get; set; } = "[]";
@@ -153,7 +153,7 @@ public sealed class Coverage
     public Benefit Benefit { get; set; }
     public long? ServiceDefinitionId { get; set; }
     public DateOnly StartsOn { get; set; }
-    public DateOnly EndsOn { get; set; }
+    public DateOnly EndExclusive { get; set; }
     public CoverageSource Source { get; set; }
     public long? InvoiceLineId { get; set; }
     public Guid OperationId { get; set; }
@@ -180,8 +180,8 @@ public sealed class LineAdjustment
     public decimal OldAmount { get; set; }
     public decimal NewAmount { get; set; }
     public DateOnly OldStart { get; set; }
-    public DateOnly OldEnd { get; set; }
+    public DateOnly OldEndExclusive { get; set; }
     public DateOnly NewStart { get; set; }
-    public DateOnly NewEnd { get; set; }
+    public DateOnly NewEndExclusive { get; set; }
     public string PricingJson { get; set; } = "[]";
 }

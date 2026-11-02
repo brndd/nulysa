@@ -47,7 +47,7 @@ public sealed partial class BillingTests
         var settled = view.Invoices.SelectMany(x => x.Lines).Single(x => x.Line.Id == original.Id).Line;
         await using var db = Context();
 
-        Assert.Equal(original.ChargeDueOn.AddDays(1), settled.ExpiresOn);
+        Assert.Equal(original.ChargeDueOn.AddDays(1), settled.PaymentCutoffExclusive);
         Assert.Equal(late ? LineState.Expired : LineState.Fulfilled, settled.State);
         Assert.Equal(ReceiptState.Posted, (await db.Receipts.SingleAsync(x => x.Id == receipt)).State);
         Assert.Equal(late ? 10m : 10m - settled.Amount, view.Balances.BillingCredit);
@@ -55,7 +55,7 @@ public sealed partial class BillingTests
         if (!late)
         {
             Assert.Equal(returning ? receivedOn : new DateOnly(2026, 6, 1), settled.StartsOn);
-            Assert.Contains(view.Coverage, x => x.InvoiceLineId == original.Id && x.StartsOn == settled.StartsOn && x.EndsOn == settled.EndsOn);
+            Assert.Contains(view.Coverage, x => x.InvoiceLineId == original.Id && x.StartsOn == settled.StartsOn && x.EndExclusive == settled.EndExclusive);
         }
         Assert.Equal(0m, (await Run(app, sp => sp.GetRequiredService<BillingQueries>().Reconcile(board))).Difference);
     }
@@ -87,14 +87,14 @@ public sealed partial class BillingTests
         view = await View(app, board, id);
         var settled = view.Invoices.SelectMany(x => x.Lines).Single(x => x.Line.Id == original.Id).Line;
 
-        Assert.Equal(original.ChargeDueOn.AddDays(1), settled.ExpiresOn);
+        Assert.Equal(original.ChargeDueOn.AddDays(1), settled.PaymentCutoffExclusive);
         Assert.Equal(late ? LineState.Expired : LineState.Fulfilled, settled.State);
         Assert.Equal(late ? 30m : 30m - settled.Amount, view.Balances.BillingCredit);
         Assert.Equal(0m, view.Balances.Held);
         if (!late)
         {
             Assert.True(Assert.Single(view.Subscriptions).Standing.Active);
-            Assert.Contains(view.Coverage, x => x.InvoiceLineId == original.Id && x.StartsOn == receivedOn && x.EndsOn == new DateOnly(2026, 7, 1));
+            Assert.Contains(view.Coverage, x => x.InvoiceLineId == original.Id && x.StartsOn == receivedOn && x.EndExclusive == new DateOnly(2026, 7, 1));
         }
         Assert.Equal(0m, (await Run(app, sp => sp.GetRequiredService<BillingQueries>().Reconcile(board))).Difference);
     }
@@ -137,13 +137,13 @@ public sealed partial class BillingTests
         var renewals = view.Invoices.SelectMany(x => x.Lines).Where(x => x.Line.Purpose == PurchasePurpose.Renewal).ToList();
 
         Assert.Equal(service ? 2 : 1, renewals.Count);
-        Assert.All(renewals, x => Assert.Equal(new DateOnly(2026, 7, 2), x.Line.ExpiresOn));
+        Assert.All(renewals, x => Assert.Equal(new DateOnly(2026, 7, 2), x.Line.PaymentCutoffExclusive));
         Assert.All(renewals, x => Assert.Null(x.Line.GraceNotifiedAt));
         await Pay(app, view.Invoices.Single(x => x.Invoice.ClosedAt is null).Reference, amount);
         view = await View(app, board, id);
 
         Assert.All(view.Invoices.SelectMany(x => x.Lines), x => Assert.Equal(LineState.Fulfilled, x.Line.State));
-        Assert.Contains(view.Coverage, x => x.StartsOn == new DateOnly(2026, 7, 1) && x.EndsOn == new DateOnly(2026, 8, 1));
+        Assert.Contains(view.Coverage, x => x.StartsOn == new DateOnly(2026, 7, 1) && x.EndExclusive == new DateOnly(2026, 8, 1));
         Assert.Equal(new Balances(0, 0, 0), view.Balances);
     }
 
@@ -192,7 +192,7 @@ public sealed partial class BillingTests
         view = await View(app, board, id);
         var renewal = Assert.Single(view.Invoices.SelectMany(x => x.Lines), x => x.Line.Purpose == PurchasePurpose.Renewal);
 
-        Assert.Equal(new DateOnly(2026, 7, 3), renewal.Line.ExpiresOn);
+        Assert.Equal(new DateOnly(2026, 7, 3), renewal.Line.PaymentCutoffExclusive);
         Assert.NotNull(renewal.Line.GraceNotifiedAt);
         Assert.True(view.Membership.Active);
         await Pay(app, renewalInvoice.Reference, 10, new(2026, 7, 2));
@@ -200,7 +200,7 @@ public sealed partial class BillingTests
         var settled = view.Invoices.SelectMany(x => x.Lines).Single(x => x.Line.Id == renewal.Line.Id).Line;
 
         Assert.Equal(LineState.Fulfilled, settled.State);
-        Assert.Contains(view.Coverage, x => x.StartsOn == new DateOnly(2026, 7, 1) && x.EndsOn == new DateOnly(2026, 8, 1));
+        Assert.Contains(view.Coverage, x => x.StartsOn == new DateOnly(2026, 7, 1) && x.EndExclusive == new DateOnly(2026, 8, 1));
         Assert.True(view.Membership.Active);
     }
 
@@ -230,7 +230,7 @@ public sealed partial class BillingTests
         Assert.Equal(LineState.Fulfilled, line.State);
         Assert.Equal(4.33m, line.Amount);
         Assert.Equal(new DateOnly(2026, 6, 18), line.StartsOn);
-        Assert.Equal(new DateOnly(2026, 7, 1), line.EndsOn);
+        Assert.Equal(new DateOnly(2026, 7, 1), line.EndExclusive);
         Assert.Equal(new DateOnly(2026, 6, 18), line.EffectiveOn);
         Assert.Equal(5.67m, view.Balances.BillingCredit);
         Assert.Equal(new DateOnly(2026, 6, 18), view.Coverage.Min(x => x.StartsOn));
@@ -273,7 +273,7 @@ public sealed partial class BillingTests
         var renewal = Assert.Single(view.Invoices.SelectMany(x => x.Lines), x => x.Line.State == LineState.Open);
 
         Assert.Equal(new DateOnly(2026, 7, 1), renewal.Line.StartsOn);
-        Assert.Equal(new DateOnly(2026, splitPayment ? 9 : 8, 1), renewal.Line.EndsOn);
+        Assert.Equal(new DateOnly(2026, splitPayment ? 9 : 8, 1), renewal.Line.EndExclusive);
         Assert.Equal(8m, renewal.Held);
         await Pay(app, view.Invoices.Single(x => x.Invoice.Id == renewal.Line.InvoiceId).Reference, renewal.Remaining);
         On(7, 8);
@@ -281,7 +281,7 @@ public sealed partial class BillingTests
         view = await View(app, board, id);
 
         Assert.True(view.Membership.Active);
-        Assert.Equal(renewal.Line.EndsOn, view.Items.Single().NextUnissuedPeriodStartsOn);
+        Assert.Equal(renewal.Line.EndExclusive, view.Items.Single().NextUnissuedPeriodStartsOn);
         Assert.Equal(0m, (await Run(app, sp => sp.GetRequiredService<BillingQueries>().Reconcile(board))).Difference);
     }
 
@@ -323,12 +323,12 @@ public sealed partial class BillingTests
         Assert.Equal(LineState.Fulfilled, line.State);
         Assert.Equal(expectedCents / 100m, line.Amount);
         Assert.Equal(new DateOnly(2026, 6, 18), line.StartsOn);
-        Assert.Equal(new DateOnly(2026, 7, 1), line.EndsOn);
+        Assert.Equal(new DateOnly(2026, 7, 1), line.EndExclusive);
         Assert.Equal(10m - line.Amount, view.Balances.BillingCredit);
         var history = view.Discounts.Single(x => x.Id == discount);
 
         Assert.NotNull(history.WithdrawnAt);
-        Assert.Equal(new DateOnly(2026, 8, 1), history.EndsOn);
+        Assert.Equal(new DateOnly(2026, 8, 1), history.EndExclusive);
         Assert.Equal(0m, (await Run(app, sp => sp.GetRequiredService<BillingQueries>().Reconcile(board))).Difference);
     }
 
@@ -399,7 +399,7 @@ public sealed partial class BillingTests
         Assert.Equal(new DateOnly(2026, 6, freeDays == 0 ? 25 : 30), line.StartsOn);
         Assert.Equal(new DateOnly(2026, 6, 25), line.EffectiveOn);
         Assert.Contains(await db.LineAdjustments.AsNoTracking().ToListAsync(), x => x.InvoiceLineId == line.Id);
-        Assert.Equal(line.EndsOn, view.Items.Single(x => x.ServiceEnrollmentId is not null).NextUnissuedPeriodStartsOn);
+        Assert.Equal(line.EndExclusive, view.Items.Single(x => x.ServiceEnrollmentId is not null).NextUnissuedPeriodStartsOn);
         await Scan(app, account);
         await Scan(app, account);
         On(7, 8);
@@ -407,7 +407,7 @@ public sealed partial class BillingTests
         view = await View(app, board, id);
 
         Assert.True(Assert.Single(view.Subscriptions).Standing.Active);
-        Assert.Contains(view.Coverage, x => x.Benefit == Benefit.Service && x.EndsOn == new DateOnly(2026, 8, 1));
+        Assert.Contains(view.Coverage, x => x.Benefit == Benefit.Service && x.EndExclusive == new DateOnly(2026, 8, 1));
         Assert.Equal(0m, (await Run(app, sp => sp.GetRequiredService<BillingQueries>().Reconcile(board))).Difference);
     }
 
@@ -434,7 +434,7 @@ public sealed partial class BillingTests
         var line = Assert.Single(next.Lines).Line;
 
         Assert.Equal(new DateOnly(2026, 7, 1), line.StartsOn);
-        Assert.Equal(new DateOnly(2026, 9, 1), line.EndsOn);
+        Assert.Equal(new DateOnly(2026, 9, 1), line.EndExclusive);
         Assert.NotEqual(invoice.Reference, next.Reference);
         await Pay(app, next.Reference, next.Remaining);
 

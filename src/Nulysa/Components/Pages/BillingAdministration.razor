@@ -34,7 +34,7 @@ else
     {
         <p>Retained financial account #@AccountId. The member account was erased. Only financial evidence and any unspent claim remain.</p>
         <table><caption>Retained invoice evidence</caption><thead><tr><th>Invoice / PDF</th><th>Line / period</th><th>State</th><th>Amount EUR</th></tr></thead><tbody>
-        @foreach (var invoice in view.Invoices) { @foreach (var row in invoice.Lines) { <tr><td><a href="@($"/billing/invoices/{invoice.Invoice.Id}/pdf")">#@invoice.Invoice.Id</a></td><td>#@row.Line.Id @row.Line.Description · @row.Line.StartsOn–@row.Line.EndsOn</td><td>@row.Line.State</td><td>@row.Line.Amount.ToString("0.00")</td></tr> } }
+        @foreach (var invoice in view.Invoices) { @foreach (var row in invoice.Lines) { <tr><td><a href="@($"/billing/invoices/{invoice.Invoice.Id}/pdf")">#@invoice.Invoice.Id</a></td><td>#@row.Line.Id @row.Line.Description · @BillingDateText.PurchasePeriod(row.Line)</td><td>@row.Line.State</td><td>@row.Line.Amount.ToString("0.00")</td></tr> } }
         </tbody></table>
     }
     <p>Available billing credit: @view.Balances.BillingCredit.ToString("0.00") EUR · purchase balance: @view.Balances.PurchaseBalance.ToString("0.00") EUR · held: @view.Balances.Held.ToString("0.00") EUR</p>
@@ -61,10 +61,10 @@ else
             <label for="description">Description</label><InputText id="description" @bind-Value="OneOff.Description" required />
             <label for="category">Category</label><InputText id="category" @bind-Value="OneOff.Category" required />
             <label for="amount">Amount EUR</label><InputNumber id="amount" @bind-Value="OneOff.Amount" step="0.01" />
-            <label for="due">Due date (inclusive)</label><InputDate id="due" @bind-Value="OneOff.DueOn" />
+            <label for="due">Pay by</label><InputDate id="due" @bind-Value="OneOff.DueOn" />
             </fieldset>
             @if (reviewing) { @foreach (var pair in OneOffValues) { <input type="hidden" name="@pair.Key" value="@pair.Value" /> } }
-            @if (reviewing) { <p class="status-panel">Issue @OneOff.Description (@OneOff.Category): @OneOff.Amount.ToString("0.00") EUR, payable through @OneOff.DueOn.</p><button name="OneOff.Confirmed" value="true">Confirm one-off request</button> }
+            @if (reviewing) { <p class="status-panel">Issue @OneOff.Description (@OneOff.Category): @OneOff.Amount.ToString("0.00") EUR, pay by @OneOff.DueOn.ToString("d MMM yyyy").</p><button name="OneOff.Confirmed" value="true">Confirm one-off request</button> }
             else { <button name="OneOff.Confirmed" value="false">Review one-off request</button> }
         </EditForm>
     }
@@ -80,7 +80,7 @@ else
                 <label for="discount-type">Discount type</label><InputSelect id="discount-type" @bind-Value="Adjustment.Kind"><option value="Percentage">Percentage</option><option value="MonthlyPrice">Replacement monthly price</option></InputSelect>
                 <label for="adjust-value">Discount value</label><InputNumber id="adjust-value" @bind-Value="Adjustment.Value" step="0.01" />
                 <label for="adjust-start">Starts on</label><InputDate id="adjust-start" @bind-Value="Adjustment.Start" />
-                <label for="adjust-end">Expires on (exclusive)</label><InputDate id="adjust-end" @bind-Value="Adjustment.End" />
+                <label for="adjust-end">Through</label><InputDate id="adjust-end" @bind-Value="Adjustment.Through" />
             }
             @if (TaskName is "withdraw" or "credit")
             {
@@ -91,14 +91,14 @@ else
             @if (TaskName == "credit")
             {
                 <label for="line-choice">Completed purchase</label><InputSelect id="line-choice" @bind-Value="Adjustment.LineId"><option value="0">Choose a purchase</option>
-                    @foreach (var row in view.Invoices.SelectMany(invoice => invoice.Lines).Where(row => row.Line.State == LineState.Fulfilled)) { <option value="@row.Line.Id">@row.Line.Description · @row.Line.StartsOn – @row.Line.EndsOn (exclusive) · @row.Line.Amount.ToString("0.00") EUR · bill #@row.Line.InvoiceId</option> }
+                    @foreach (var row in view.Invoices.SelectMany(invoice => invoice.Lines).Where(row => row.Line.State == LineState.Fulfilled)) { <option value="@row.Line.Id">@row.Line.Description · @BillingDateText.PurchasePeriod(row.Line) · @row.Line.Amount.ToString("0.00") EUR · bill #@row.Line.InvoiceId</option> }
                 </InputSelect>
                 <input type="hidden" name="Adjustment.Value" value="@Adjustment.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)" />
             }
             @if (TaskName == "grant")
             {
                 <label for="grant-months">Whole membership months</label><InputNumber id="grant-months" @bind-Value="Adjustment.Months" />
-                <input type="hidden" name="Adjustment.End" value="@Adjustment.End.ToString("yyyy-MM-dd")" />
+                <input type="hidden" name="Adjustment.Through" value="@Adjustment.Through.ToString("yyyy-MM-dd")" />
             }
             @if (TaskName == "cancel")
             {
@@ -160,7 +160,7 @@ else
             @if (view.Statements.Any(x => x.HasMore)) { <a href="@Navigation.GetUriWithQueryParameter("page", Page + 1)">Next</a> }
         </p>
     }
-    <h2>Discounts</h2><ul>@foreach (var discount in view.Discounts) { <li>#@discount.Id · fee #@discount.FeeDefinitionId · @discount.Kind @discount.Value · @discount.StartsOn–@discount.EndsOn · @(discount.WithdrawnAt is null ? "Current" : "Withdrawn")</li> }</ul>
+    <h2>Discounts</h2><ul>@foreach (var discount in view.Discounts) { <li>#@discount.Id · fee #@discount.FeeDefinitionId · @discount.Kind @discount.Value · @BillingDateText.Period(discount.StartsOn, discount.EndExclusive) · @(discount.WithdrawnAt is null ? "Current" : "Withdrawn")</li> }</ul>
     <h2>Command history</h2><ul>@foreach (var operation in view.History) { <li>@operation.OccurredAt.ToString("u") · @operation.Kind · @(operation.ActorId is { } actorId ? $"actor #{actorId}" : "System") · @operation.Reason · @operation.Id</li> }</ul>
     </details>
     }

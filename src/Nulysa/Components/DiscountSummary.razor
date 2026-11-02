@@ -11,7 +11,7 @@
             {
                 <li><strong>@View.FeeNames.GetValueOrDefault(discount.FeeDefinitionId, "Membership or service fee"):
                     @(discount.Kind == DiscountKind.Percentage ? $"{discount.Value:0.##}% discount" : $"{discount.Value:0.00} EUR/month replacement price")</strong>
-                    <span>@discount.StartsOn.ToString("d MMM yyyy") – @discount.EndsOn.AddDays(-1).ToString("d MMM yyyy")</span>
+                    <span>@BillingDateText.Period(discount.StartsOn, discount.EndExclusive)</span>
                     @if (discount.StartsOn > Clock.Today) { <span>Upcoming</span> }
                     @foreach (var bill in AppliedBills(discount.Id))
                     {
@@ -27,7 +27,7 @@
 @code {
     [Parameter, EditorRequired] public BillingView View { get; set; } = null!;
     private List<Discount> Discounts => View.Discounts
-        .Where(discount => discount.WithdrawnAt is null && discount.EndsOn > Clock.Today)
+        .Where(discount => discount.WithdrawnAt is null && discount.EndExclusive > Clock.Today)
         .OrderBy(discount => discount.StartsOn)
         .ToList();
     private IEnumerable<InvoiceView> AppliedBills(long discountId) => View.Invoices.Where(invoice => invoice.Invoice.ClosedAt is null &&

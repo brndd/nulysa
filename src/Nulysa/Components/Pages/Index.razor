@@ -33,7 +33,7 @@
         <section class="status-panel" aria-labelledby="standing-heading">
             <h2 id="standing-heading">Your membership</h2>
             <p><strong>@(membership.Active ? "Active" : "Inactive")</strong> — @membership.Description</p>
-            @if (membership.Until is { } end) { <p>This standing applies through @end.AddDays(-1).ToString("d MMM yyyy").</p> }
+            @if (membership.ActiveUntilExclusive is not null) { <p><StandingThroughDate Standing="membership" /></p> }
             @if (!membership.Active) { <p>You are still a member. Billing is paused; you do not owe fees for inactive months. <a href="/services">Review membership return options</a>.</p> }
             else if (membership.IsMembershipGrace) { <p>Membership remains active during grace. <a href="/billing">Review your membership payment before grace ends</a>.</p> }
         </section>

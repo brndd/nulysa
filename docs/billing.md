@@ -6,6 +6,9 @@ Standing derives from dated coverage and per-charge grace, not an unpaid-invoice
 flag. Requests expire without debt. Coverage periods are start-inclusive/end-exclusive.
 Payment due dates are inclusive: a receipt booked on the due date can fund the
 original request, including initial membership, returns, services and one-offs.
+Code uses `EndExclusive` for period ends and `PaymentCutoffExclusive` for the first
+day funding is too late. Portal/PDF periods show the last included day; payment
+deadlines say “Pay by.” Discount forms accept an inclusive “Through” date.
 Expiry is an exclusive cutoff, no earlier than the following day; renewal grace
 days are counted after the due date. Existing open requests keep the expiry they
 were issued with; newly issued renewals use the post-due grace. Overdue notices
@@ -114,7 +117,7 @@ deadline and kills the child process on cancellation. Temporary PDFs/data are de
 
 JSON fields: `number`, association-local `date`, `due_date`, `language`, `reference`;
 `sender` (`name`, `address` array, `business_id`, `email`, `iban`, `bic`, `bank`);
-`recipient` (`name`, `address` array); `items` (`description`, `period`, `state`,
+`recipient` (`name`, `address` array); `items` (`description`, `period` with inclusive displayed dates or a one-off payment deadline, `state`,
 `amount_cents`); and `paid_cents`, `held_cents`, `remaining_cents`. Values are data,
 never interpolated/evaluated Typst source. Read them with
 `json(sys.inputs.at("invoice"))`. Preserve the payable/reference semantics in custom

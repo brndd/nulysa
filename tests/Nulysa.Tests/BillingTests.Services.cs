@@ -103,7 +103,7 @@ public sealed partial class BillingTests
 
         Assert.DoesNotContain(view.Invoices.SelectMany(x => x.Lines),
             x => x.Line.Benefit == Benefit.Service && x.Line.Purpose is PurchasePurpose.Renewal or PurchasePurpose.Alignment);
-        Assert.Contains(view.Coverage, x => x.Benefit == Benefit.Service && x.EndsOn == new DateOnly(2026, 7, 1));
+        Assert.Contains(view.Coverage, x => x.Benefit == Benefit.Service && x.EndExclusive == new DateOnly(2026, 7, 1));
         await using (var db = Context())
         {
             Assert.True((await db.Fees.SingleAsync(x => x.ServiceDefinitionId == service)).Retired);
@@ -138,12 +138,12 @@ public sealed partial class BillingTests
         view = await View(app, board, id);
         var grant = Assert.Single(view.Coverage, x => x.Source == CoverageSource.InitialFree);
 
-        Assert.Equal(new DateOnly(2026, 3, 30), grant.EndsOn);
+        Assert.Equal(new DateOnly(2026, 3, 30), grant.EndExclusive);
         var serviceLine = view.Invoices.SelectMany(x => x.Lines).Single(x => x.Line.Benefit == Benefit.Service).Line;
 
         Assert.Equal(new DateOnly(2026, 3, 30), serviceLine.StartsOn);
-        Assert.Equal(new DateOnly(2026, 5, 1), serviceLine.EndsOn);
-        Assert.Equal(new DateOnly(2026, 3, 25), serviceLine.ExpiresOn);
+        Assert.Equal(new DateOnly(2026, 5, 1), serviceLine.EndExclusive);
+        Assert.Equal(new DateOnly(2026, 3, 25), serviceLine.PaymentCutoffExclusive);
         On(3, 25);
         await Scan(app, account);
         view = await View(app, board, id);
@@ -198,7 +198,7 @@ public sealed partial class BillingTests
 
         Assert.False(view.Membership.Active);
         Assert.False(Assert.Single(view.Subscriptions).Standing.Active);
-        Assert.Equal(new DateOnly(2026, 9, 1), view.Coverage.Where(x => x.Benefit == Benefit.Service).Max(x => x.EndsOn));
+        Assert.Equal(new DateOnly(2026, 9, 1), view.Coverage.Where(x => x.Benefit == Benefit.Service).Max(x => x.EndExclusive));
         On(8, 15);
         await Pay(app, membershipReference, 10);
         view = await View(app, board, id);
@@ -210,7 +210,7 @@ public sealed partial class BillingTests
         view = await View(app, board, id);
 
         Assert.Empty(view.Subscriptions);
-        Assert.Equal(new DateOnly(2026, 9, 1), view.Coverage.Where(x => x.Benefit == Benefit.Service).Max(x => x.EndsOn));
+        Assert.Equal(new DateOnly(2026, 9, 1), view.Coverage.Where(x => x.Benefit == Benefit.Service).Max(x => x.EndExclusive));
     }
 
 }

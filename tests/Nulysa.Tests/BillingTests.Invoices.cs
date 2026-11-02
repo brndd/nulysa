@@ -233,6 +233,7 @@ public sealed partial class BillingTests
             #let invoice = json(sys.inputs.at("invoice"))
             #assert(invoice.date == "2026-06-02")
             #assert(invoice.items.len() == 1 and invoice.remaining_cents == 1000)
+            #assert(invoice.items.at(0).period == "2026-06-02 – 2026-07-01")
             #include "heading.typ"
             #invoice.number
             """);

@@ -9,6 +9,46 @@ namespace Nulysa.Tests;
 
 public sealed class FinancialWorkflowTests : BoardTest
 {
+    [Fact]
+    public async Task Discount_form_includes_the_selected_through_date_even_for_a_single_day()
+    {
+        Clock.Now = new(2026, 6, 1, 10, 0, 0, TimeSpan.Zero);
+        var board = await Board();
+        await using var commands = CommandsApp();
+        var id = await Admit(commands, board);
+        await using var web = await StartProvider();
+        using var client = Client();
+        await Login(client, "board@example.test");
+        var url = $"/admin/members/{id}/actions/discount";
+        var input = Hidden(await client.GetStringAsync(url));
+        input["_handler"] = "adjustment";
+        input["Adjustment.FeeId"] = "1";
+        input["Adjustment.Kind"] = "Percentage";
+        input["Adjustment.Value"] = "50";
+        input["Adjustment.Start"] = "2026-06-03";
+        input["Adjustment.Through"] = "2026-06-03";
+        input["Adjustment.Reason"] = "Reviewed single-day concession";
+        input["Adjustment.Confirmed"] = "false";
+
+        var preview = await client.PostAsync(url, new FormUrlEncodedContent(input));
+        var html = await preview.Content.ReadAsStringAsync();
+        var confirm = Hidden(html);
+
+        Assert.Contains("through 3 Jun 2026", WebUtility.HtmlDecode(html));
+        Assert.Equal("2026-06-03", confirm["Adjustment.Through"]);
+        await using var db = Context();
+        Assert.Empty(await db.Discounts.ToListAsync());
+        confirm["_handler"] = "adjustment";
+        confirm["Adjustment.Confirmed"] = "true";
+
+        var saved = await client.PostAsync(url, new FormUrlEncodedContent(confirm));
+
+        Assert.Equal(HttpStatusCode.Redirect, saved.StatusCode);
+        var discount = await db.Discounts.SingleAsync();
+        Assert.Equal(new DateOnly(2026, 6, 3), discount.StartsOn);
+        Assert.Equal(new DateOnly(2026, 6, 4), discount.EndExclusive);
+    }
+
     private static Dictionary<string, string> Hidden(string html)
     {
         var values = new Dictionary<string, string>();
@@ -65,8 +105,8 @@ public sealed class FinancialWorkflowTests : BoardTest
             Assert.Equal(origin, saved.Headers.Location!.PathAndQuery);
         }
         await Apply("grant", new() { ["Adjustment.Months"] = "1" });
-        Assert.Contains(await db.Coverage.ToListAsync(), period => period.EndsOn == new DateOnly(2026, 8, 1));
-        await Apply("discount", new() { ["Adjustment.FeeId"] = "1", ["Adjustment.Kind"] = "Percentage", ["Adjustment.Value"] = "50", ["Adjustment.Start"] = "2026-06-03", ["Adjustment.End"] = "2026-07-01" });
+        Assert.Contains(await db.Coverage.ToListAsync(), period => period.EndExclusive == new DateOnly(2026, 8, 1));
+        await Apply("discount", new() { ["Adjustment.FeeId"] = "1", ["Adjustment.Kind"] = "Percentage", ["Adjustment.Value"] = "50", ["Adjustment.Start"] = "2026-06-03", ["Adjustment.Through"] = "2026-06-30" });
         var discount = await db.Discounts.SingleAsync();
         var line = await db.InvoiceLines.SingleAsync(line => line.State == LineState.Fulfilled);
         await Apply("credit", new() { ["Adjustment.DiscountId"] = discount.Id.ToString(), ["Adjustment.LineId"] = line.Id.ToString() });

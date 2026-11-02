@@ -1,0 +1,12 @@
+@using Nulysa.Billing
+
+@if (Standing.ActiveUntilExclusive is { } endExclusive)
+{
+    <span>@Label @endExclusive.AddDays(-1).ToString("d MMM yyyy")</span>
+}
+
+@code {
+    [Parameter, EditorRequired] public Standing Standing { get; set; } = null!;
+    private string Label => Standing.State is StandingState.Covered or StandingState.CoveredWithRenewalStopped
+        ? "Covered through" : "Benefits available through";
+}

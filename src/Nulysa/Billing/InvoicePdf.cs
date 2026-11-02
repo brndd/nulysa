@@ -61,7 +61,12 @@ public sealed class InvoicePdf(AppDbContext db, IOptions<BillingOptions> options
             sender = new { name = configuration["Association:Name"] ?? "Nulysa", address = settings.Address, business_id = settings.BusinessId, email = settings.ContactEmail, iban = settings.Iban, bic = settings.Bic, bank = settings.Bank },
             recipient = new { name = facts.User?.Name ?? "Deleted member", address = Array.Empty<string>() },
             items = view.Lines.Where(x => x.Line.State is LineState.Open or LineState.Fulfilled).Select(x => new
-            { description = x.Line.Description, period = $"{x.Line.StartsOn:yyyy-MM-dd} – {x.Line.EndsOn:yyyy-MM-dd}", state = x.Line.State.ToString(), amount_cents = checked((long)(x.Line.Amount * 100)) }),
+            {
+                description = x.Line.Description,
+                period = PeriodLabel(x.Line, facts.User?.Language == "fi"),
+                state = x.Line.State.ToString(),
+                amount_cents = checked((long)(x.Line.Amount * 100))
+            }),
             paid_cents = checked((long)(view.Paid * 100)),
             held_cents = checked((long)(view.Held * 100)),
             remaining_cents = checked((long)(view.Remaining * 100))
@@ -135,5 +140,14 @@ public sealed class InvoicePdf(AppDbContext db, IOptions<BillingOptions> options
         {
             Directory.Delete(root, recursive: true);
         }
+    }
+    private static string PeriodLabel(InvoiceLine line, bool finnish)
+    {
+        if (line.Benefit == Benefit.OneOff)
+            return $"{(finnish ? "Maksa viimeistään" : "Pay by")} {line.ChargeDueOn:yyyy-MM-dd}";
+
+        var through = line.EndExclusive.AddDays(-1);
+        return finnish ? $"{line.StartsOn:yyyy-MM-dd} – {through:yyyy-MM-dd}"
+            : $"{line.StartsOn:yyyy-MM-dd} through {through:yyyy-MM-dd}";
     }
 }
