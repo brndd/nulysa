@@ -73,7 +73,13 @@ public partial class ReceiptReview
             if (Purpose == "ignore")
                 await Commands.IgnoreReceipt(actor, ReceiptId, Input.Reason);
             else
-                await Commands.AssignReceipt(actor, ReceiptId, member!.AccountId, Purpose == "group" ? Input.Target : null, Purpose == "deposit", Input.Key, Input.Reason, invoiceId: Purpose == "invoice" ? Input.Target : null);
+            {
+                var allocation = ReceiptDestination.FromSelection(
+                    groupId: Purpose == "group" ? Input.Target : null,
+                    purchaseDeposit: Purpose == "deposit",
+                    invoiceId: Purpose == "invoice" ? Input.Target : null);
+                await Commands.AssignReceipt(actor, ReceiptId, member!.AccountId, allocation, Input.Key, Input.Reason);
+            }
             Feedback.Save(HttpContext, "Transaction disposition saved. Source facts were retained.");
             Navigation.NavigateTo("/admin/payments");
         }

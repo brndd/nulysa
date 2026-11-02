@@ -27,7 +27,7 @@
             <p>Bank payments appear after confirmation and processing. A bill can remain open for an optional service even when membership is paid.</p>
         </section>
     }
-    else if (overview.Membership is { Active: true, IsRenewalGrace: false }) { <p>No payments or email changes need your attention.</p> }
+    else if (overview.Membership is { Active: true, IsMembershipGrace: false }) { <p>No payments or email changes need your attention.</p> }
     @if (overview.Membership is { } membership)
     {
         <section class="status-panel" aria-labelledby="standing-heading">
@@ -35,7 +35,7 @@
             <p><strong>@(membership.Active ? "Active" : "Inactive")</strong> — @membership.Description</p>
             @if (membership.Until is { } end) { <p>This standing applies through @end.AddDays(-1).ToString("d MMM yyyy").</p> }
             @if (!membership.Active) { <p>You are still a member. Billing is paused; you do not owe fees for inactive months. <a href="/services">Review membership return options</a>.</p> }
-            else if (membership.IsRenewalGrace) { <p>Membership remains active during grace. <a href="/billing">Review your membership payment before grace ends</a>.</p> }
+            else if (membership.IsMembershipGrace) { <p>Membership remains active during grace. <a href="/billing">Review your membership payment before grace ends</a>.</p> }
         </section>
     }
     else { <p class="status-panel">No membership billing account is available. Contact an administrator if you need help.</p> }

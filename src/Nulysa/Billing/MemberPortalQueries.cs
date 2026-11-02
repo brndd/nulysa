@@ -39,7 +39,7 @@ public sealed class MemberPortalQueries(AppDbContext db, AssociationClock clock,
                            join invoice in db.Invoices on line.InvoiceId equals invoice.Id
                            where invoice.BillingAccountId == accountId && line.Benefit == Benefit.Membership
                            select line).ToListAsync(ct);
-        var renewing = await db.RecurringItems.AnyAsync(item => item.MembershipId == id && item.EndedAt == null, ct);
+        var renewing = await db.RecurringItems.AnyAsync(item => item.MembershipUserId == id && item.EndedAt == null, ct);
         var membership = BillingFacts.MembershipStanding(true, coverage, lines, renewing, options.Value.MembershipRenewalGraceDays, today);
         var bills = await db.Invoices.AsNoTracking()
             .Where(invoice => invoice.BillingAccountId == accountId && invoice.ClosedAt == null &&

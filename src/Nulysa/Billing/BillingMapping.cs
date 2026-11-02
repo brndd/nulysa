@@ -29,7 +29,9 @@ public static class BillingMapping
             e.HasOne<User>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne<ServiceDefinition>().WithMany().HasForeignKey(x => x.ServiceDefinitionId).OnDelete(DeleteBehavior.Restrict);
             e.HasIndex(x => new { x.UserId, x.ServiceDefinitionId }).IsUnique().HasFilter("\"EndedAt\" IS NULL");
-            e.Property(x => x.EndReason).HasMaxLength(40);
+            e.Property(x => x.EndReason).HasConversion(
+                new Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<ServiceEndReason, string>(
+                    reason => reason.Code(), code => ServiceEndReasons.FromCode(code))).HasMaxLength(40);
         });
         builder.Entity<ServiceChange>(e =>
         {
@@ -71,11 +73,13 @@ public static class BillingMapping
         });
         builder.Entity<RecurringItem>(e =>
         {
+            e.Property(x => x.MembershipUserId).HasColumnName("MembershipId");
+            e.Property(x => x.NextUnissuedPeriodStartsOn).HasColumnName("NextOn");
             e.HasOne<BillingGroup>().WithMany().HasForeignKey(x => x.BillingGroupId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne<FeeDefinition>().WithMany().HasForeignKey(x => x.FeeDefinitionId).OnDelete(DeleteBehavior.Restrict);
-            e.HasOne<Member>().WithMany().HasForeignKey(x => x.MembershipId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<Member>().WithMany().HasForeignKey(x => x.MembershipUserId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne<ServiceEnrollment>().WithMany().HasForeignKey(x => x.ServiceEnrollmentId).OnDelete(DeleteBehavior.Restrict);
-            e.HasIndex(x => x.MembershipId).IsUnique().HasFilter("\"EndedAt\" IS NULL AND \"MembershipId\" IS NOT NULL");
+            e.HasIndex(x => x.MembershipUserId).IsUnique().HasFilter("\"EndedAt\" IS NULL AND \"MembershipId\" IS NOT NULL");
             e.HasIndex(x => x.ServiceEnrollmentId).IsUnique().HasFilter("\"EndedAt\" IS NULL AND \"ServiceEnrollmentId\" IS NOT NULL");
             e.ToTable(t => t.HasCheckConstraint("CK_Item_Owner", "(\"MembershipId\" IS NULL) <> (\"ServiceEnrollmentId\" IS NULL)"));
         });

@@ -122,8 +122,8 @@ public sealed class MembershipQueries(AppDbContext db, AssociationClock clock, I
         var lines = graceLines.Concat(expiredLines).Concat(cancelledRenewals)
             .ToLookup(x => x.BillingAccountId, x => x.line);
         var renewing = (await db.RecurringItems
-            .Where(x => x.MembershipId != null && ids.Contains(x.MembershipId.Value) && x.EndedAt == null)
-            .Select(x => x.MembershipId!.Value)
+            .Where(x => x.MembershipUserId != null && ids.Contains(x.MembershipUserId.Value) && x.EndedAt == null)
+            .Select(x => x.MembershipUserId!.Value)
             .ToListAsync(ct))
             .ToHashSet();
         var accountByUser = accounts.ToDictionary(x => x.UserId!.Value, x => x.Id);

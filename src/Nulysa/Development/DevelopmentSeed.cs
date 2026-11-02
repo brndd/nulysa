@@ -384,7 +384,7 @@ public sealed class DevelopmentSeed(
                 await PayGroupAsync(account.Id, definition.Email, 10m, definition.JoinedOn, "quarterly-initial", ct);
                 SetClock(definition.JoinedOn);
                 var item = await db.RecurringItems.AsNoTracking()
-                    .SingleAsync(x => x.MembershipId == user.Id && x.EndedAt == null, ct);
+                    .SingleAsync(x => x.MembershipUserId == user.Id && x.EndedAt == null, ct);
                 await billing.ChangeInterval(adminActor, account.Id, item.Id, 3, Guid.NewGuid(), ct);
                 await ScanAsync(account.Id, seedToday, ct);
                 await PayGroupAsync(account.Id, definition.Email, 3, 30m, seedToday, "quarterly-renewal", ct);

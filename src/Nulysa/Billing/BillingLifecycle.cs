@@ -37,6 +37,7 @@ public sealed partial class BillingCommands
         // A scan is a wake-up; logical purchase keys and persisted dates prevent replayed cycles.
         var operation = (await Operation(facts, Guid.NewGuid(), "due-work", new { on = clock.Today }, null, "Dated billing maintenance", ct))!;
         await IssueDueRenewals(facts, operation, clock.Today, null, ct);
+        // Repair timely historical funding before today's timeout decisions can end the subscription.
         await RecoverMissedRenewalsWithLots(facts, operation, clock.Today, ct);
 
         await Expire(facts, operation, scheduler, ct, notifyInactiveWithoutLine: true);
@@ -60,7 +61,7 @@ public sealed partial class BillingCommands
     private async Task IssueDueRenewals(BillingFacts facts, BillingOperation operation, DateOnly on,
         long? groupId, CancellationToken ct)
     {
-        foreach (var item in facts.Items.Where(x => x.EndedAt is null).OrderBy(x => x.MembershipId is null).ToList())
+        foreach (var item in facts.Items.Where(x => x.EndedAt is null).OrderBy(x => x.MembershipUserId is null).ToList())
         {
             if (groupId is { } selectedGroup && item.BillingGroupId != selectedGroup)
                 continue;
@@ -81,8 +82,8 @@ public sealed partial class BillingCommands
                 if (facts.Lines.Any(x => x.RecurringItemId == item.Id && x.State == LineState.Open))
                     break;
 
-                var nextStart = item.NextOn;
-                var coveredPeriods = facts.Periods(item.MembershipId is null ? Benefit.Service : Benefit.Membership, fee.ServiceDefinitionId).OrderBy(x => x.Start).ToList();
+                var nextStart = item.NextUnissuedPeriodStartsOn;
+                var coveredPeriods = facts.Periods(item.MembershipUserId is null ? Benefit.Service : Benefit.Membership, fee.ServiceDefinitionId).OrderBy(x => x.Start).ToList();
                 foreach (var period in coveredPeriods)
                     if (period.Start <= nextStart && nextStart < period.End)
                         nextStart = period.End;
@@ -93,18 +94,19 @@ public sealed partial class BillingCommands
                 var previousLine = facts.Lines.Where(x => x.RecurringItemId == item.Id).OrderByDescending(x => x.Id).FirstOrDefault();
                 var previousPeriodHasGap = previousLine is { State: LineState.Expired or LineState.Cancelled }
                     && BillingCalendar.Uncovered(new(previousLine.StartsOn, previousLine.EndsOn), coveredPeriods).Count > 0;
+                // Nonpayment pauses future purchases; it must not generate a chain of fee debt.
                 if (previousPeriodHasGap)
                     break;
 
                 var membershipIsActive = facts.Membership(on).Active;
-                if (item.MembershipId is null && !membershipIsActive)
+                if (item.MembershipUserId is null && !membershipIsActive)
                     break;
 
                 var prices = facts.Prices.Where(x => x.FeeDefinitionId == fee.Id).ToList();
                 var discounts = facts.Discounts.Where(x => x.FeeDefinitionId == fee.Id).ToList();
                 var billingPeriod = BillingCalendar.Bridge(group.Anchor, group.IntervalMonths, nextStart, true);
                 var quote = Pricing.Calculate(group.Anchor, group.IntervalMonths, billingPeriod, prices, discounts, coveredPeriods);
-                var graceDays = item.MembershipId is not null
+                var graceDays = item.MembershipUserId is not null
                     ? Settings.MembershipRenewalGraceDays
                     : facts.Services.Single(x => x.Id == fee.ServiceDefinitionId).RenewalGraceDays;
                 var renewalExpiresOn = BillingCalendar.ExclusiveExpiry(nextStart, graceDays);
@@ -187,12 +189,13 @@ public sealed partial class BillingCommands
             var hasValidInitial = facts.Lines.Any(x => x.ServiceEnrollmentId == enrollment.Id && x.Purpose == PurchasePurpose.Initial && x.State == LineState.Open && clock.Today < x.ExpiresOn);
             var graceEnd = facts.ServiceGraceEnd(enrollment, clock.Today);
             var graceExpired = graceEnd is null || graceEnd <= clock.Today;
+            // Expiring the request does not revoke free days or already-purchased future time.
             if (hasRemainingCoverage || hasValidInitial || !graceExpired)
                 continue;
 
             var serviceFee = facts.Fees.SingleOrDefault(x => x.ServiceDefinitionId == enrollment.ServiceDefinitionId);
-            var endReason = enrollment.RenewalStoppedAt is not null ? "stopped"
-                : serviceFee?.Retired == true ? "service-retired" : "nonpayment";
+            var endReason = enrollment.RenewalStoppedAt is not null ? ServiceEndReason.Stopped
+                : serviceFee?.Retired == true ? ServiceEndReason.ServiceRetired : ServiceEndReason.Nonpayment;
             EndService(facts, operation, enrollment, endReason, LineState.Expired);
         }
     }
@@ -203,7 +206,7 @@ public sealed partial class BillingCommands
         return new Guid(hash.AsSpan(0, 16));
     }
 
-    private void EndService(BillingFacts facts, BillingOperation operation, ServiceEnrollment enrollment, string cause, LineState lineState)
+    private void EndService(BillingFacts facts, BillingOperation operation, ServiceEnrollment enrollment, ServiceEndReason cause, LineState lineState)
     {
         enrollment.EndedAt = clock.Now;
         enrollment.EndReason = cause;
@@ -213,7 +216,7 @@ public sealed partial class BillingCommands
         foreach (var line in facts.Lines.Where(x => x.ServiceEnrollmentId == enrollment.Id))
             CloseLine(facts, operation, line, lineState);
 
-        db.ServiceChanges.Add(new() { ServiceEnrollmentId = enrollment.Id, OperationId = operation.Id, Action = cause });
+        db.ServiceChanges.Add(new() { ServiceEnrollmentId = enrollment.Id, OperationId = operation.Id, Action = cause.Code() });
     }
 
     public Task<long?> Subscribe(ClaimsPrincipal actor, long accountId, long serviceId, int months, bool grantConfiguredDays, Guid key, CancellationToken ct = default)
@@ -246,7 +249,14 @@ public sealed partial class BillingCommands
             var anchor = (await db.Members.SingleAsync(x => x.UserId == facts.User.Id, ct)).JoinedOn;
             var group = await Group(facts, months, anchor, ct);
             var fee = facts.Fees.Single(x => x.ServiceDefinitionId == serviceId);
-            var item = new RecurringItem { BillingGroupId = group.Id, FeeDefinitionId = fee.Id, ServiceEnrollmentId = enrollment.Id, StartsOn = clock.Today, NextOn = clock.Today };
+            var item = new RecurringItem
+            {
+                BillingGroupId = group.Id,
+                FeeDefinitionId = fee.Id,
+                ServiceEnrollmentId = enrollment.Id,
+                StartsOn = clock.Today,
+                NextUnissuedPeriodStartsOn = clock.Today
+            };
             facts.Items.Add(item);
             db.RecurringItems.Add(item);
             await db.SaveChangesAsync(ct);
@@ -264,7 +274,7 @@ public sealed partial class BillingCommands
             var enrollment = facts.Enrollments.SingleOrDefault(x => x.Id == enrollmentId && x.EndedAt is null) ?? throw new ValidationException("Subscription is no longer current.");
 
             if (immediate)
-                EndService(facts, operation, enrollment, "administrator-removal", LineState.Cancelled);
+                EndService(facts, operation, enrollment, ServiceEndReason.AdministratorRemoval, LineState.Cancelled);
             else
             {
                 enrollment.RenewalStoppedAt = clock.Now;
@@ -275,7 +285,7 @@ public sealed partial class BillingCommands
 
                 db.ServiceChanges.Add(new() { ServiceEnrollmentId = enrollmentId, OperationId = operation.Id, Action = "stop-renewal" });
                 if (!facts.Periods(Benefit.Service, enrollment.ServiceDefinitionId).Any(x => x.End > clock.Today))
-                    EndService(facts, operation, enrollment, "stopped", LineState.Cancelled);
+                    EndService(facts, operation, enrollment, ServiceEndReason.Stopped, LineState.Cancelled);
             }
 
             await AllocateCredit(facts, operation, clock.Today, ct);
@@ -300,7 +310,7 @@ public sealed partial class BillingCommands
             if (facts.Membership(clock.Today).Active || facts.Lines.Any(x => x.Benefit == Benefit.Membership && x.State == LineState.Open))
                 throw new ValidationException("Membership is active or already has a return request.");
 
-            var item = facts.Items.Where(x => x.MembershipId == facts.User!.Id).OrderByDescending(x => x.Id).First();
+            var item = facts.Items.Where(x => x.MembershipUserId == facts.User!.Id).OrderByDescending(x => x.Id).First();
             item.EndedAt = null;
 
             await Issue(facts, operation, item, clock.Today, PurchasePurpose.Resumption, clock.Today.AddDays(Settings.InitialMembershipGraceDays), ct);
@@ -315,7 +325,7 @@ public sealed partial class BillingCommands
             return;
 
         foreach (var enrollment in facts.Enrollments.Where(x => x.EndedAt is null))
-            EndService(facts, operation, enrollment, "membership-ended", LineState.Cancelled);
+            EndService(facts, operation, enrollment, ServiceEndReason.MembershipEnded, LineState.Cancelled);
         foreach (var item in facts.Items)
             item.EndedAt ??= clock.Now;
         foreach (var line in facts.Lines)
@@ -340,7 +350,7 @@ public sealed partial class BillingCommands
         if (nextUncoveredStart == clock.Today)
             return;
 
-        var previousItem = facts.Items.Where(x => x.MembershipId == facts.User!.Id).OrderByDescending(x => x.Id).FirstOrDefault();
+        var previousItem = facts.Items.Where(x => x.MembershipUserId == facts.User!.Id).OrderByDescending(x => x.Id).FirstOrDefault();
         if (previousItem is null || previousItem.EndedAt is null)
             return;
 
@@ -353,9 +363,9 @@ public sealed partial class BillingCommands
         {
             BillingGroupId = previousItem.BillingGroupId,
             FeeDefinitionId = previousItem.FeeDefinitionId,
-            MembershipId = previousItem.MembershipId,
+            MembershipUserId = previousItem.MembershipUserId,
             StartsOn = clock.Today,
-            NextOn = nextUncoveredStart
+            NextUnissuedPeriodStartsOn = nextUncoveredStart
         };
         db.RecurringItems.Add(item);
         await db.SaveChangesAsync(ct);

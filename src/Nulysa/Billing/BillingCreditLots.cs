@@ -25,15 +25,16 @@ public sealed partial class BillingCommands
                 .Select(item => (item, start: NextMissedStart(facts, item)))
                 .Where(x => x.start <= on)
                 .OrderBy(x => x.start)
-                .ThenBy(x => x.item.MembershipId is null)
-                .ThenBy(x => x.item.MembershipId is null
+                .ThenBy(x => x.item.MembershipUserId is null)
+                .ThenBy(x => x.item.MembershipUserId is null
                     ? facts.Services.Single(s => s.Id == facts.Fees.Single(f => f.Id == x.item.FeeDefinitionId).ServiceDefinitionId).Priority
                     : 0)
                 .ThenBy(x => x.item.Id)
                 .FirstOrDefault();
             if (next.item is null)
                 return;
-            if (!await RecoverOneMissedRenewal(facts, operation, next.item, on, ct))
+            var recovered = await RecoverOneMissedRenewal(facts, operation, next.item, on, ct);
+            if (!recovered)
                 remaining = remaining.Where(x => x.Id != next.item.Id).ToList();
         }
     }
@@ -41,7 +42,7 @@ public sealed partial class BillingCommands
     private static DateOnly NextMissedStart(BillingFacts facts, RecurringItem item)
     {
         var fee = facts.Fees.Single(x => x.Id == item.FeeDefinitionId);
-        var benefit = item.MembershipId is null ? Benefit.Service : Benefit.Membership;
+        var benefit = item.MembershipUserId is null ? Benefit.Service : Benefit.Membership;
         var lastLine = facts.Lines
             .Where(x => x.RecurringItemId == item.Id)
             .OrderByDescending(x => x.StartsOn)
@@ -50,7 +51,7 @@ public sealed partial class BillingCommands
         if (lastLine is not null && lastLine.State is (LineState.Open or LineState.Expired)
             && lastLine.Purpose is (PurchasePurpose.Renewal or PurchasePurpose.Alignment))
             return lastLine.StartsOn;
-        var nextStart = item.NextOn;
+        var nextStart = item.NextUnissuedPeriodStartsOn;
         foreach (var period in facts.Periods(benefit, fee.ServiceDefinitionId).OrderBy(x => x.Start))
             if (period.Start <= nextStart && nextStart < period.End)
                 nextStart = period.End;
@@ -61,7 +62,7 @@ public sealed partial class BillingCommands
     {
         var fee = facts.Fees.Single(x => x.Id == item.FeeDefinitionId);
         var service = fee.ServiceDefinitionId is { } serviceId ? facts.Services.Single(x => x.Id == serviceId) : null;
-        var benefit = item.MembershipId is null ? Benefit.Service : Benefit.Membership;
+        var benefit = item.MembershipUserId is null ? Benefit.Service : Benefit.Membership;
         var group = facts.Groups.Single(x => x.Id == item.BillingGroupId);
         var lastLine = facts.Lines
             .Where(x => x.RecurringItemId == item.Id)
@@ -86,7 +87,7 @@ public sealed partial class BillingCommands
             amount = line.State == LineState.Open ? line.Amount - facts.Held(line) : line.Amount;
             if (amount <= 0)
                 return false;
-            if (line.State == LineState.Expired && !CanRecover(facts, line))
+            if (line.State == LineState.Expired && !AssessRecovery(facts, line).Allowed)
                 return false;
         }
         else
@@ -96,14 +97,14 @@ public sealed partial class BillingCommands
             if (fee.Retired || service is { Retired: true })
                 return false;
 
-            nextStart = item.NextOn;
+            nextStart = item.NextUnissuedPeriodStartsOn;
             foreach (var period in facts.Periods(benefit, fee.ServiceDefinitionId).OrderBy(x => x.Start))
                 if (period.Start <= nextStart && nextStart < period.End)
                     nextStart = period.End;
             if (nextStart > on)
                 return false;
 
-            var graceDays = item.MembershipId is not null ? Settings.MembershipRenewalGraceDays : service!.RenewalGraceDays;
+            var graceDays = item.MembershipUserId is not null ? Settings.MembershipRenewalGraceDays : service!.RenewalGraceDays;
             cutoff = BillingCalendar.ExclusiveExpiry(nextStart, graceDays);
             if (cutoff > on)
                 return false;
@@ -118,22 +119,22 @@ public sealed partial class BillingCommands
                 return false;
         }
 
+        // Today's balance is insufficient evidence: the required lots must predate the cutoff.
         var replay = ReplayDate(facts, nextStart, cutoff, amount);
         if (replay is null)
             return false;
 
-        if (item.MembershipId is null)
+        if (item.MembershipUserId is null)
         {
             var enrollment = facts.Enrollments.Single(x => x.Id == item.ServiceEnrollmentId);
             if (enrollment.RenewalStoppedAt is not null)
                 return false;
             if (enrollment.EndedAt is not null)
             {
-                if (!IsAutomaticEndReason(enrollment.EndReason)
-                    || facts.Enrollments.Any(newer => newer.Id != enrollment.Id
-                        && newer.ServiceDefinitionId == enrollment.ServiceDefinitionId
-                        && newer.StartedAt >= enrollment.StartedAt)
-                    || facts.Lines.Any(x => x.Id != line?.Id && x.ServiceEnrollmentId == enrollment.Id && x.State is LineState.Expired or LineState.Cancelled))
+                var hasLifecycleConflict = !IsAutomaticEndReason(enrollment.EndReason)
+                    || HasNewerEnrollment(facts, enrollment)
+                    || facts.Lines.Any(x => x.Id != line?.Id && x.ServiceEnrollmentId == enrollment.Id && x.State is LineState.Expired or LineState.Cancelled);
+                if (hasLifecycleConflict)
                     return false;
                 ReopenService(facts, operation, enrollment, item.Id);
             }

@@ -57,7 +57,7 @@ public sealed class MemberPortalTests : MembershipTest
 
         Assert.Equal(billing.Membership, overview.Membership);
         Assert.True(overview.Membership!.Active);
-        Assert.False(overview.Membership.IsRenewalGrace);
+        Assert.False(overview.Membership.IsMembershipGrace);
         Assert.Empty(overview.Bills);
         Assert.Equal("new@example.test", overview.PendingEmail);
         Assert.Single((await Run(app, sp => sp.GetRequiredService<MemberPortalQueries>().Overview(Actor(other)))).Bills);

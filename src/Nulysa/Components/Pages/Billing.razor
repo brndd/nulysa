@@ -57,7 +57,7 @@ else if (subject is null) { <AdminPageHeader Title="@Title" /> }
     }
     else
     {
-    @if (ShowServices && (OutstandingBills.Count > 0 || pendingEmail is not null || view.Membership.IsRenewalGrace))
+    @if (ShowServices && (OutstandingBills.Count > 0 || pendingEmail is not null || view.Membership.IsMembershipGrace))
     {
         <section class="payment-panel payment-attention" aria-labelledby="attention-heading">
             <h2 id="attention-heading">Needs your attention</h2>
@@ -67,7 +67,7 @@ else if (subject is null) { <AdminPageHeader Title="@Title" /> }
                     <a href="@BillingUrl">View outstanding bills and payment instructions</a>.
                 </p>
             }
-            @if (view.Membership.IsRenewalGrace) { <p>Membership remains active during grace. Review your membership payment before grace ends.</p> }
+            @if (view.Membership.IsMembershipGrace) { <p>Membership remains active during grace. Review your membership payment before grace ends.</p> }
             @if (pendingEmail is not null) { <p>New email awaiting verification: @pendingEmail. <a href="/profile#email">Review email change</a>.</p> }
         </section>
     }
@@ -261,7 +261,7 @@ else if (subject is null) { <AdminPageHeader Title="@Title" /> }
         var currentMonths = view.Groups.Single(group => group.Id == item.BillingGroupId).IntervalMonths;
         <EditForm Model="Action" method="post" FormName="@($"interval-{item.Id}")" OnSubmit="Submit">
             <input type="hidden" name="Action.Key" value="@Action!.Key" /><input type="hidden" name="Action.Id" value="@item.Id" />
-            <label for="@($"item-{item.Id}")">@(item.MembershipId is not null ? "Membership" : view.Subscriptions.Single(x => x.Enrollment.Id == item.ServiceEnrollmentId).Name) (currently @currentMonths months)</label>
+            <label for="@($"item-{item.Id}")">@(item.MembershipUserId is not null ? "Membership" : view.Subscriptions.Single(x => x.Enrollment.Id == item.ServiceEnrollmentId).Name) (currently @currentMonths months)</label>
             <select id="@($"item-{item.Id}")" name="Action.Months">@foreach (var months in Options.Value.AllowedIntervals) { <option value="@months" selected="@(months == currentMonths)">@months</option> }</select>
             <button name="Action.Name" value="interval">Change next unissued period</button>
         </EditForm>

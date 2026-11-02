@@ -1,5 +1,31 @@
 namespace Nulysa.Services;
 
+public enum ServiceEndReason { Nonpayment, ServiceRetired, Stopped, AdministratorRemoval, MembershipEnded }
+
+// Persisted codes also appear in the service-change audit; keep both representations aligned.
+public static class ServiceEndReasons
+{
+    public static string Code(this ServiceEndReason reason) => reason switch
+    {
+        ServiceEndReason.Nonpayment => "nonpayment",
+        ServiceEndReason.ServiceRetired => "service-retired",
+        ServiceEndReason.Stopped => "stopped",
+        ServiceEndReason.AdministratorRemoval => "administrator-removal",
+        ServiceEndReason.MembershipEnded => "membership-ended",
+        _ => throw new ArgumentOutOfRangeException(nameof(reason))
+    };
+
+    public static ServiceEndReason FromCode(string code) => code switch
+    {
+        "nonpayment" => ServiceEndReason.Nonpayment,
+        "service-retired" => ServiceEndReason.ServiceRetired,
+        "stopped" => ServiceEndReason.Stopped,
+        "administrator-removal" => ServiceEndReason.AdministratorRemoval,
+        "membership-ended" => ServiceEndReason.MembershipEnded,
+        _ => throw new ArgumentOutOfRangeException(nameof(code))
+    };
+}
+
 public sealed class ServiceDefinition
 {
     public long Id { get; set; }
@@ -20,7 +46,7 @@ public sealed class ServiceEnrollment
     public DateTimeOffset StartedAt { get; set; }
     public DateTimeOffset? RenewalStoppedAt { get; set; }
     public DateTimeOffset? EndedAt { get; set; }
-    public string? EndReason { get; set; }
+    public ServiceEndReason? EndReason { get; set; }
     public DateOnly? FirstPaidOn { get; set; }
 }
 

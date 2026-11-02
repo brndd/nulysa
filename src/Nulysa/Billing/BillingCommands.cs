@@ -159,7 +159,14 @@ public sealed partial class BillingCommands(AppDbContext db, AssociationClock cl
 
         var operation = (await Operation(facts, Guid.NewGuid(), "admission", new { anchor }, null, "Initial membership request", ct))!;
         var group = await Group(facts, Settings.DefaultIntervalMonths, anchor, ct);
-        var item = new RecurringItem { BillingGroupId = group.Id, FeeDefinitionId = 1, MembershipId = account.UserId, StartsOn = anchor, NextOn = anchor };
+        var item = new RecurringItem
+        {
+            BillingGroupId = group.Id,
+            FeeDefinitionId = 1,
+            MembershipUserId = account.UserId,
+            StartsOn = anchor,
+            NextUnissuedPeriodStartsOn = anchor
+        };
         facts.Items.Add(item);
         db.RecurringItems.Add(item);
         await db.SaveChangesAsync(ct);
@@ -180,7 +187,7 @@ public sealed partial class BillingCommands(AppDbContext db, AssociationClock cl
         if (fee.Retired)
             throw new ValidationException("The fee is retired.");
 
-        var benefit = item.MembershipId is null ? Benefit.Service : Benefit.Membership;
+        var benefit = item.MembershipUserId is null ? Benefit.Service : Benefit.Membership;
         var coveredPeriods = facts.Periods(benefit, fee.ServiceDefinitionId).ToList();
         foreach (var period in coveredPeriods.OrderBy(x => x.Start))
             if (period.Start <= start && start < period.End)
@@ -236,7 +243,7 @@ public sealed partial class BillingCommands(AppDbContext db, AssociationClock cl
 
         facts.Lines.Add(line);
         db.InvoiceLines.Add(line);
-        item.NextOn = line.EndsOn;
+        item.NextUnissuedPeriodStartsOn = line.EndsOn;
         invoice.Revision++;
         await db.SaveChangesAsync(ct);
         operation.ResultId ??= line.Id;
@@ -251,6 +258,7 @@ public sealed partial class BillingCommands(AppDbContext db, AssociationClock cl
         Live(facts);
         if (line.State != LineState.Open || facts.Held(line) < line.Amount)
             throw new InvalidOperationException("Only fully funded open lines can complete.");
+        // Purchase authorization differs from today's use eligibility: this may buy future time.
         var enrollmentAuthorizesPurchase = line.ServiceEnrollmentId is not { } enrollmentId
             || facts.Enrollments.Any(x => x.Id == enrollmentId && x.EndedAt is null && x.RenewalStoppedAt is null);
         if (!enrollmentAuthorizesPurchase)
@@ -309,8 +317,8 @@ public sealed partial class BillingCommands(AppDbContext db, AssociationClock cl
         if (line.RecurringItemId is { } itemId)
         {
             var item = facts.Items.Single(x => x.Id == itemId);
-            if (item.NextOn == line.EndsOn)
-                item.NextOn = period.End;
+            if (item.NextUnissuedPeriodStartsOn == line.EndsOn)
+                item.NextUnissuedPeriodStartsOn = period.End;
         }
 
         line.Amount = quote.Amount;

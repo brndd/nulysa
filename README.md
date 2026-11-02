@@ -19,6 +19,8 @@ WebAssembly client or global interactive circuit.
   association stylesheet configuration; later task/workflow redesign remains planned.
 - [Billing](AGENTS/BILLING_DESIGN.md), [services](AGENTS/SERVICE_DESIGN.md),
   [policy examples](AGENTS/POLICY_REVIEW.md), [remaining work](AGENTS/OPEN_QUESTIONS.md).
+- [Business logic code guide](docs/business-logic.md): billing workflows, money and
+  coverage, membership/service lifecycles, and review entry points.
 - [Foundation evidence and limits](docs/foundations.md),
   [S1 membership/mail](docs/membership.md), [S2 billing/configuration](docs/billing.md),
   [operations runbook](docs/operations.md), [OIDC configuration](docs/oidc-reference.md),

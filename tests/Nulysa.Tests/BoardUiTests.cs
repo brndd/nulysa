@@ -63,15 +63,18 @@ public sealed class BoardUiTests : BoardTest
             return view;
         }
         var initial = await CheckStanding();
-        Assert.True(initial.Membership.IsRenewalGrace);
+        Assert.True(initial.Membership.IsMembershipGrace);
+        Assert.Equal(StandingState.MembershipInitialGrace, initial.Membership.State);
         await Run(app, services => services.GetRequiredService<BillingCommands>().Import(new("test", "bank", "membership", 10, "EUR", new(2026, 6, 1), initial.Invoices[0].Reference)));
         var paid = await CheckStanding();
         Assert.True(paid.Membership.Active);
-        Assert.False(paid.Membership.IsRenewalGrace);
+        Assert.False(paid.Membership.IsMembershipGrace);
+        Assert.Equal(StandingState.Covered, paid.Membership.State);
 
         Clock.Now = new(2026, 7, 1, 10, 0, 0, TimeSpan.Zero);
         var fallback = await CheckStanding();
-        Assert.True(fallback.Membership.IsRenewalGrace);
+        Assert.True(fallback.Membership.IsMembershipGrace);
+        Assert.Equal(StandingState.MembershipRenewalGrace, fallback.Membership.State);
         await Run(app, services => services.GetRequiredService<BillingCommands>().Scan(initial.AccountId));
         var renewal = await CheckStanding();
         var open = Assert.Single(renewal.Invoices, invoice => invoice.Invoice.ClosedAt is null);
@@ -83,6 +86,7 @@ public sealed class BoardUiTests : BoardTest
         await Run(app, services => services.GetRequiredService<BillingCommands>().Scan(initial.AccountId));
         var inactive = await CheckStanding();
         Assert.False(inactive.Membership.Active);
+        Assert.Equal(StandingState.MembershipInactive, inactive.Membership.State);
         Assert.NotNull(inactive.Membership.InactiveSince);
         var longInactive = await Registry(app, board, state: "inactive", days: 60);
         Assert.Equal(id, Assert.Single(longInactive.Entries).Id);
@@ -146,7 +150,7 @@ public sealed class BoardUiTests : BoardTest
         Assert.Equal(id, Assert.Single(active.Entries).Id);
         Assert.Equal(view.Membership, active.Entries[0].Standing);
         Assert.True(view.Membership.Active);
-        Assert.False(view.Membership.IsRenewalGrace);
+        Assert.False(view.Membership.IsMembershipGrace);
         Assert.True(Assert.Single(view.Invoices).Remaining > 0);
         Assert.Empty((await Registry(app, board, state: "inactive")).Entries);
         Assert.Equal(ReceiptState.Posted, (await db.Receipts.SingleAsync(received => received.Id == receipt)).State);

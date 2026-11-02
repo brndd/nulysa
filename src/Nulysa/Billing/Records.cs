@@ -52,10 +52,12 @@ public sealed class RecurringItem
     public long Id { get; set; }
     public long BillingGroupId { get; set; }
     public long FeeDefinitionId { get; set; }
-    public long? MembershipId { get; set; }
+    // Member uses UserId as its key; exactly one of these two owners must be present.
+    public long? MembershipUserId { get; set; }
     public long? ServiceEnrollmentId { get; set; }
     public DateOnly StartsOn { get; set; }
-    public DateOnly NextOn { get; set; }
+    // Issuance advances this boundary, even while the issued line is still unpaid.
+    public DateOnly NextUnissuedPeriodStartsOn { get; set; }
     public DateTimeOffset? EndedAt { get; set; }
 }
 

@@ -18,6 +18,7 @@ public static class BillingCalendar
 
         var monthDifference = (date.Year - anchor.Year) * 12 + date.Month - anchor.Month;
         var step = (int)Math.Floor((decimal)monthDifference / months);
+        // Always count from the original anchor so a clipped February date cannot shift March.
         var start = anchor.AddMonths(step * months);
         if (start > date)
             start = anchor.AddMonths(--step * months);
@@ -99,6 +100,7 @@ public static class Pricing
     public static Quote FromSegments(IEnumerable<PriceSegment> segments)
     {
         var segmentList = segments.ToList();
+        // Round the complete purchase once; rounding individual date segments would change its price.
         var amount = Round(segmentList.Sum(x => x.Price * (x.End.DayNumber - x.Start.DayNumber) / (x.BasisEnd.DayNumber - x.BasisStart.DayNumber)));
         return new(amount, segmentList);
     }

@@ -79,25 +79,39 @@ public sealed partial class BillingCommands
         return await Import(input, ct);
     }
 
-    public async Task AssignReceipt(ClaimsPrincipal actor, long receiptId, long accountId, long? groupId, bool purchaseDeposit,
-        Guid operation, string reason, CancellationToken ct = default, long? invoiceId = null)
+    public async Task AssignReceipt(ClaimsPrincipal actor, long receiptId, long accountId, ReceiptDestination destination,
+        Guid operation, string reason, CancellationToken ct = default)
     {
         Reason(reason);
-        await Match(receiptId, actor, accountId, groupId, purchaseDeposit, operation, reason, ct, invoiceId);
+        await Match(receiptId, new(actor, accountId, destination, operation, reason), ct);
     }
 
-    private async Task Match(long receiptId, ClaimsPrincipal? actor = null, long? manualAccount = null, long? manualGroup = null,
-        bool manualDeposit = false, Guid operationKey = default, string reason = "Reference matching", CancellationToken ct = default, long? manualInvoice = null)
+    private sealed record ReceiptAssignment(ClaimsPrincipal Actor, long AccountId, ReceiptDestination Destination, Guid OperationKey, string Reason);
+    private sealed record ReceiptRoute(long AccountId, ReceiptDestination Destination);
+
+    private async Task<ReceiptRoute?> ResolveReference(string reference, CancellationToken ct)
     {
+        var normalizedReference = PaymentReference.Normalize(reference);
+        var group = await db.BillingGroups.AsNoTracking().SingleOrDefaultAsync(x => x.PaymentReference == normalizedReference, ct);
+        var oneOff = await db.Invoices.AsNoTracking().SingleOrDefaultAsync(x => x.OneOffReference == normalizedReference, ct);
+        var deposit = await db.BillingAccounts.AsNoTracking().SingleOrDefaultAsync(x => x.PurchaseDepositReference == normalizedReference, ct);
+        return group is not null ? new(group.BillingAccountId, new ReceiptDestination.RecurringGroup(group.Id))
+            : oneOff is not null ? new(oneOff.BillingAccountId, new ReceiptDestination.OneOffInvoice(oneOff.Id))
+            : deposit is not null ? new(deposit.Id, new ReceiptDestination.PurchaseDeposit()) : null;
+    }
+
+    private async Task Match(long receiptId, ReceiptAssignment? assignment = null, CancellationToken ct = default)
+    {
+        var actor = assignment?.Actor;
         var sourceReceipt = await db.Receipts.AsNoTracking().SingleAsync(x => x.Id == receiptId, ct);
         if (actor is null && sourceReceipt.State != ReceiptState.New)
             return;
 
-        var normalizedReference = PaymentReference.Normalize(sourceReceipt.Reference);
-        var group = await db.BillingGroups.AsNoTracking().SingleOrDefaultAsync(x => x.PaymentReference == normalizedReference, ct);
-        var oneOff = await db.Invoices.AsNoTracking().SingleOrDefaultAsync(x => x.OneOffReference == normalizedReference, ct);
-        var deposit = await db.BillingAccounts.AsNoTracking().SingleOrDefaultAsync(x => x.PurchaseDepositReference == normalizedReference, ct);
-        var accountId = manualAccount ?? group?.BillingAccountId ?? oneOff?.BillingAccountId ?? deposit?.Id;
+        var route = await ResolveReference(sourceReceipt.Reference, ct);
+        long? accountId = assignment?.AccountId ?? route?.AccountId;
+        var destination = assignment?.Destination ?? route?.Destination;
+        var operationKey = assignment?.OperationKey ?? Guid.Empty;
+        var reason = assignment?.Reason ?? "Reference matching";
 
         var scheduler = await schedulers.GetScheduler(ct);
         await using var tx = await db.Database.BeginTransactionAsync(ct);
@@ -122,17 +136,12 @@ public sealed partial class BillingCommands
             await tx.CommitAsync(ct);
         }
 
-        var toDeposit = actor is null ? deposit is not null : manualDeposit;
-        var groupId = actor is null ? group?.Id : manualGroup;
-        var invoiceId = actor is null ? oneOff?.Id : manualInvoice;
-        object operationInput = invoiceId is null
-            ? new { receiptId, accountId, groupId, toDeposit }
-            : new { receiptId, accountId, groupId, toDeposit, invoiceId };
+        var operationInput = destination?.OperationInput(receiptId, accountId);
 
         if (receipt.State == ReceiptState.Posted)
         {
             // Posted source facts are immutable; only an explicit reversal may free the allocation.
-            if (actor is not null && (facts is null || await Operation(facts, operationKey, "receipt", operationInput, Authority.Id(actor), reason, ct) is not null))
+            if (actor is not null && (facts is null || await Operation(facts, operationKey, "receipt", operationInput!, Authority.Id(actor), reason, ct) is not null))
                 throw new ValidationException("This receipt is posted. Reverse an eligible unspent allocation before reassignment.");
             return;
         }
@@ -159,17 +168,9 @@ public sealed partial class BillingCommands
         }
 
         var billingFacts = facts!;
-        bool LineIsInDestination(InvoiceLine line) => groupId is not null
-            ? billingFacts.Invoices.Single(i => i.Id == line.InvoiceId).BillingGroupId == groupId
-            : line.InvoiceId == invoiceId;
-
-        var invoiceIsOneOff = invoiceId is not null && billingFacts.Invoices.Any(x => x.Id == invoiceId && x.BillingGroupId is null);
-        if (invoiceId is not null && (groupId is not null || toDeposit || !invoiceIsOneOff))
-            throw new ValidationException("Select a one-off invoice belonging to this account, without a group or deposit destination.");
-        if (groupId is not null && !billingFacts.Groups.Any(x => x.Id == groupId))
-            throw new ValidationException("The selected group belongs to another account.");
-        var depositConflict = toDeposit && (!Settings.PurchaseBalanceEnabled || groupId is not null);
-        if (depositConflict)
+        ValidateDestination(billingFacts, destination!);
+        var depositDisabled = destination is ReceiptDestination.PurchaseDeposit && !Settings.PurchaseBalanceEnabled;
+        if (depositDisabled)
         {
             if (actor is not null)
                 throw new ValidationException("Purchase deposits are unavailable or conflict with a group selection.");
@@ -178,179 +179,111 @@ public sealed partial class BillingCommands
             return;
         }
 
-        var operation = await Operation(billingFacts, actor is null ? Guid.NewGuid() : operationKey, "receipt", operationInput, actor is null ? null : Authority.Id(actor), reason, ct);
+        var operation = await Operation(billingFacts, actor is null ? Guid.NewGuid() : operationKey, "receipt", operationInput!, actor is null ? null : Authority.Id(actor), reason, ct);
         if (operation is null)
             return;
         operation.ResultId = receiptId;
 
-        if (!toDeposit)
+        var requestsAreReady = destination is ReceiptDestination.PurchaseDeposit
+            || await PrepareRequestsForReceipt(billingFacts, operation, receipt, destination!, scheduler, ct);
+        if (!requestsAreReady)
         {
-            var recoverableLines = billingFacts.Lines
-                .Where(x => x.State == LineState.Expired && receipt.ReceivedOn < x.ExpiresOn && LineIsInDestination(x))
-                .ToList();
-            if (recoverableLines.Any(x => !CanRecover(billingFacts, x)))
-            {
-                await Review("Timely delayed receipt conflicts with later allocation or explicit lifecycle changes");
-                return;
-            }
-            foreach (var line in recoverableLines)
-                Recover(billingFacts, operation, line);
-
-            var timelyLineIds = billingFacts.Lines
-                .Where(x => x.State == LineState.Open && receipt.ReceivedOn < x.ExpiresOn && LineIsInDestination(x))
-                .Select(x => x.Id)
-                .ToHashSet();
-            // Existing credit lots must repair missed renewals before expiry or resumption decisions.
-            await RecoverMissedRenewalsWithLots(billingFacts, operation, clock.Today, ct);
-            await Expire(billingFacts, operation, scheduler, ct, timelyLineIds, notifyInactiveWithoutLine: true);
-
-            // A timely receipt can settle a renewal the worker has not issued yet.
-            if (groupId is { } matchedGroup)
-            {
-                ReopenEndedServicesForTimelyReceipt(billingFacts, operation, receipt.ReceivedOn, matchedGroup);
-                await IssueDueRenewals(billingFacts, operation, receipt.ReceivedOn, matchedGroup, ct);
-            }
-
-            var needsMembershipResumption = groupId is not null
-                && Settings.AutomaticMembershipReactivation
-                && !billingFacts.Membership(receipt.ReceivedOn).Active
-                && !billingFacts.Lines.Any(x => x.Benefit == Benefit.Membership && x.State == LineState.Open);
-            if (needsMembershipResumption)
-            {
-                var membership = billingFacts.Items.Where(x => x.MembershipId is not null).OrderByDescending(x => x.Id).FirstOrDefault();
-                if (membership is not null && membership.BillingGroupId == groupId)
-                {
-                    membership.EndedAt = null;
-                    await Issue(billingFacts, operation, membership, receipt.ReceivedOn, PurchasePurpose.Resumption,
-                        receipt.ReceivedOn.AddDays(Settings.InitialMembershipGraceDays), ct);
-                }
-            }
+            await Review("Timely delayed receipt conflicts with later allocation or explicit lifecycle changes");
+            return;
         }
 
-        receipt.BillingAccountId = billingFacts.Account.Id;
-        receipt.State = ReceiptState.Posted;
-        receipt.ReviewReason = null;
-
-        if (toDeposit)
-            Move(billingFacts, operation, MovementKind.ReceiptToPurchase, receipt.Amount, receipt.ReceivedOn, receipt: receipt.Id);
-        else
-        {
-            var remaining = receipt.Amount;
-            var destinationInvoices = billingFacts.Invoices.Where(x => groupId is not null ? x.BillingGroupId == groupId : x.Id == invoiceId).ToList();
-            foreach (var line in OrderedLines(billingFacts, destinationInvoices))
-            {
-                if (remaining == 0)
-                    break;
-                remaining -= await Fund(billingFacts, operation, line, remaining, receipt.ReceivedOn, receipt.Id, ct);
-            }
-
-            // Overpayment remains billing credit; it never disappears from the journal.
-            Move(billingFacts, operation, MovementKind.ReceiptToBilling, remaining, receipt.ReceivedOn, receipt: receipt.Id);
-            await RecoverMissedRenewalsWithLots(billingFacts, operation, clock.Today, ct);
-            await Expire(billingFacts, operation, scheduler, ct, notifyInactiveWithoutLine: true);
-            await AllocateCredit(billingFacts, operation, clock.Today, ct);
-        }
+        await PostReceipt(billingFacts, operation, receipt, destination!, scheduler, ct);
 
         await Finish(billingFacts, scheduler, false, ct);
         await tx.CommitAsync(ct);
     }
 
-    private static bool IsAutomaticEndReason(string? reason) => reason is "nonpayment" or "service-retired";
-
-    private void ReopenEndedServicesForTimelyReceipt(BillingFacts facts, BillingOperation operation, DateOnly receivedOn, long groupId)
+    private static void ValidateDestination(BillingFacts facts, ReceiptDestination destination)
     {
-        var enrollmentIds = facts.Enrollments
-            .Where(x => x.EndedAt is not null
-                && x.EndReason == "nonpayment"
-                && x.RenewalStoppedAt is null
-                && facts.Items.Any(item => item.ServiceEnrollmentId == x.Id && item.BillingGroupId == groupId)
-                && !facts.Lines.Any(line => line.ServiceEnrollmentId == x.Id && line.State is LineState.Expired or LineState.Cancelled)
-                && !facts.Enrollments.Any(newer => newer.Id != x.Id
-                    && newer.ServiceDefinitionId == x.ServiceDefinitionId
-                    && newer.StartedAt >= x.StartedAt)
-                && !facts.Services.Single(service => service.Id == x.ServiceDefinitionId).Retired
-                && facts.Fees.SingleOrDefault(fee => fee.ServiceDefinitionId == x.ServiceDefinitionId) is { Retired: false }
-                && facts.ServiceGraceEnd(x, receivedOn) is { } cutoff
-                && receivedOn < cutoff
-                && facts.Membership(receivedOn).Active)
-            .Select(x => x.Id)
+        var invalidOneOff = destination is ReceiptDestination.OneOffInvoice oneOff
+            && !facts.Invoices.Any(invoice => invoice.Id == oneOff.InvoiceId && invoice.BillingGroupId is null);
+        if (invalidOneOff)
+            throw new ValidationException("Select a one-off invoice belonging to this account, without a group or deposit destination.");
+        var foreignGroup = destination is ReceiptDestination.RecurringGroup group && !facts.Groups.Any(candidate => candidate.Id == group.GroupId);
+        if (foreignGroup)
+            throw new ValidationException("The selected group belongs to another account.");
+    }
+
+    private async Task<bool> PrepareRequestsForReceipt(BillingFacts facts, BillingOperation operation, Receipt receipt,
+        ReceiptDestination destination, IScheduler scheduler, CancellationToken ct)
+    {
+        var recoverableLines = facts.Lines
+            .Where(x => x.State == LineState.Expired && receipt.ReceivedOn < x.ExpiresOn && destination.Includes(facts.Invoices.Single(invoice => invoice.Id == x.InvoiceId)))
             .ToList();
-
-        foreach (var id in enrollmentIds)
-            ReopenService(facts, operation, facts.Enrollments.Single(x => x.Id == id));
-    }
-
-    private void ReopenService(BillingFacts facts, BillingOperation operation, ServiceEnrollment enrollment, long? recurringItemId = null)
-    {
-        var wasEnded = enrollment.EndedAt is not null;
-        enrollment.EndedAt = null;
-        enrollment.EndReason = null;
-        var items = recurringItemId is { } id
-            ? facts.Items.Where(x => x.Id == id)
-            : facts.Items.Where(x => x.ServiceEnrollmentId == enrollment.Id).OrderByDescending(x => x.Id).Take(1);
-        foreach (var item in items)
-            item.EndedAt = null;
-        if (wasEnded)
-            db.ServiceChanges.Add(new() { ServiceEnrollmentId = enrollment.Id, OperationId = operation.Id, Action = "timely-receipt-correction" });
-    }
-
-    private bool CanRecover(BillingFacts facts, InvoiceLine line)
-    {
-        var membershipItemEnded = line.Benefit == Benefit.Membership
-            && line.RecurringItemId is { } membershipItem
-            && facts.Items.Single(x => x.Id == membershipItem).EndedAt is not null;
-        if (membershipItemEnded)
+        if (recoverableLines.Any(line => !AssessRecovery(facts, line).Allowed))
             return false;
+        foreach (var line in recoverableLines)
+            Recover(facts, operation, line);
 
-        var laterLineExists = facts.Lines.Any(x => x.Id != line.Id
-            && x.RecurringItemId == line.RecurringItemId
-            && x.RecurringItemId != null
-            && x.StartsOn >= line.StartsOn
-            && x.State is LineState.Open or LineState.Fulfilled);
-        if (laterLineExists)
-            return false;
+        // Preserve these requests through today's expiry pass: the bank date is still timely.
+        var timelyLineIds = facts.Lines
+            .Where(x => x.State == LineState.Open && receipt.ReceivedOn < x.ExpiresOn && destination.Includes(facts.Invoices.Single(invoice => invoice.Id == x.InvoiceId)))
+            .Select(x => x.Id)
+            .ToHashSet();
+        // Existing credit lots must repair missed renewals before expiry or resumption decisions.
+        await RecoverMissedRenewalsWithLots(facts, operation, clock.Today, ct);
+        await Expire(facts, operation, scheduler, ct, timelyLineIds, notifyInactiveWithoutLine: true);
 
-        if (line.ServiceEnrollmentId is { } id)
+        // A timely receipt can settle a renewal the worker has not issued yet.
+        if (destination is ReceiptDestination.RecurringGroup { GroupId: var matchedGroup })
         {
-            var enrollment = facts.Enrollments.Single(x => x.Id == id);
-            var enrollmentClosed = enrollment.RenewalStoppedAt is not null
-                || (enrollment.EndedAt is not null && !IsAutomaticEndReason(enrollment.EndReason));
-            var newerEnrollmentExists = facts.Enrollments.Any(x => x.Id != id
-                && x.ServiceDefinitionId == enrollment.ServiceDefinitionId
-                && x.StartedAt >= enrollment.StartedAt);
-            if (enrollmentClosed || newerEnrollmentExists)
-                return false;
+            ReopenEndedServicesForTimelyReceipt(facts, operation, receipt.ReceivedOn, matchedGroup);
+            await IssueDueRenewals(facts, operation, receipt.ReceivedOn, matchedGroup, ct);
         }
 
-        var release = facts.Movements
-            .Where(x => x.InvoiceLineId == line.Id && x.Kind == MovementKind.LineToBilling)
-            .OrderByDescending(x => x.Id)
-            .FirstOrDefault();
-        if (release is null)
-            return true;
+        var groupId = (destination as ReceiptDestination.RecurringGroup)?.GroupId;
+        var needsMembershipResumption = groupId is not null
+            && Settings.AutomaticMembershipReactivation
+            && !facts.Membership(receipt.ReceivedOn).Active
+            && !facts.Lines.Any(x => x.Benefit == Benefit.Membership && x.State == LineState.Open);
+        if (needsMembershipResumption)
+        {
+            var membership = facts.Items
+                .Where(item => item.MembershipUserId is not null)
+                .OrderByDescending(item => item.Id)
+                .FirstOrDefault();
+            if (membership is not null && membership.BillingGroupId == groupId)
+            {
+                membership.EndedAt = null;
+                await Issue(facts, operation, membership, receipt.ReceivedOn, PurchasePurpose.Resumption,
+                    receipt.ReceivedOn.AddDays(Settings.InitialMembershipGraceDays), ct);
+            }
+        }
 
-        // Recovery must not spend money that was already reallocated away from this line.
-        var moneyStillAvailable = facts.Balances.BillingCredit >= release.Amount;
-        var laterSpendingExists = facts.Movements.Any(x => x.Id > release.Id
-            && x.Kind is MovementKind.BillingToLine or MovementKind.BillingToPurchase or MovementKind.BillingRefund);
-        return moneyStillAvailable && !laterSpendingExists;
+        return true;
     }
 
-    private void Recover(BillingFacts facts, BillingOperation operation, InvoiceLine line)
+    private async Task PostReceipt(BillingFacts facts, BillingOperation operation, Receipt receipt,
+        ReceiptDestination destination, IScheduler scheduler, CancellationToken ct)
     {
-        if (line.State != LineState.Expired)
-            return;
+        receipt.BillingAccountId = facts.Account.Id;
+        receipt.State = ReceiptState.Posted;
+        receipt.ReviewReason = null;
 
-        line.State = LineState.Open;
-        if (line.ServiceEnrollmentId is { } enrollmentId)
-            ReopenService(facts, operation, facts.Enrollments.Single(x => x.Id == enrollmentId), line.RecurringItemId);
+        if (destination is ReceiptDestination.PurchaseDeposit)
+            Move(facts, operation, MovementKind.ReceiptToPurchase, receipt.Amount, receipt.ReceivedOn, receipt: receipt.Id);
+        else
+        {
+            var remaining = receipt.Amount;
+            var destinationInvoices = facts.Invoices.Where(destination.Includes).ToList();
+            foreach (var line in OrderedLines(facts, destinationInvoices))
+            {
+                if (remaining == 0)
+                    break;
+                remaining -= await Fund(facts, operation, line, remaining, receipt.ReceivedOn, receipt.Id, ct);
+            }
 
-        var release = facts.Movements
-            .Where(x => x.InvoiceLineId == line.Id && x.Kind == MovementKind.LineToBilling)
-            .OrderByDescending(x => x.Id)
-            .FirstOrDefault();
-        if (release is not null && facts.Held(line) == 0)
-            Move(facts, operation, MovementKind.BillingToLine, release.Amount, line.LastFundingOn ?? release.EffectiveOn, line.Id);
+            // Overpayment remains billing credit; it never disappears from the journal.
+            Move(facts, operation, MovementKind.ReceiptToBilling, remaining, receipt.ReceivedOn, receipt: receipt.Id);
+            await RecoverMissedRenewalsWithLots(facts, operation, clock.Today, ct);
+            await Expire(facts, operation, scheduler, ct, notifyInactiveWithoutLine: true);
+            await AllocateCredit(facts, operation, clock.Today, ct);
+        }
     }
 
     private IEnumerable<InvoiceLine> OrderedLines(BillingFacts facts, IEnumerable<Invoice> invoices)
@@ -370,90 +303,6 @@ public sealed partial class BillingCommands
             .ThenBy(line => line.ChargeDueOn)
             .ThenBy(line => line.Id))
             .ToList();
-    }
-
-    private async Task<decimal> Fund(BillingFacts facts, BillingOperation operation, InvoiceLine line, decimal available, DateOnly on, long? receiptId, CancellationToken ct)
-    {
-        var effectiveDate = line.LastFundingOn is { } previousFunding && previousFunding > on ? previousFunding : on;
-        var canFund = line.State == LineState.Open
-            && effectiveDate < line.ExpiresOn
-            && (line.ServiceEnrollmentId is not { } enrollmentId
-                || facts.Enrollments.Any(x => x.Id == enrollmentId && x.EndedAt is null && x.RenewalStoppedAt is null));
-        if (!canFund)
-            return 0;
-
-        var heldBefore = facts.Held(line);
-        var isPricedAtFunding = line.Purpose == PurchasePurpose.Resumption
-            || (line.Purpose == PurchasePurpose.Initial && line.Benefit == Benefit.Service);
-        if (isPricedAtFunding)
-        {
-            var pricingJson = line.PricingJson;
-            if (effectiveDate < line.StartsOn && line.StartsOn > line.OriginalStartsOn)
-            {
-                var quoteDate = effectiveDate > line.OriginalStartsOn ? effectiveDate : line.OriginalStartsOn;
-                pricingJson = await db.LineAdjustments
-                    .Where(x => x.InvoiceLineId == line.Id && x.OldStart <= quoteDate && quoteDate < x.OldEnd)
-                    .OrderByDescending(x => x.Id)
-                    .Select(x => x.PricingJson)
-                    .FirstOrDefaultAsync(ct)
-                    ?? line.OriginalPricingJson;
-            }
-
-            var segments = JsonSerializer.Deserialize<List<PriceSegment>>(pricingJson)!;
-            var quote = Pricing.Slice(segments, effectiveDate, facts.Periods(line.Benefit, line.ServiceDefinitionId));
-            var needsRepricing = quote.Segments.Count == 0
-                || (line.Purpose == PurchasePurpose.Resumption && effectiveDate < line.OriginalStartsOn);
-            if (needsRepricing)
-            {
-                var group = facts.Groups.Single(x => x.Id == facts.Invoices.Single(i => i.Id == line.InvoiceId).BillingGroupId);
-                var period = BillingCalendar.Bridge(group.Anchor, group.IntervalMonths, effectiveDate, false);
-                var unquotedEnd = quote.Segments.Count == 0 || period.End < quote.Segments[0].Start
-                    ? period.End
-                    : quote.Segments[0].Start;
-                var discounts = facts.Discounts
-                    .Where(x => x.FeeDefinitionId == line.FeeDefinitionId)
-                    .Select(x =>
-                    {
-                        var end = x.WithdrawnAt is { } withdrawn
-                            ? DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(withdrawn, clock.Zone).DateTime)
-                            : x.EndsOn;
-                        return new Discount { Id = x.Id, StartsOn = x.StartsOn, EndsOn = end < x.EndsOn ? end : x.EndsOn, Kind = x.Kind, Value = x.Value };
-                    })
-                    .Where(x => x.StartsOn < x.EndsOn)
-                    .ToList();
-                var prices = facts.Prices.Where(x => x.FeeDefinitionId == line.FeeDefinitionId).ToList();
-                var prefix = Pricing.Calculate(group.Anchor, group.IntervalMonths, new(effectiveDate, unquotedEnd), prices,
-                    discounts, facts.Periods(line.Benefit, line.ServiceDefinitionId));
-                quote = Pricing.FromSegments(prefix.Segments.Concat(quote.Segments
-                    .Where(x => x.Start < period.End)
-                    .Select(x => x with { End = x.End > period.End ? period.End : x.End })));
-            }
-
-            if (quote.Segments.Count > 0 && heldBefore + available >= quote.Amount)
-                Requote(facts, operation, line, quote, new(quote.Segments.Min(x => x.Start), quote.Segments.Max(x => x.End)));
-        }
-
-        var fundingAmount = Math.Min(available, Math.Max(0, line.Amount - facts.Held(line)));
-        Move(facts, operation, receiptId is null ? MovementKind.BillingToLine : MovementKind.ReceiptToLine, fundingAmount, on, line.Id, receiptId);
-        if (fundingAmount > 0)
-            line.LastFundingOn = effectiveDate;
-        if (facts.Held(line) == line.Amount)
-            Complete(facts, operation, line, line.Amount == 0 ? null : effectiveDate);
-
-        await db.SaveChangesAsync(ct);
-        return fundingAmount;
-    }
-
-    private async Task AllocateCredit(BillingFacts facts, BillingOperation operation, DateOnly on, CancellationToken ct)
-    {
-        foreach (var line in OrderedLines(facts, facts.Invoices.Where(x => x.BillingGroupId is not null)))
-        {
-            var available = facts.Balances.BillingCredit;
-            if (available <= 0)
-                break;
-
-            await Fund(facts, operation, line, available, on, null, ct);
-        }
     }
 
     public async Task IgnoreReceipt(ClaimsPrincipal actor, long id, string reason, CancellationToken ct = default)
