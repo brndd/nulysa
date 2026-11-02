@@ -571,6 +571,34 @@ commands consistently lock **billing account, then user**; receipt matching lock
 tracker before loading account facts, so callers cannot assume tracked objects
 survive this boundary. External bank HTTP calls occur outside member locks.
 
+Advisory locks use the explicit API in
+[DatabaseLocks.cs](../src/Nulysa/Data/DatabaseLocks.cs). Both acquisition methods
+require an existing EF transaction, parameterize the SQL and hold the lock until
+commit or rollback. `Acquire` takes one of these named `DatabaseLock` purposes:
+
+| Purpose | PostgreSQL key | Coordinating operations |
+| --- | --- | --- |
+| `ScheduleInstallation` | `(0, 1)` | Maintenance schedule installation. |
+| `RoleAdministration` | `(0, 2)` | Operator role creation and assignment/revocation. |
+| `MailDispatchRate` | `(0, 3)` | Shared mail-rate window initialization and updates. |
+| `FeeCatalog` | `(0, 4)` | Service/fee configuration and dated price changes. |
+
+The first integer is the fixed-lock namespace; the second is the centrally
+assigned resource ID. The former `72134501`–`72134504` values had no documented
+prefix meaning and have been replaced. These are transient locks, not stored
+financial identifiers; the change needs no database migration.
+
+`AcquireForIdentity` retains the existing 64-bit PostgreSQL hash of a canonical
+identity: normalized email for application/admission coordination, or the JSON
+source/account/transaction tuple for receipt import. PostgreSQL's two-integer
+and single-bigint advisory key spaces do not overlap, so fixed-purpose locks
+cannot collide with these hashed identities. Hash collisions between identities
+can only serialize otherwise unrelated work. See the
+[PostgreSQL advisory-lock reference](https://www.postgresql.org/docs/18/functions-admin.html#FUNCTIONS-ADVISORY-LOCKS).
+The API acquires locks without owning the transaction; the caller still controls
+commit, rollback and lock order. Advisory locks only coordinate cooperating
+callers and do not block ordinary queries or replace database constraints.
+
 `BillingOperation` groups the effects of one action. Its caller-provided UUID is
 an idempotency key, checked against account, kind and a hash of input, actor and
 reason. An identical retry returns the stored result; reusing the key for a
@@ -680,6 +708,7 @@ The tests provide executable examples:
 | [BankFeedTests.cs](../tests/Nulysa.Tests/BankFeedTests.cs) | Stable booked-source identity, retained outgoing facts, ignore/reimport behavior and failure/staleness alerts using synthetic HTTP fixtures. |
 | [FinancialWorkflowTests.cs](../tests/Nulysa.Tests/FinancialWorkflowTests.cs) | Read-only previews, confirmed financial actions, destination ownership and review requirements through HTTP forms. |
 | [WorkerTests.cs](../tests/Nulysa.Tests/WorkerTests.cs), [ScheduleTests.cs](../tests/Nulysa.Tests/ScheduleTests.cs) | Shared EF/Quartz transactions, retries/recovery, concurrent execution and persisted calendar schedules. |
+| [DatabaseLockTests.cs](../tests/Nulysa.Tests/DatabaseLockTests.cs) | Advisory-lock transaction requirements, same-key exclusion, independent purposes/identities, and release on commit or rollback using nonblocking database probes. |
 | [BillingUiTests.cs](../tests/Nulysa.Tests/BillingUiTests.cs), [FinancialWorkflowBrowserTests.cs](../tests/Nulysa.Tests/FinancialWorkflowBrowserTests.cs) | Full-suite browser journeys through member and administrator financial forms. |
 
 For a focused development run, start PostgreSQL and use the default suite's

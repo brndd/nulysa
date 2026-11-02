@@ -4,6 +4,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Nulysa.Accounts;
+using Nulysa.Data;
 using Nulysa.Services;
 using Quartz;
 
@@ -35,7 +36,7 @@ public sealed partial class BillingCommands
         {
             // Serialize on the provider identity so concurrent reimports cannot create duplicate cash.
             var sourceLockKey = JsonSerializer.Serialize(new { input.Source, input.SourceAccount, input.ExternalId });
-            await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({sourceLockKey}, 0))", ct);
+            await DatabaseLocks.AcquireForIdentity(db, sourceLockKey, ct);
 
             var existingReceipt = await db.Receipts.SingleOrDefaultAsync(x => x.Source == input.Source && x.SourceAccount == input.SourceAccount && x.ExternalId == input.ExternalId, ct);
             if (existingReceipt is not null)

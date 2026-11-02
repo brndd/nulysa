@@ -56,7 +56,7 @@ public sealed class MailDispatcher(AppDbContext db, MailRenderer renderer, IMail
             }
 
             // One persisted dispatch rate, shared by every worker and every process.
-            await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(72134503)", ct);
+            await DatabaseLocks.Acquire(db, DatabaseLock.MailDispatchRate, ct);
             var window = await db.MailRateWindows.SingleOrDefaultAsync(ct);
             if (window is null)
             {

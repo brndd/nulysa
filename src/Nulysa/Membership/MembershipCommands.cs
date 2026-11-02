@@ -33,7 +33,7 @@ public sealed class MembershipCommands(AppDbContext db, UserManager<User> users,
         var scheduler = await schedulers.GetScheduler(ct);
         await using var tx = await db.Database.BeginTransactionAsync(ct);
         using var enlistment = scheduler.EnlistTransaction(tx.GetDbTransaction());
-        await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({normalized}, 0))", ct);
+        await DatabaseLocks.AcquireForIdentity(db, normalized, ct);
 
         var existing = await db.Applications.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct);
         if (existing is not null)
@@ -141,7 +141,7 @@ public sealed class MembershipCommands(AppDbContext db, UserManager<User> users,
             throw new ValidationException("Only a verified, undecided application can be approved.");
 
         // Apply checks user and application existence in separate snapshots; serialize on the email.
-        await db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(hashtextextended({application.NormalizedEmail}, 0))", ct);
+        await DatabaseLocks.AcquireForIdentity(db, application.NormalizedEmail, ct);
         var user = new User
         {
             Email = application.Email,

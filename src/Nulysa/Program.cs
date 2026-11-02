@@ -68,7 +68,7 @@ try
             await using (var tx = await db.Database.BeginTransactionAsync())
             using (scheduler.EnlistTransaction(tx.GetDbTransaction()))
             {
-                await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(72134501)");
+                await DatabaseLocks.Acquire(db, DatabaseLock.ScheduleInstallation);
                 await Schedules.Install(scheduler, app.Services.GetRequiredService<TimeProvider>(),
                     TimeZoneInfo.FindSystemTimeZoneById(app.Configuration["Association:TimeZone"] ?? "Europe/Helsinki"));
                 await tx.CommitAsync();

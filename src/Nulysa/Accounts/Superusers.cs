@@ -31,7 +31,7 @@ public static class Superusers
             throw new ArgumentOutOfRangeException(nameof(role));
         // Join development account creation's transaction when present.
         await using var tx = db.Database.CurrentTransaction is null ? await db.Database.BeginTransactionAsync() : null;
-        await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(72134502)");
+        await DatabaseLocks.Acquire(db, DatabaseLock.RoleAdministration);
         var user = await users.FindByIdAsync(id.ToString(System.Globalization.CultureInfo.InvariantCulture))
             ?? throw new InvalidOperationException("User not found.");
         var roleIsReady = !enabled

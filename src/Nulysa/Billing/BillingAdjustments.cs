@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Nulysa.Accounts;
+using Nulysa.Data;
 using Nulysa.Services;
 
 namespace Nulysa.Billing;
@@ -185,7 +186,7 @@ public sealed partial class BillingCommands
             throw new ValidationException("Invalid service configuration.");
 
         await using var tx = await db.Database.BeginTransactionAsync(ct);
-        await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(72134504)", ct);
+        await DatabaseLocks.Acquire(db, DatabaseLock.FeeCatalog, ct);
         await Authority.RequireAdministrator(db, actor, ct);
 
         var service = id is { } existing ? await db.ServiceDefinitions.SingleAsync(x => x.Id == existing, ct) : new ServiceDefinition();
@@ -225,7 +226,7 @@ public sealed partial class BillingCommands
             throw new ValidationException("Use a nonnegative cent price.");
 
         await using var tx = await db.Database.BeginTransactionAsync(ct);
-        await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(72134504)", ct);
+        await DatabaseLocks.Acquire(db, DatabaseLock.FeeCatalog, ct);
         await Authority.RequireAdministrator(db, actor, ct);
 
         var fee = await db.Fees.SingleOrDefaultAsync(x => x.Id == feeId, ct);
