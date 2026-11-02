@@ -65,6 +65,12 @@ public sealed class BillingTests : MembershipTest
         view = await View(app, board, id);
 
         Assert.Equal(new Balances(3, 2, 0), view.Balances);
+        var reconciliation = await Run(app, sp => sp.GetRequiredService<BillingQueries>().Reconcile(board));
+        Assert.Equal(view.Balances, new Balances(reconciliation.BillingCredit, reconciliation.PurchaseBalance, reconciliation.Held));
+        Assert.Equal(0m, reconciliation.Difference);
+        Assert.Empty(reconciliation.InvalidLines);
+        Assert.Empty(reconciliation.InvalidReceipts);
+
         var billing = view.Statement(BalanceKind.BillingCredit);
         var purchase = view.Statement(BalanceKind.PurchaseBalance);
         var held = view.Statement(BalanceKind.Held);

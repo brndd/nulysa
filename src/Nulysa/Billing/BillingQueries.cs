@@ -353,9 +353,9 @@ public sealed class BillingQueries(AppDbContext db, AssociationClock clock, IOpt
             .ToDictionaryAsync(x => x.Kind, x => x.Amount, ct);
         decimal Sum(params MovementKind[] kinds) => kinds.Sum(x => totals.GetValueOrDefault(x));
 
-        var billing = Sum(MovementKind.ReceiptToBilling, MovementKind.LineToBilling, MovementKind.PurchaseToBilling, MovementKind.PurchaseCredit) - Sum(MovementKind.BillingToLine, MovementKind.BillingToPurchase, MovementKind.BillingRefund, MovementKind.BillingReceiptReversal);
-        var purchase = Sum(MovementKind.ReceiptToPurchase, MovementKind.BillingToPurchase) - Sum(MovementKind.PurchaseToBilling, MovementKind.PurchaseRefund, MovementKind.PurchaseReceiptReversal);
-        var held = Sum(MovementKind.ReceiptToLine, MovementKind.BillingToLine) - Sum(MovementKind.LineToBilling, MovementKind.LinePurchase);
+        var billing = totals.Sum(x => BillingFacts.BillingBalanceDelta(x.Key) * x.Value);
+        var purchase = totals.Sum(x => BillingFacts.PurchaseBalanceDelta(x.Key) * x.Value);
+        var held = totals.Sum(x => BillingFacts.HeldBalanceDelta(x.Key) * x.Value);
         var receipts = await db.Receipts.Where(x => x.State == ReceiptState.Posted).SumAsync(x => x.Amount, ct);
         var bought = Sum(MovementKind.LinePurchase);
         var corrections = Sum(MovementKind.PurchaseCredit);
