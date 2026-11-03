@@ -9,24 +9,24 @@
 @inject IConfiguration Configuration
 @inject Microsoft.Extensions.Options.IOptions<MembershipOptions> Options
 
-<PageTitle>Resign from membership — @Configuration["Association:Name"]</PageTitle>
-<h1>Resign from membership</h1>
-<p><a href="/profile#account">Back to account settings</a></p>
+<PageTitle>@T("Resign from membership") — @Configuration["Association:Name"]</PageTitle>
+<h1>@T("Resign from membership")</h1>
+<p><a href="/profile#account">@T("Back to account settings")</a></p>
 <div class="danger-panel">
-<h2>Before you confirm</h2>
-<p>Resignation immediately blocks login and member services, even if you have paid for future time. It starts account erasure after the configured waiting period and a fortnightly batch. There is no automatic refund for unused membership time. Only an administrator can cancel pending deletion before actual erasure.</p>
+<h2>@T("Before you confirm")</h2>
+<p>@T("Resignation immediately blocks login and member services, even if you have paid for future time. It starts account erasure after the configured waiting period and a fortnightly batch. There is no automatic refund for unused membership time. Only an administrator can cancel pending deletion before actual erasure.")</p>
 <ul>
-    <li>Deletion normally happens @Options.Value.DeletionWaitingDays–@(Options.Value.DeletionWaitingDays + 14) calendar days after resignation, potentially later if a batch is delayed. It never happens before the waiting period.</li>
-    <li>Unused purchased service time is not automatically refunded or credited. Unspent available/allocated funds are handled separately; contact the treasurer about any remaining credit.</li>
-    <li>After final deletion, rejoining requires a fresh application. Old credentials, qualifications and subscriptions are not restored.</li>
+    <li>@T("Deletion normally happens {0}–{1} calendar days after resignation, potentially later if a batch is delayed. It never happens before the waiting period.", Options.Value.DeletionWaitingDays, (Options.Value.DeletionWaitingDays + 14))</li>
+    <li>@T("Unused purchased service time is not automatically refunded or credited. Unspent available/allocated funds are handled separately; contact the treasurer about any remaining credit.")</li>
+    <li>@T("After final deletion, rejoining requires a fresh application. Old credentials, qualifications and subscriptions are not restored.")</li>
 </ul>
 </div>
-@if (error is not null) { <p role="alert">@error</p> }
+@if (error is not null) { <p role="alert">@ValidationText.Translate(error)</p> }
 <EditForm Model="Input" method="post" FormName="resign" OnValidSubmit="Submit">
-    <DataAnnotationsValidator /><ValidationSummary />
+    <DataAnnotationsValidator /><FormErrors />
     <input type="hidden" name="Input.Operation" value="@Input!.Operation" />
-    <p><InputCheckbox id="resign-confirm" @bind-Value="Input.Confirmed" /> <label for="resign-confirm">I understand and want to resign now.</label></p>
-    <button type="submit" class="danger-action">Resign and begin account deletion</button>
+    <p><InputCheckbox id="resign-confirm" @bind-Value="Input.Confirmed" /> <label for="resign-confirm">@T("I understand and want to resign now.")</label></p>
+    <button type="submit" class="danger-action">@T("Resign and begin account deletion")</button>
 </EditForm>
 
 @code {

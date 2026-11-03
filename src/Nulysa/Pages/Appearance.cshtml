@@ -1,16 +1,16 @@
 @page
 @model Nulysa.Pages.AppearanceModel
-@{ ViewData["Title"] = "Appearance"; }
-<h1>Appearance</h1>
-<p>Choose how this portal looks on this browser. Your choice does not change association identity or account permissions.</p>
-@if (Model.Saved) { <p role="status">Appearance saved.</p> }
+@{ ViewData["Title"] = T("Appearance"); }
+<h1>@T("Appearance")</h1>
+<p>@T("Choose how this portal looks on this browser. Your choice does not change association identity or account permissions.")</p>
+@if (Model.Saved) { <p role="status">@T("Appearance saved.")</p> }
 <form method="post">
     <div asp-validation-summary="All" role="alert"></div>
-    <p><label asp-for="Theme">Theme</label>
-        <select asp-for="Theme"><option value="association">Association default</option><option value="default">Default</option><option value="tampere-hacklab">Tampere Hacklab</option></select></p>
-    <p><label asp-for="Mode">Colour mode</label>
-        <select asp-for="Mode"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></p>
-    <p>System follows your device's light or dark preference.</p>
-    <button type="submit">Save appearance</button>
+    <p><label asp-for="Theme">@T("Theme")</label>
+        <select asp-for="Theme"><option value="association">@T("Association default")</option><option value="default">@T("Default")</option><option value="tampere-hacklab">@T("Tampere Hacklab")</option></select></p>
+    <p><label asp-for="Mode">@T("Colour mode")</label>
+        <select asp-for="Mode"><option value="system">@T("System")</option><option value="light">@T("Light")</option><option value="dark">@T("Dark")</option></select></p>
+    <p>@T("System follows your device's light or dark preference.")</p>
+    <button type="submit">@T("Save appearance")</button>
 </form>
-<p><a href="/">Return to portal</a>@if (User.Identity?.IsAuthenticated != true) { <span> · <a href="/Account/Login">Log in</a></span> }</p>
+<p><a href="/">@T("Return to portal")</a>@if (User.Identity?.IsAuthenticated != true) { <span> · <a href="/Account/Login">@T("Log in")</a></span> }</p>

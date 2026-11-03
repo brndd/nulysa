@@ -59,12 +59,15 @@ public abstract class OidcTest : DatabaseTest
         return app;
     }
 
-    protected HttpClient Client(CookieContainer? cookies = null) => new(new HttpClientHandler
+    // Existing request journeys assert English copy explicitly; localisation tests opt into automatic selection.
+    protected HttpClient Client(CookieContainer? cookies = null, string? language = "en")
     {
-        AllowAutoRedirect = false,
-        CookieContainer = cookies ?? new CookieContainer()
-    })
-    { BaseAddress = new Uri(Settings["Oidc:Issuer"]!), Timeout = TimeSpan.FromSeconds(15) };
+        cookies ??= new CookieContainer();
+        if (language is not null)
+            cookies.Add(new Uri(Settings["Oidc:Issuer"]!), new Cookie("Nulysa.Language", language, "/"));
+        return new(new HttpClientHandler { AllowAutoRedirect = false, CookieContainer = cookies })
+        { BaseAddress = new Uri(Settings["Oidc:Issuer"]!), Timeout = TimeSpan.FromSeconds(15) };
+    }
 
     protected static async Task<HttpResponseMessage> Login(HttpClient client, string email = Email)
     {

@@ -20,6 +20,7 @@ public sealed class FinancialWorkflowBrowserTests : BoardTest
         using var playwright = await Playwright.CreateAsync();
         await using var browser = await playwright.Chromium.LaunchAsync(new() { Headless = true });
         var page = await browser.NewPageAsync(new() { ViewportSize = new() { Width = 375, Height = 812 } });
+        await page.Context.AddCookiesAsync([new Microsoft.Playwright.Cookie { Name = "Nulysa.Language", Value = "en", Url = Settings["Oidc:Issuer"]! }]);
         var root = Settings["Oidc:Issuer"]!;
         await page.GotoAsync(root + "Account/Login");
         await page.GetByLabel("Email", new() { Exact = true }).FillAsync("board@example.test");

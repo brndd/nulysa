@@ -1,8 +1,8 @@
 @inject IConfiguration Configuration
 
 <PageTitle>@Title@(Context is null ? "" : $" — {Context}") — @Configuration["Association:Name"]</PageTitle>
-<nav class="breadcrumbs" aria-label="Breadcrumb">
-    <a href="/admin">Administration</a>
+<nav class="breadcrumbs" aria-label="@T("Breadcrumb")">
+    <a href="/admin">@T("Administration")</a>
     @foreach (var item in Trail.Count == 0 ? new[] { new BreadcrumbItem(Title) } : Trail)
     {
         <span aria-hidden="true">/</span>

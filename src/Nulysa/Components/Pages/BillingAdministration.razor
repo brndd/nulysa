@@ -22,22 +22,22 @@
 else
 {
     <AdminPageHeader Title="@Title" Trail="@(TaskName.Length > 0
-        ? new BreadcrumbItem[] { new("Retained balances", "/admin/payments/retained-balances"), new($"Account #{AccountId}", DirectoryUrl), new(Title) }
-        : new BreadcrumbItem[] { new("Retained balances", "/admin/payments/retained-balances"), new(Title) })" />
+        ? new BreadcrumbItem[] { new(T("Retained balances"), "/admin/payments/retained-balances"), new($"Account #{AccountId}", DirectoryUrl), new(Title) }
+        : new BreadcrumbItem[] { new(T("Retained balances"), "/admin/payments/retained-balances"), new(Title) })" />
 }
-@if (notice is not null) { <p role="status" class="success-notice">@notice</p> }
-@if (error is not null) { <p role="alert">@error</p> }
+@if (notice is not null) { <p role="status" class="success-notice">@T(notice)</p> }
+@if (error is not null) { <p role="alert">@ValidationText.Translate(error)</p> }
 <div class="detail-workspace">
 @if (view is not null)
 {
     @if (UserId is null)
     {
-        <p>Retained financial account #@AccountId. The member account was erased. Only financial evidence and any unspent claim remain.</p>
-        <table><caption>Retained invoice evidence</caption><thead><tr><th>Invoice / PDF</th><th>Line / period</th><th>State</th><th>Amount EUR</th></tr></thead><tbody>
-        @foreach (var invoice in view.Invoices) { @foreach (var row in invoice.Lines) { <tr><td><a href="@($"/billing/invoices/{invoice.Invoice.Id}/pdf")">#@invoice.Invoice.Id</a></td><td>#@row.Line.Id @row.Line.Description · @BillingDateText.PurchasePeriod(row.Line)</td><td>@row.Line.State</td><td>@row.Line.Amount.ToString("0.00")</td></tr> } }
+        <p>@T("Retained financial account #{0}. The member account was erased. Only financial evidence and any unspent claim remain.", AccountId)</p>
+        <table tabindex="0"><caption>@T("Retained invoice evidence")</caption><thead><tr><th scope="col">@T("Invoice / PDF")</th><th scope="col">@T("Line / period")</th><th scope="col">@T("State")</th><th scope="col">@T("Amount EUR")</th></tr></thead><tbody>
+        @foreach (var invoice in view.Invoices) { @foreach (var row in invoice.Lines) { <tr><td><a href="@($"/billing/invoices/{invoice.Invoice.Id}/pdf")">#@invoice.Invoice.Id</a></td><td>#@row.Line.Id @row.Line.Description · @BillingDateText.PurchasePeriod(row.Line)</td><td>@T(row.Line.State.ToString())</td><td>@row.Line.Amount.ToString("0.00")</td></tr> } }
         </tbody></table>
     }
-    <p>Available billing credit: @view.Balances.BillingCredit.ToString("0.00") EUR · purchase balance: @view.Balances.PurchaseBalance.ToString("0.00") EUR · held: @view.Balances.Held.ToString("0.00") EUR</p>
+    <p>@T("Available billing credit: {0} EUR · purchase balance: {1} EUR · held: {2} EUR", view.Balances.BillingCredit.ToString("0.00"), view.Balances.PurchaseBalance.ToString("0.00"), view.Balances.Held.ToString("0.00"))</p>
     @if (TaskName.Length == 0)
     {
         @foreach (var group in TaskGroups)
@@ -45,8 +45,8 @@ else
             var tasks = group.Tasks.Where(task => UserId is not null || task is "refund" or "unassign").ToList();
             @if (tasks.Count > 0)
             {
-                <section><h2>@group.Label</h2><ul class="task-list">
-                @foreach (var task in tasks) { <li><a href="@ActionUrl(task)">@Actions[task]</a></li> }
+                <section><h2>@T(group.Label)</h2><ul class="task-list">
+                @foreach (var task in tasks) { <li><a href="@ActionUrl(task)">@T(Actions[task])</a></li> }
                 </ul></section>
             }
         }
@@ -54,100 +54,100 @@ else
     <section id="adjustment">
     @if (TaskName == "one-off" && view.UserId is not null)
     {
-        <p>Issue a separate advance request with its own reference. No subscription, reservation or debt is created.</p>
-        <EditForm Model="OneOff" method="post" FormName="one-off" OnValidSubmit="CreateOneOff"><DataAnnotationsValidator /><ValidationSummary />
+        <p>@T("Issue a separate advance request with its own reference. No subscription, reservation or debt is created.")</p>
+        <EditForm Model="OneOff" method="post" FormName="one-off" OnValidSubmit="CreateOneOff"><DataAnnotationsValidator /><FormErrors />
             <input type="hidden" name="OneOff.Key" value="@OneOff!.Key" />
             <fieldset disabled="@reviewing">
-            <label for="description">Description</label><InputText id="description" @bind-Value="OneOff.Description" required />
-            <label for="category">Category</label><InputText id="category" @bind-Value="OneOff.Category" required />
-            <label for="amount">Amount EUR</label><InputNumber id="amount" @bind-Value="OneOff.Amount" step="0.01" />
-            <label for="due">Pay by</label><InputDate id="due" @bind-Value="OneOff.DueOn" />
+            <label for="description">@T("Description")</label><InputText id="description" @bind-Value="OneOff.Description" required />
+            <label for="category">@T("Category")</label><InputText id="category" @bind-Value="OneOff.Category" required />
+            <label for="amount">@T("Amount EUR")</label><InputMoney id="amount" @bind-Value="OneOff.Amount" />
+            <label for="due">@T("Pay by")</label><InputDate id="due" @bind-Value="OneOff.DueOn" />
             </fieldset>
             @if (reviewing) { @foreach (var pair in OneOffValues) { <input type="hidden" name="@pair.Key" value="@pair.Value" /> } }
-            @if (reviewing) { <p class="status-panel">Issue @OneOff.Description (@OneOff.Category): @OneOff.Amount.ToString("0.00") EUR, pay by @OneOff.DueOn.ToString("d MMM yyyy").</p><button name="OneOff.Confirmed" value="true">Confirm one-off request</button> }
-            else { <button name="OneOff.Confirmed" value="false">Review one-off request</button> }
+            @if (reviewing) { <p class="status-panel">@T("Issue {0} ({1}): {2} EUR, pay by {3}.", OneOff.Description, OneOff.Category, OneOff.Amount.ToString("0.00"), OneOff.DueOn.ToString("d MMM yyyy"))</p><button name="OneOff.Confirmed" value="true">@T("Confirm one-off request")</button> }
+            else { <button name="OneOff.Confirmed" value="false">@T("Review one-off request")</button> }
         </EditForm>
     }
     else if (AvailableTask)
     {
         <p>@Explanation</p>
-        <EditForm Model="Adjustment" method="post" FormName="adjustment" OnValidSubmit="Adjust"><DataAnnotationsValidator /><ValidationSummary />
+        <EditForm Model="Adjustment" method="post" FormName="adjustment" OnValidSubmit="Adjust"><DataAnnotationsValidator /><FormErrors />
             <input type="hidden" name="Adjustment.Key" value="@Adjustment!.Key" />
             <fieldset disabled="@reviewing">
             @if (TaskName == "discount")
             {
-                <label for="adjust-fee">Fee</label><InputSelect id="adjust-fee" @bind-Value="Adjustment.FeeId">@foreach (var fee in fees.Where(fee => !fee.Retired)) { <option value="@fee.Id">@fee.Name</option> }</InputSelect>
-                <label for="discount-type">Discount type</label><InputSelect id="discount-type" @bind-Value="Adjustment.Kind"><option value="Percentage">Percentage</option><option value="MonthlyPrice">Replacement monthly price</option></InputSelect>
-                <label for="adjust-value">Discount value</label><InputNumber id="adjust-value" @bind-Value="Adjustment.Value" step="0.01" />
-                <label for="adjust-start">Starts on</label><InputDate id="adjust-start" @bind-Value="Adjustment.Start" />
-                <label for="adjust-end">Through</label><InputDate id="adjust-end" @bind-Value="Adjustment.Through" />
+                <label for="adjust-fee">@T("Fee")</label><InputSelect id="adjust-fee" @bind-Value="Adjustment.FeeId">@foreach (var fee in fees.Where(fee => !fee.Retired)) { <option value="@fee.Id">@fee.Name</option> }</InputSelect>
+                <label for="discount-type">@T("Discount type")</label><InputSelect id="discount-type" @bind-Value="Adjustment.Kind"><option value="Percentage">@T("Percentage")</option><option value="MonthlyPrice">@T("Replacement monthly price")</option></InputSelect>
+                <label for="adjust-value">@T("Discount value")</label><InputMoney id="adjust-value" @bind-Value="Adjustment.Value" />
+                <label for="adjust-start">@T("Starts on")</label><InputDate id="adjust-start" @bind-Value="Adjustment.Start" />
+                <label for="adjust-end">@T("Through")</label><InputDate id="adjust-end" @bind-Value="Adjustment.Through" />
             }
             @if (TaskName is "withdraw" or "credit")
             {
-                <label for="discount-choice">Discount</label><InputSelect id="discount-choice" @bind-Value="Adjustment.DiscountId"><option value="0">Choose a discount</option>
+                <label for="discount-choice">@T("Discount")</label><InputSelect id="discount-choice" @bind-Value="Adjustment.DiscountId"><option value="0">@T("Choose a discount")</option>
                     @foreach (var discount in view.Discounts.Where(discount => discount.WithdrawnAt == null)) { <option value="@discount.Id">@DiscountLabel(discount)</option> }
                 </InputSelect>
             }
             @if (TaskName == "credit")
             {
-                <label for="line-choice">Completed purchase</label><InputSelect id="line-choice" @bind-Value="Adjustment.LineId"><option value="0">Choose a purchase</option>
-                    @foreach (var row in view.Invoices.SelectMany(invoice => invoice.Lines).Where(row => row.Line.State == LineState.Fulfilled)) { <option value="@row.Line.Id">@row.Line.Description · @BillingDateText.PurchasePeriod(row.Line) · @row.Line.Amount.ToString("0.00") EUR · bill #@row.Line.InvoiceId</option> }
+                <label for="line-choice">@T("Completed purchase")</label><InputSelect id="line-choice" @bind-Value="Adjustment.LineId"><option value="0">@T("Choose a purchase")</option>
+                    @foreach (var row in view.Invoices.SelectMany(invoice => invoice.Lines).Where(row => row.Line.State == LineState.Fulfilled)) { <option value="@row.Line.Id">@T("{0} · {1} · {2} EUR · bill #{3}", row.Line.Description, BillingDateText.PurchasePeriod(row.Line), row.Line.Amount.ToString("0.00"), row.Line.InvoiceId)</option> }
                 </InputSelect>
-                <input type="hidden" name="Adjustment.Value" value="@Adjustment.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)" />
+                <input type="hidden" name="Adjustment.Value" value="@Adjustment.Value.ToString()" />
             }
             @if (TaskName == "grant")
             {
-                <label for="grant-months">Whole membership months</label><InputNumber id="grant-months" @bind-Value="Adjustment.Months" />
+                <label for="grant-months">@T("Whole membership months")</label><InputNumber id="grant-months" @bind-Value="Adjustment.Months" />
                 <input type="hidden" name="Adjustment.Through" value="@Adjustment.Through.ToString("yyyy-MM-dd")" />
             }
             @if (TaskName == "cancel")
             {
-                <label for="bill-choice">Bill with unfinished lines</label><InputSelect id="bill-choice" @bind-Value="Adjustment.InvoiceId"><option value="0">Choose a bill</option>
-                    @foreach (var invoice in view.Invoices.Where(invoice => invoice.Lines.Any(row => row.Line.State == LineState.Open))) { <option value="@invoice.Invoice.Id">Bill #@invoice.Invoice.Id · @string.Join(", ", invoice.Lines.Select(row => row.Line.Description)) · @invoice.Remaining.ToString("0.00") EUR remaining</option> }
+                <label for="bill-choice">@T("Bill with unfinished lines")</label><InputSelect id="bill-choice" @bind-Value="Adjustment.InvoiceId"><option value="0">@T("Choose a bill")</option>
+                    @foreach (var invoice in view.Invoices.Where(invoice => invoice.Lines.Any(row => row.Line.State == LineState.Open))) { <option value="@invoice.Invoice.Id">@T("Bill #{0} · {1} · {2:0.00} EUR remaining", invoice.Invoice.Id, string.Join(", ", invoice.Lines.Select(row => row.Line.Description)), invoice.Remaining)</option> }
                 </InputSelect>
             }
             @if (TaskName == "refund")
             {
-                <label for="refund-source">Refund source</label><InputSelect id="refund-source" @bind-Value="Adjustment.Purchase"><option value="false">Billing credit (@view.Balances.BillingCredit.ToString("0.00") EUR available)</option><option value="true">Purchase balance (@view.Balances.PurchaseBalance.ToString("0.00") EUR available)</option></InputSelect>
-                <label for="refund-value">Completed refund amount EUR</label><InputNumber id="refund-value" @bind-Value="Adjustment.Value" step="0.01" />
+                <label for="refund-source">@T("Refund source")</label><InputSelect id="refund-source" @bind-Value="Adjustment.Purchase"><option value="false">@T("Billing credit ({0} EUR available)", view.Balances.BillingCredit.ToString("0.00"))</option><option value="true">@T("Purchase balance ({0} EUR available)", view.Balances.PurchaseBalance.ToString("0.00"))</option></InputSelect>
+                <label for="refund-value">@T("Completed refund amount EUR")</label><InputMoney id="refund-value" @bind-Value="Adjustment.Value" />
             }
             @if (TaskName == "unassign")
             {
-                <label for="receipt-choice">Posted bank receipt</label><InputSelect id="receipt-choice" @bind-Value="Adjustment.ReceiptId"><option value="0">Choose a receipt</option>
-                    @foreach (var receipt in receipts) { <option value="@receipt.Id">@receipt.ReceivedOn · @receipt.Amount.ToString("0.00") @receipt.Currency · @receipt.Counterparty · @receipt.Reference · source @receipt.ExternalId</option> }
-                </InputSelect><small>Latest 100 posted receipts. Completed purchases and spent money cannot be reversed here.</small>
+                <label for="receipt-choice">@T("Posted bank receipt")</label><InputSelect id="receipt-choice" @bind-Value="Adjustment.ReceiptId"><option value="0">@T("Choose a receipt")</option>
+                    @foreach (var receipt in receipts) { <option value="@receipt.Id">@T("{0} · {1} {2} · {3} · {4} · source {5}", receipt.ReceivedOn, receipt.Amount.ToString("0.00"), receipt.Currency, receipt.Counterparty, receipt.Reference, receipt.ExternalId)</option> }
+                </InputSelect><small>@T("Latest 100 posted receipts. Completed purchases and spent money cannot be reversed here.")</small>
             }
-            <label for="reason">@(TaskName == "refund" ? "Completed bank refund reference and reason" : "Reason")</label><InputTextArea id="reason" @bind-Value="Adjustment.Reason" required maxlength="1000" />
+            <label for="reason">@T(TaskName == "refund" ? "Completed bank refund reference and reason" : "Reason")</label><InputTextArea id="reason" @bind-Value="Adjustment.Reason" required maxlength="1000" />
             </fieldset>
             @if (reviewing) { @foreach (var pair in AdjustmentValues) { <input type="hidden" name="@pair.Key" value="@pair.Value" /> } }
-            @if (reviewing) { <div class="status-panel"><h2>Review proposed effect</h2><p>@effect</p><p>Reason: @Adjustment.Reason</p><p>Current facts and authority will be rechecked when confirmed.</p></div><button name="Adjustment.Confirmed" value="true">Confirm adjustment</button> }
-            else { <button name="Adjustment.Confirmed" value="false">Review adjustment</button> }
+            @if (reviewing) { <div class="status-panel"><h2>@T("Review proposed effect")</h2><p>@effect</p><p>@T("Reason: {0}", Adjustment.Reason)</p><p>@T("Current facts and authority will be rechecked when confirmed.")</p></div><button name="Adjustment.Confirmed" value="true">@T("Confirm adjustment")</button> }
+            else { <button name="Adjustment.Confirmed" value="false">@T("Review adjustment")</button> }
         </EditForm>
     }
-    @if (TaskName.Length > 0) { <p><a href="@CancelUrl">Cancel and return</a></p> }
+    @if (TaskName.Length > 0) { <p><a href="@CancelUrl">@T("Cancel and return")</a></p> }
     </section>
     @if (UserId is null)
     {
-    <details class="financial-history" open="@(Page > 1)"><summary>Financial history and balance statements</summary>
-    <h2>Balance statements</h2>
-    <p>Running statements are derived from the immutable journal. <a href="/admin/payments">Open Payments and accounting for the full journal export and reconciliation</a>.</p>
+    <details class="financial-history" open="@(Page > 1)"><summary>@T("Financial history and balance statements")</summary>
+    <h2>@T("Balance statements")</h2>
+    <p>@T("Running statements are derived from the immutable journal.") <a href="/admin/payments">@T("Open Payments and accounting for the full journal export and reconciliation")</a>.</p>
     @foreach (var statement in view.Statements)
     {
-        <h3>@StatementTitle(statement.Balance)</h3>
-        <p>Closing balance: @statement.ClosingBalance.ToString("0.00") EUR
-            @if (statement.HasMore) { <span> · showing a page</span> }
+        <h3>@T(StatementTitle(statement.Balance))</h3>
+        <p>@T("Closing balance: {0:0.00} EUR", statement.ClosingBalance)
+            @if (statement.HasMore) { <span> @T("· showing a page")</span> }
         </p>
-        <table><thead><tr><th>Effective</th><th>Recorded</th><th>Description</th><th>Amount EUR</th><th>Running balance EUR</th><th>Source</th></tr></thead><tbody>
+        <table tabindex="0"><caption>@T(StatementTitle(statement.Balance))</caption><thead><tr><th scope="col">@T("Effective")</th><th scope="col">@T("Recorded")</th><th scope="col">@T("Description")</th><th scope="col">@T("Amount EUR")</th><th scope="col">@T("Running balance EUR")</th><th scope="col">@T("Source")</th></tr></thead><tbody>
         @foreach (var line in statement.Lines)
         {
             <tr id="movement-@line.MovementId"><td>@line.EffectiveOn</td><td>@line.RecordedAt.ToString("yyyy-MM-dd HH:mm")</td><td>@line.Description</td><td>@line.Amount.ToString("0.00")</td><td>@line.RunningBalance.ToString("0.00")</td>
                 <td>
-                    @if (line.ReceiptId is { } receiptId) { <span>Receipt #@receiptId</span> }
-                    @if (line.InvoiceId is { } invoiceId) { <a href="@($"/billing/invoices/{invoiceId}/pdf")">Invoice #@invoiceId</a> }
-                    @if (line.InvoiceLineId is { } lineId) { <span>line #@lineId</span> }
-                    @if (line.DiscountId is { } discountId) { <span>discount #@discountId</span> }
-                    @if (line.ReversesMovementId is { } reversalId) { <a href="@(Navigation.Uri.Split('#')[0] + $"#movement-{reversalId}")">reverses #@reversalId</a> }
-                    @if (line.LotId is { } lotId) { <span>lot #@lotId (@line.LotOriginalAmount?.ToString("0.00") original, @line.LotRemaining?.ToString("0.00") remaining)</span> }
+                    @if (line.ReceiptId is { } receiptId) { <span>@T("Receipt #{0}", receiptId)</span> }
+                    @if (line.InvoiceId is { } invoiceId) { <a href="@($"/billing/invoices/{invoiceId}/pdf")">@T("Invoice #{0}", invoiceId)</a> }
+                    @if (line.InvoiceLineId is { } lineId) { <span>@T("line #{0}", lineId)</span> }
+                    @if (line.DiscountId is { } discountId) { <span>@T("discount #{0}", discountId)</span> }
+                    @if (line.ReversesMovementId is { } reversalId) { <a href="@(Navigation.Uri.Split('#')[0] + $"#movement-{reversalId}")">@T("reverses #{0}", reversalId)</a> }
+                    @if (line.LotId is { } lotId) { <span>@T("lot #{0} ({1} original, {2} remaining)", lotId, line.LotOriginalAmount?.ToString("0.00"), line.LotRemaining?.ToString("0.00"))</span> }
                 </td>
             </tr>
         }
@@ -156,12 +156,12 @@ else
     @if (Page > 1 || view.Statements.Any(x => x.HasMore))
     {
         <p>
-            @if (Page > 1) { <a href="@Navigation.GetUriWithQueryParameter("page", Page - 1)">Previous</a> }
-            @if (view.Statements.Any(x => x.HasMore)) { <a href="@Navigation.GetUriWithQueryParameter("page", Page + 1)">Next</a> }
+            @if (Page > 1) { <a href="@Navigation.GetUriWithQueryParameter("page", Page - 1)">@T("Previous")</a> }
+            @if (view.Statements.Any(x => x.HasMore)) { <a href="@Navigation.GetUriWithQueryParameter("page", Page + 1)">@T("Next")</a> }
         </p>
     }
-    <h2>Discounts</h2><ul>@foreach (var discount in view.Discounts) { <li>#@discount.Id · fee #@discount.FeeDefinitionId · @discount.Kind @discount.Value · @BillingDateText.Period(discount.StartsOn, discount.EndExclusive) · @(discount.WithdrawnAt is null ? "Current" : "Withdrawn")</li> }</ul>
-    <h2>Command history</h2><ul>@foreach (var operation in view.History) { <li>@operation.OccurredAt.ToString("u") · @operation.Kind · @(operation.ActorId is { } actorId ? $"actor #{actorId}" : "System") · @operation.Reason · @operation.Id</li> }</ul>
+    <h2>@T("Discounts")</h2><ul>@foreach (var discount in view.Discounts) { <li>@T("#{0} · fee #{1} · {2} {3} · {4} · {5}", discount.Id, discount.FeeDefinitionId, discount.Kind, discount.Value, BillingDateText.Period(discount.StartsOn, discount.EndExclusive), (discount.WithdrawnAt is null ? "Current" : "Withdrawn"))</li> }</ul>
+    <h2>@T("Command history")</h2><ul>@foreach (var operation in view.History) { <li>@operation.OccurredAt.ToString("u") · @operation.Kind · @(operation.ActorId is { } actorId ? $"actor #{actorId}" : "System") · @operation.Reason · @operation.Id</li> }</ul>
     </details>
     }
 }

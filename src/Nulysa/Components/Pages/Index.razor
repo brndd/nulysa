@@ -5,46 +5,46 @@
 @inject MemberPortalQueries Queries
 @inject AuthenticationStateProvider Authentication
 
-<PageTitle>Member portal — @Configuration["Association:Name"]</PageTitle>
-<h1>Member portal</h1>
-<p class="page-intro">Your membership, payments and association services in one place.</p>
+<PageTitle>@T("Member portal") — @Configuration["Association:Name"]</PageTitle>
+<h1>@T("Member portal")</h1>
+<p class="page-intro">@T("Your membership, payments and association services in one place.")</p>
 @if (overview is not null)
 {
     @if (overview.PendingEmail is not null || overview.Bills.Count > 0)
     {
         <section class="payment-panel payment-attention" aria-labelledby="attention-heading">
-            <h2 id="attention-heading">Needs your attention</h2>
-            @if (overview.PendingEmail is not null) { <p>New email awaiting verification: @overview.PendingEmail. <a href="/profile#email">Review email change</a>.</p> }
+            <h2 id="attention-heading">@T("Needs your attention")</h2>
+            @if (overview.PendingEmail is not null) { <p>@T("New email awaiting verification: {0}.", overview.PendingEmail) <a href="/profile#email">@T("Review email change")</a>.</p> }
             <ul class="attention-list">
                 @foreach (var bill in overview.Bills)
                 {
-                    <li><a href="@($"/billing/invoices/{bill.Id}")">View bill #@bill.Id and payment instructions</a>
-                        @if (bill.DueOn is { } due) { <span> · Pay by @due.ToString("d MMM yyyy")</span> }
+                    <li><a href="@($"/billing/invoices/{bill.Id}")">@T("View bill #{0} and payment instructions", bill.Id)</a>
+                        @if (bill.DueOn is { } due) { <span> @T("· Pay by {0}", due.ToString("d MMM yyyy"))</span> }
                     </li>
                 }
             </ul>
-            @if (overview.HasMoreBills) { <p><a href="/billing">View all bills</a></p> }
-            <p>Bank payments appear after confirmation and processing. A bill can remain open for an optional service even when membership is paid.</p>
+            @if (overview.HasMoreBills) { <p><a href="/billing">@T("View all bills")</a></p> }
+            <p>@T("Bank payments appear after confirmation and processing. A bill can remain open for an optional service even when membership is paid.")</p>
         </section>
     }
-    else if (overview.Membership is { Active: true, IsMembershipGrace: false }) { <p>No payments or email changes need your attention.</p> }
+    else if (overview.Membership is { Active: true, IsMembershipGrace: false }) { <p>@T("No payments or email changes need your attention.")</p> }
     @if (overview.Membership is { } membership)
     {
         <section class="status-panel" aria-labelledby="standing-heading">
-            <h2 id="standing-heading">Your membership</h2>
-            <p><strong>@(membership.Active ? "Active" : "Inactive")</strong> — @membership.Description</p>
+            <h2 id="standing-heading">@T("Your membership")</h2>
+            <p><strong>@T(membership.Active ? T("Active") : "Inactive")</strong> — @T(membership.Description)</p>
             @if (membership.ActiveUntilExclusive is not null) { <p><StandingThroughDate Standing="membership" /></p> }
-            @if (!membership.Active) { <p>You are still a member. Billing is paused; you do not owe fees for inactive months. <a href="/services">Review membership return options</a>.</p> }
-            else if (membership.IsMembershipGrace) { <p>Membership remains active during grace. <a href="/billing">Review your membership payment before grace ends</a>.</p> }
+            @if (!membership.Active) { <p>@T("You are still a member. Billing is paused; you do not owe fees for inactive months.") <a href="/services">@T("Review membership return options")</a>.</p> }
+            else if (membership.IsMembershipGrace) { <p>@T("Membership remains active during grace.") <a href="/billing">@T("Review your membership payment before grace ends")</a>.</p> }
         </section>
     }
-    else { <p class="status-panel">No membership billing account is available. Contact an administrator if you need help.</p> }
+    else { <p class="status-panel">@T("No membership billing account is available. Contact an administrator if you need help.")</p> }
 
 }
 <div class="overview-links">
-    <a href="/services"><strong>Account overview</strong><span>Review membership standing, coverage and service renewals.</span></a>
-    <a href="/billing"><strong>Billing details</strong><span>Review outstanding bills and transaction history.</span></a>
-    <a href="/profile"><strong>Settings</strong><span>Keep your contact details and email address up to date.</span></a>
+    <a href="/services"><strong>@T("Account overview")</strong><span>@T("Review membership standing, coverage and service renewals.")</span></a>
+    <a href="/billing"><strong>@T("Billing details")</strong><span>@T("Review outstanding bills and transaction history.")</span></a>
+    <a href="/profile"><strong>@T("Settings")</strong><span>@T("Keep your contact details and email address up to date.")</span></a>
 </div>
 
 @code {

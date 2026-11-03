@@ -1,0 +1,27 @@
+<svg width="24" height="18" viewBox="0 0 60 40" aria-hidden="true" focusable="false" class="language-flag">
+    @if (Code == "fi")
+    {
+        <path fill="#fff" d="M0 0h60v40H0z" />
+        <path fill="#003580" d="M16 0h10v40H16zM0 15h60v10H0z" />
+    }
+    else if (Code == "en")
+    {
+        <path fill="#012169" d="M0 0h60v40H0z" />
+        <path stroke="#fff" stroke-width="8" d="m0 0 60 40M60 0 0 40" />
+        <path stroke="#c8102e" stroke-width="3" d="m0 0 60 40M60 0 0 40" />
+        <path stroke="#fff" stroke-width="13" d="M30 0v40M0 20h60" />
+        <path stroke="#c8102e" stroke-width="7" d="M30 0v40M0 20h60" />
+    }
+    else
+    {
+        <g fill="none" stroke="currentColor" stroke-width="3">
+            <circle cx="30" cy="20" r="17" />
+            <ellipse cx="30" cy="20" rx="8" ry="17" />
+            <path d="M13 20h34M16 10h28M16 30h28" />
+        </g>
+    }
+</svg>
+
+@code {
+    [Parameter] public string? Code { get; set; }
+}

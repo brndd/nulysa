@@ -21,29 +21,29 @@
 
 @if (UserId is null)
 {
-    <PageTitle>@Title — @Configuration["Association:Name"]</PageTitle>
-    <h1>@Title</h1>
+    <PageTitle>@T(Title) — @Configuration["Association:Name"]</PageTitle>
+    <h1>@T(Title)</h1>
 }
 else if (subject is null) { <AdminPageHeader Title="@Title" /> }
 <div class="detail-workspace">
 @if (subject is not null) { <MemberWorkspace Member="subject" ReturnUrl="@ReturnUrl" Section="@(ShowServices ? MemberSection.Overview : MemberSection.Billing)" /> }
 @if (UserId is null)
 {
-    <nav class="section-navigation" aria-label="Membership and payments">
-        <a href="/services" aria-current="@(ShowServices ? "page" : null)">Account overview</a>
-        <a href="/billing" aria-current="@(ShowBillingDetails ? "page" : null)">Billing details</a>
+    <nav class="section-navigation" aria-label="@T("Membership and payments")">
+        <a href="/services" aria-current="@(ShowServices ? "page" : null)">@T("Account overview")</a>
+        <a href="/billing" aria-current="@(ShowBillingDetails ? "page" : null)">@T("Billing details")</a>
     </nav>
 }
-@if (error is not null && !ShowTransferDialog) { <p role="alert">@error</p> }
-@if (notice is not null) { <p role="status" class="success-notice">@notice</p> }
+@if (error is not null && !ShowTransferDialog) { <p role="alert">@ValidationText.Translate(error)</p> }
+@if (notice is not null) { <p role="status" class="success-notice">@T(notice)</p> }
 @if (view is not null)
 {
     @if (actionReview is not null)
     {
         <section class="status-panel" aria-labelledby="review-heading">
-            <h2 id="review-heading">Review service change</h2>
-            <p>@actionReview</p>
-            <p>Available billing credit: @Money(view.Balances.BillingCredit) EUR. Valid bills may use this automatically. Prices and eligibility are checked again when you confirm.</p>
+            <h2 id="review-heading">@T("Review service change")</h2>
+            <p>@T(actionReview)</p>
+            <p>@T("Available billing credit: {0} EUR. Valid bills may use this automatically. Prices and eligibility are checked again when you confirm.", Money(view.Balances.BillingCredit))</p>
             <EditForm Model="Action" method="post" FormName="confirm-action" OnSubmit="Submit">
                 <input type="hidden" name="Action.Key" value="@Action!.Key" />
                 <input type="hidden" name="Action.Name" value="@Action.Name" />
@@ -51,7 +51,7 @@ else if (subject is null) { <AdminPageHeader Title="@Title" /> }
                 <input type="hidden" name="Action.Months" value="@Action.Months" />
                 <input type="hidden" name="Action.Grant" value="@Action.Grant.ToString().ToLowerInvariant()" />
                 <input type="hidden" name="Action.Confirmed" value="true" />
-                <button>Confirm service change</button> <a href="@Navigation.Uri">Cancel</a>
+                <button>@T("Confirm service change")</button> <a href="@Navigation.Uri">@T("Cancel")</a>
             </EditForm>
         </section>
     }
@@ -60,105 +60,105 @@ else if (subject is null) { <AdminPageHeader Title="@Title" /> }
     @if (ShowServices && (OutstandingBills.Count > 0 || pendingEmail is not null || view.Membership.IsMembershipGrace))
     {
         <section class="payment-panel payment-attention" aria-labelledby="attention-heading">
-            <h2 id="attention-heading">Needs your attention</h2>
+            <h2 id="attention-heading">@T("Needs your attention")</h2>
             @if (OutstandingBills.Count > 0)
             {
-                <p>@OutstandingBills.Count outstanding @(OutstandingBills.Count == 1 ? "bill requests" : "bills request") payment.
-                    <a href="@BillingUrl">View outstanding bills and payment instructions</a>.
+                <p>@T("Outstanding bills needing payment: {0}.", OutstandingBills.Count)
+                    <a href="@BillingUrl">@T("View outstanding bills and payment instructions")</a>.
                 </p>
             }
-            @if (view.Membership.IsMembershipGrace) { <p>Membership remains active during grace. Review your membership payment before grace ends.</p> }
-            @if (pendingEmail is not null) { <p>New email awaiting verification: @pendingEmail. <a href="/profile#email">Review email change</a>.</p> }
+            @if (view.Membership.IsMembershipGrace) { <p>@T("Membership remains active during grace. Review your membership payment before grace ends.")</p> }
+            @if (pendingEmail is not null) { <p>@T("New email awaiting verification: {0}.", pendingEmail) <a href="/profile#email">@T("Review email change")</a>.</p> }
         </section>
     }
     @if (ShowServices)
     {
     <div class="status-panel">
-        <strong>Membership: @view.Membership.Description</strong>
+        <strong>@T("Membership: {0}", view.Membership.Description)</strong>
         @if (view.Membership.ActiveUntilExclusive is not null) { <p><StandingThroughDate Standing="view.Membership" /></p> }
         @if (!view.Membership.Active)
         {
             @if (UserId is not null)
             {
-                <p>Membership billing is paused. Already-purchased service time keeps expiring normally. Review return options below; pending deletion must be cancelled before a return can be requested.</p>
+                <p>@T("Membership billing is paused. Already-purchased service time keeps expiring normally. Review return options below; pending deletion must be cancelled before a return can be requested.")</p>
             }
-            else { <p>You are still a member. Membership billing is paused. Already-purchased service time keeps expiring normally. <a href="/services">Review your membership return options</a>.</p> }
+            else { <p>@T("You are still a member. Membership billing is paused. Already-purchased service time keeps expiring normally.") <a href="/services">@T("Review your membership return options")</a>.</p> }
         }
     </div>
     }
     @if (ShowBillingDetails)
     {
-        <nav class="on-this-page" aria-label="On this page"><span>On this page:</span>
-            <a href="@SectionLink("outstanding-bills")">Outstanding bills</a>
-            <a href="@PageLink("billsPage", CurrentBillsPage, "bill-history")">Previous bills</a>
-            <a href="@SectionLink("transactions")">Transaction history</a>
+        <nav class="on-this-page" aria-label="@T("On this page")"><span>@T("On this page:")</span>
+            <a href="@SectionLink("outstanding-bills")">@T("Outstanding bills")</a>
+            <a href="@PageLink("billsPage", CurrentBillsPage, "bill-history")">@T("Previous bills")</a>
+            <a href="@SectionLink("transactions")">@T("Transaction history")</a>
         </nav>
         <section id="outstanding-bills" class="payment-panel @(OutstandingBills.Count > 0 ? "payment-attention" : "")" aria-labelledby="outstanding-heading">
-            <h2 id="outstanding-heading">Outstanding bills</h2>
-            @if (OutstandingBills.Count == 0) { <p>No bills currently request payment.</p> }
+            <h2 id="outstanding-heading">@T("Outstanding bills")</h2>
+            @if (OutstandingBills.Count == 0) { <p>@T("No bills currently request payment.")</p> }
             else
             {
-                <p>These bills need your attention. Each has its own payment reference. Unpaid requests expire; they are not debt.</p>
+                <p>@T("These bills need your attention. Each has its own payment reference. Unpaid requests expire; they are not debt.")</p>
                 @foreach (var invoice in OutstandingBills) { <Nulysa.Components.BillSummary Invoice="invoice" DetailsUrl="@InvoiceUrl(invoice.Invoice.Id)" /> }
             }
-            @if (!view.Membership.Active) { <p>Membership is inactive, but you are still a member. <a href="@OverviewUrl">Review membership return options</a> rather than paying expired bills.</p> }
+            @if (!view.Membership.Active) { <p>@T("Membership is inactive, but you are still a member. Review return options instead of paying expired bills.") <a href="@OverviewUrl">@T("Review membership return options")</a></p> }
         </section>
     }
     @if (ShowBalances)
     {
     <section id="funds" class="payment-panel" aria-labelledby="balances-heading">
-        <h2 id="balances-heading">Current balances</h2>
+        <h2 id="balances-heading">@T("Current balances")</h2>
         <div class="balance-cards">
-            <div><h3>Available billing credit</h3><p class="balance-amount">@Money(view.Balances.BillingCredit) EUR</p><p>Automatically used for recurring bills.</p>
-                <small class="balance-note">Allocated to unfinished bills: @Money(view.Balances.Held) EUR — not included above or available to transfer.</small>
+            <div><h3>@T("Available billing credit")</h3><p class="balance-amount">@T("{0} EUR", Money(view.Balances.BillingCredit))</p><p>@T("Automatically used for recurring bills.")</p>
+                <small class="balance-note">@T("Allocated to unfinished bills: {0} EUR — not included above or available to transfer.", Money(view.Balances.Held))</small>
             </div>
             @if (Options.Value.PurchaseBalanceEnabled)
             {
-                <div><h3>Available purchase balance</h3><p class="balance-amount">@Money(view.Balances.PurchaseBalance) EUR</p><p>For explicit purchases; not automatically used for bills.</p>
+                <div><h3>@T("Available purchase balance")</h3><p class="balance-amount">@T("{0} EUR", Money(view.Balances.PurchaseBalance))</p><p>@T("For explicit purchases; not automatically used for bills.")</p>
         <details class="deposit-details">
-        <summary>Add purchase funds</summary>
-        <dl><dt>Recipient</dt><dd>@Configuration["Association:Name"]</dd>
-            <dt>IBAN</dt><dd class="payment-reference">@Options.Value.Iban</dd>
-            <dt>Purchase-deposit reference</dt><dd class="payment-reference">@view.DepositReference</dd></dl>
-        <p>Use this reference only for deliberate purchase deposits, not to pay a bill. Deposits become available after bank confirmation; they do not buy services or reserve storage automatically.</p>
+        <summary>@T("Add purchase funds")</summary>
+        <dl><dt>@T("Recipient")</dt><dd>@Configuration["Association:Name"]</dd>
+            <dt>@T("IBAN")</dt><dd class="payment-reference">@Options.Value.Iban</dd>
+            <dt>@T("Purchase-deposit reference")</dt><dd class="payment-reference">@view.DepositReference</dd></dl>
+        <p>@T("Use this reference only for deliberate purchase deposits, not to pay a bill. Deposits become available after bank confirmation; they do not buy services or reserve storage automatically.")</p>
         </details>
                 </div>
             }
         </div>
         @if (Options.Value.PurchaseBalanceEnabled)
         {
-            <ActionDialog Id="transfer-heading" Label="Move funds between balances" Title="Transfer available funds" Open="@ShowTransferDialog">
-                @if (error is not null) { <p role="alert">@error</p> }
+            <ActionDialog Id="transfer-heading" Label="@T("Move funds between balances")" Title="@T("Transfer available funds")" Open="@ShowTransferDialog">
+                @if (error is not null) { <p role="alert">@ValidationText.Translate(error)</p> }
                 @if (transferReview)
                 {
         <div>
-            <h3>Review transfer</h3>
-            <p>Move <strong>@Money(Transfer!.Amount) EUR</strong> from @(Transfer.ToPurchase ? "billing credit to purchase balance" : "purchase balance to billing credit").</p>
-            <p>Available source balance: @Money(Transfer.ToPurchase ? view.Balances.BillingCredit : view.Balances.PurchaseBalance) EUR.</p>
-            <p>Moving money into billing credit immediately funds valid recurring bills. Allocated or spent money cannot be transferred back. This is an internal transfer, not a bank payment.</p>
+            <h3>@T("Review transfer")</h3>
+            <p>@T(Transfer!.ToPurchase ? "Move {0:0.00} EUR from billing credit to purchase balance." : "Move {0:0.00} EUR from purchase balance to billing credit.", Transfer.Amount.Value)</p>
+            <p>@T("Available source balance: {0} EUR.", Money(Transfer.ToPurchase ? view.Balances.BillingCredit : view.Balances.PurchaseBalance))</p>
+            <p>@T("Moving money into billing credit immediately funds valid recurring bills. Allocated or spent money cannot be transferred back. This is an internal transfer, not a bank payment.")</p>
             <EditForm Model="Transfer" method="post" FormName="confirm-transfer" OnValidSubmit="TransferFunds">
-                <DataAnnotationsValidator /><ValidationSummary />
+                <DataAnnotationsValidator /><FormErrors />
                 <input type="hidden" name="Transfer.Key" value="@Transfer.Key" />
-                <input type="hidden" name="Transfer.Amount" value="@Transfer.Amount.ToString(System.Globalization.CultureInfo.InvariantCulture)" />
+                <input type="hidden" name="Transfer.Amount" value="@Transfer.Amount.ToString()" />
                 <input type="hidden" name="Transfer.ToPurchase" value="@Transfer.ToPurchase.ToString().ToLowerInvariant()" />
                 <input type="hidden" name="Transfer.Confirmed" value="true" />
-                <button>Confirm transfer</button>
+                <button>@T("Confirm transfer")</button>
             </EditForm>
         </div>
                 }
                 else
                 {
-                    <p>Available billing credit: @Money(view.Balances.BillingCredit) EUR · Purchase balance: @Money(view.Balances.PurchaseBalance) EUR.</p>
+                    <p>@T("Available billing credit: {0} EUR · Purchase balance: {1} EUR.", Money(view.Balances.BillingCredit), Money(view.Balances.PurchaseBalance))</p>
         <EditForm Model="Transfer" method="post" FormName="transfer" OnValidSubmit="TransferFunds">
-            <DataAnnotationsValidator /><ValidationSummary /><input type="hidden" name="Transfer.Key" value="@Transfer!.Key" />
-            <p><label for="transfer-amount">Amount (EUR)</label> <InputNumber id="transfer-amount" @bind-Value="Transfer.Amount" step="0.01" /></p>
-            <p><label for="transfer-direction">From / to</label>
+            <DataAnnotationsValidator /><FormErrors /><input type="hidden" name="Transfer.Key" value="@Transfer!.Key" />
+            <p><label for="transfer-amount">@T("Amount (EUR)")</label> <InputMoney id="transfer-amount" @bind-Value="Transfer.Amount" /></p>
+            <p><label for="transfer-direction">@T("From / to")</label>
                 <InputSelect id="transfer-direction" @bind-Value="Transfer.ToPurchase">
-                    <option value="false">Purchase balance → billing credit</option>
-                    <option value="true">Billing credit → purchase balance</option>
+                    <option value="false">@T("Purchase balance → billing credit")</option>
+                    <option value="true">@T("Billing credit → purchase balance")</option>
                 </InputSelect></p>
-            <p>Moving money into billing credit immediately funds valid recurring bills. Held or spent money cannot be transferred back.</p>
-            <button>Transfer available funds</button>
+            <p>@T("Moving money into billing credit immediately funds valid recurring bills. Held or spent money cannot be transferred back.")</p>
+            <button>@T("Transfer available funds")</button>
         </EditForm>
                 }
             </ActionDialog>
@@ -171,57 +171,57 @@ else if (subject is null) { <AdminPageHeader Title="@Title" /> }
         var returnInvoice = view.Invoices.FirstOrDefault(invoice => invoice.Lines.Any(line => line.Line.Purpose == PurchasePurpose.Resumption && line.Line.State == LineState.Open && line.Line.PaymentCutoffExclusive > Clock.Today));
         @if (returnInvoice is not null)
         {
-            <p>A return-period request is already available. <a href="@InvoiceUrl(returnInvoice.Invoice.Id)">Review your return-period bill</a>.</p>
+            <p>@T("A return-period request is already available.") <a href="@InvoiceUrl(returnInvoice.Invoice.Id)">@T("Review your return-period bill")</a>.</p>
         }
         else if (Options.Value.AutomaticMembershipReactivation || board)
         {
         <EditForm Model="Action" method="post" FormName="billing-action" OnSubmit="Submit">
-            <input type="hidden" name="Action.Key" value="@Action!.Key" /><button name="Action.Name" value="resume">Request membership return period</button>
+            <input type="hidden" name="Action.Key" value="@Action!.Key" /><button name="Action.Name" value="resume">@T("Request membership return period")</button>
         </EditForm>
         }
-        @if (!Options.Value.AutomaticMembershipReactivation) { <p>Contact an administrator to request a membership return period.</p> }
+        @if (!Options.Value.AutomaticMembershipReactivation) { <p>@T("Contact an administrator to request a membership return period.")</p> }
     }
     @if (ShowBillingDetails)
     {
         <details id="bill-history" class="payment-panel" open="@(BillsPage is not null)">
-            <summary>Previous bills (@PreviousBills.Count)</summary>
-            <p>Completed, closed and other bills that do not currently request payment. Showing up to @PageSize per page.</p>
-            @if (PreviousBills.Count == 0) { <p>No previous bills.</p> }
-            @foreach (var invoice in PreviousBills.Skip((CurrentBillsPage - 1) * PageSize).Take(PageSize)) { <Nulysa.Components.BillSummary Invoice="invoice" DetailsUrl="@InvoiceUrl(invoice.Invoice.Id)" /> }
-            @if (CurrentBillsPage > 1 || PreviousBills.Count > CurrentBillsPage * PageSize)
+            <summary>@T("Previous bills ({0})", PreviousBillsCount)</summary>
+            <p>@T("Completed, closed and other bills that do not currently request payment. Showing up to {0} per page.", PageSize)</p>
+            @if (PreviousBillsCount == 0) { <p>@T("No previous bills.")</p> }
+            @foreach (var invoice in PreviousBillRows) { <Nulysa.Components.BillSummary Invoice="invoice" DetailsUrl="@InvoiceUrl(invoice.Invoice.Id)" /> }
+            @if (CurrentBillsPage > 1 || PreviousBillsCount > CurrentBillsPage * PageSize)
             {
-                <nav class="section-pagination" aria-label="Previous bill pages">
-                    @if (CurrentBillsPage > 1) { <a href="@PageLink("billsPage", CurrentBillsPage - 1, "bill-history")">Previous bills</a> }
-                    <span>Page @CurrentBillsPage</span>
-                    @if (PreviousBills.Count > CurrentBillsPage * PageSize) { <a href="@PageLink("billsPage", CurrentBillsPage + 1, "bill-history")">Next bills</a> }
+                <nav class="section-pagination" aria-label="@T("Previous bill pages")">
+                    @if (CurrentBillsPage > 1) { <a href="@PageLink("billsPage", CurrentBillsPage - 1, "bill-history")">@T("Previous bills")</a> }
+                    <span>@T("Page {0}", CurrentBillsPage)</span>
+                    @if (PreviousBillsCount > CurrentBillsPage * PageSize) { <a href="@PageLink("billsPage", CurrentBillsPage + 1, "bill-history")">@T("Next bills")</a> }
                 </nav>
             }
         </details>
     }
     @if (ShowServices)
     {
-    <h2>Services</h2>
+    <h2>@T("Services")</h2>
     <div class="service-list">
     @foreach (var subscription in view.Subscriptions)
     {
         <section class="service-row"><h3>@subscription.Name</h3>
-            <p>@subscription.Standing.Description
+            <p>@T(subscription.Standing.Description)
                 <StandingThroughDate Standing="subscription.Standing" />
             </p>
-            @if (subscription.Enrollment.RenewalStoppedAt is not null) { <p>Renewal stopped. Remaining covered time keeps its original dates and still requires active membership.</p> }
+            @if (subscription.Enrollment.RenewalStoppedAt is not null) { <p>@T("Renewal stopped. Remaining covered time keeps its original dates and still requires active membership.")</p> }
             else
             {
             <EditForm Model="Action" method="post" FormName="@($"stop-{subscription.Enrollment.ServiceDefinitionId}")" OnSubmit="Submit">
                 <input type="hidden" name="Action.Key" value="@Action!.Key" /><input type="hidden" name="Action.Id" value="@subscription.Enrollment.Id" />
-                <button name="Action.Name" value="stop">Stop renewal; keep remaining covered time</button>
-                @if (board) { <button name="Action.Name" value="remove">Remove immediately</button> }
+                <button name="Action.Name" value="stop">@T("Stop renewal; keep remaining covered time")</button>
+                @if (board) { <button name="Action.Name" value="remove">@T("Remove immediately")</button> }
             </EditForm>
             }
             @if (board && subscription.Enrollment.RenewalStoppedAt is not null)
             {
                 <EditForm Model="Action" method="post" FormName="@($"remove-{subscription.Enrollment.ServiceDefinitionId}")" OnSubmit="Submit">
                     <input type="hidden" name="Action.Key" value="@Action!.Key" /><input type="hidden" name="Action.Id" value="@subscription.Enrollment.Id" />
-                    <button name="Action.Name" value="remove">Remove immediately</button>
+                    <button name="Action.Name" value="remove">@T("Remove immediately")</button>
                 </EditForm>
             }
         </section>
@@ -232,58 +232,58 @@ else if (subject is null) { <AdminPageHeader Title="@Title" /> }
         if (isSubscribed) { continue; }
 
         <section class="service-row"><h3>@service.Name</h3>
-            @if (servicePrices.GetValueOrDefault(service.Id) is { } price) { <p>Base price: @Money(price) EUR/month before discounts and proration. Initial free days: @service.InitialFreeDays, only if eligible; returning subscriptions do not automatically receive them again.</p> }
+            @if (servicePrices.GetValueOrDefault(service.Id) is { } price) { <p>@T("Base price: {0:0.00} EUR/month before discounts and proration. Initial free days: {1}, only if eligible; returning subscriptions do not automatically receive them again.", price, service.InitialFreeDays)</p> }
             @if ((service.SelfSubscriptionAllowed || board) && view.Membership.Active && servicePrices.GetValueOrDefault(service.Id) is not null)
             {
                 <EditForm Model="Action" method="post" FormName="@($"subscribe-{service.Id}")" OnSubmit="Submit">
                     <input type="hidden" name="Action.Key" value="@Action!.Key" /><input type="hidden" name="Action.Id" value="@service.Id" />
-                    <label for="@($"interval-{service.Id}")">Billing months</label> <select id="@($"interval-{service.Id}")" name="Action.Months">@foreach (var months in Options.Value.AllowedIntervals) { <option value="@months">@months</option> }</select>
-                    @if (board) { <p><input id="@($"grant-{service.Id}")" type="checkbox" name="Action.Grant" value="true" /> <label for="@($"grant-{service.Id}")">Grant configured free days (@service.InitialFreeDays) to a returning subscriber</label></p> }
-                    <button name="Action.Name" value="subscribe">Subscribe</button>
+                    <label for="@($"interval-{service.Id}")">@T("Billing months")</label> <select id="@($"interval-{service.Id}")" name="Action.Months">@foreach (var months in Options.Value.AllowedIntervals) { <option value="@months">@months</option> }</select>
+                    @if (board) { <p><input id="@($"grant-{service.Id}")" type="checkbox" name="Action.Grant" value="true" /> <label for="@($"grant-{service.Id}")">@T("Grant configured free days ({0}) to a returning subscriber", service.InitialFreeDays)</label></p> }
+                    <button name="Action.Name" value="subscribe">@T("Subscribe")</button>
                 </EditForm>
             }
-            else if (!view.Membership.Active) { <p>Active membership is required to subscribe. Restore membership first.</p> }
-            else if (service.SelfSubscriptionAllowed && servicePrices.GetValueOrDefault(service.Id) is null) { <p>Pricing is not available. Contact an administrator before subscribing.</p> }
-            else { <p>Not subscribed. An administrator must add this service.</p> }
+            else if (!view.Membership.Active) { <p>@T("Active membership is required to subscribe. Restore membership first.")</p> }
+            else if (service.SelfSubscriptionAllowed && servicePrices.GetValueOrDefault(service.Id) is null) { <p>@T("Pricing is not available. Contact an administrator before subscribing.")</p> }
+            else { <p>@T("Not subscribed. An administrator must add this service.")</p> }
         </section>
     }
     </div>
     <section id="billing-settings" aria-labelledby="billing-settings-heading">
-    <h2 id="billing-settings-heading">Billing settings</h2>
+    <h2 id="billing-settings-heading">@T("Billing settings")</h2>
         <EditForm Model="Preference" method="post" FormName="invoice-preference" OnSubmit="SavePreference" class="preference-form" data-preference-form data-saved="@view.EmailInvoices.ToString().ToLowerInvariant()">
             <input type="hidden" name="Preference.Key" value="@Preference!.Key" />
-            <div class="checkbox-field"><InputCheckbox id="email-invoices" @bind-Value="Preference.Enabled" /><label for="email-invoices">Email invoice PDFs</label></div>
-            <button class="secondary-action">Save preference</button>
+            <div class="checkbox-field"><InputCheckbox id="email-invoices" @bind-Value="Preference.Enabled" /><label for="email-invoices">@T("Email invoice PDFs")</label></div>
+            <button class="secondary-action">@T("Save preference")</button>
         </EditForm>
-    <h3>Billing intervals</h3><p>Changes affect the next unissued invoice. Issued requests and their references stay valid.</p>
+    <h3>@T("Billing intervals")</h3><p>@T("Changes affect the next unissued invoice. Issued requests and their references stay valid.")</p>
     @foreach (var item in view.Items)
     {
         var currentMonths = view.Groups.Single(group => group.Id == item.BillingGroupId).IntervalMonths;
         <EditForm Model="Action" method="post" FormName="@($"interval-{item.Id}")" OnSubmit="Submit">
             <input type="hidden" name="Action.Key" value="@Action!.Key" /><input type="hidden" name="Action.Id" value="@item.Id" />
-            <label for="@($"item-{item.Id}")">@(item.MembershipUserId is not null ? "Membership" : view.Subscriptions.Single(x => x.Enrollment.Id == item.ServiceEnrollmentId).Name) (currently @currentMonths months)</label>
+            <label for="@($"item-{item.Id}")">@T("{0} (currently {1} months)", item.MembershipUserId is not null ? T("Membership") : view.Subscriptions.Single(x => x.Enrollment.Id == item.ServiceEnrollmentId).Name, currentMonths)</label>
             <select id="@($"item-{item.Id}")" name="Action.Months">@foreach (var months in Options.Value.AllowedIntervals) { <option value="@months" selected="@(months == currentMonths)">@months</option> }</select>
-            <button name="Action.Name" value="interval">Change next unissued period</button>
+            <button name="Action.Name" value="interval">@T("Change next unissued period")</button>
         </EditForm>
     }
     </section>
-    <h2>Forecasts — not issued invoices</h2>
-    <ul>@foreach (var forecast in view.Forecasts) { <li>@forecast.Description · @BillingDateText.Period(forecast.Start, forecast.EndExclusive) · @Money(forecast.Amount) EUR · @forecast.Months months</li> }</ul>
-    <details><summary>Coverage history</summary><ul>@foreach (var coverage in view.Coverage.OrderByDescending(x => x.StartsOn)) { <li>@coverage.Benefit @(view.Services.SingleOrDefault(x => x.Id == coverage.ServiceDefinitionId)?.Name) · @BillingDateText.Period(coverage.StartsOn, coverage.EndExclusive) · @(coverage.Source == CoverageSource.Purchase ? "Purchased coverage" : "Granted coverage")</li> }</ul></details>
-    <p>Coverage history and forecasts include both displayed dates. Forecasts are estimates, not payment requests.</p>
+    <h2>@T("Forecasts — not issued invoices")</h2>
+    <ul>@foreach (var forecast in view.Forecasts) { <li>@T("{0} · {1} · {2} EUR · {3} months", forecast.Description, BillingDateText.Period(forecast.Start, forecast.EndExclusive), Money(forecast.Amount), forecast.Months)</li> }</ul>
+    <details><summary>@T("Coverage history")</summary><ul>@foreach (var coverage in view.Coverage.OrderByDescending(x => x.StartsOn)) { <li>@T(coverage.Benefit.ToString()) @(view.Services.SingleOrDefault(x => x.Id == coverage.ServiceDefinitionId)?.Name) · @BillingDateText.Period(coverage.StartsOn, coverage.EndExclusive) · @(coverage.Source == CoverageSource.Purchase ? T("Purchased coverage") : T("Granted coverage"))</li> }</ul></details>
+    <p>@T("Coverage history and forecasts include both displayed dates. Forecasts are estimates, not payment requests.")</p>
     }
     @if (ShowBillingDetails)
     {
     <section id="transactions" class="payment-panel" aria-labelledby="transactions-heading">
-    <h2 id="transactions-heading">@(ShowBillingDetails ? "Transaction history" : "Balance statements")</h2>
-    @if (ShowBillingDetails) { <p>Newest transactions first. Showing up to @PageSize changes to the selected balance per page.</p> }
-    <p>Available balances and funds already allocated to bills are separate. Transfers appear in both affected balances; they are not extra bank payments.</p>
+    <h2 id="transactions-heading">@T(ShowBillingDetails ? "Transaction history" : "Balance statements")</h2>
+    @if (ShowBillingDetails) { <p>@T("Newest transactions first. Showing up to {0} changes to the selected balance per page.", PageSize)</p> }
+    <p>@T("Available balances and funds already allocated to bills are separate. Transfers appear in both affected balances; they are not extra bank payments.")</p>
     @if (ShowBillingDetails)
     {
-        <nav class="balance-filter" aria-label="Transaction balances">
-            <a href="@BalanceLink("billing")" aria-current="@(SelectedBalance == BalanceKind.BillingCredit ? "page" : null)">Billing credit</a>
-            @if (ShowPurchaseHistory) { <a href="@BalanceLink("purchase")" aria-current="@(SelectedBalance == BalanceKind.PurchaseBalance ? "page" : null)">Purchase balance</a> }
-            <a href="@BalanceLink("allocated")" aria-current="@(SelectedBalance == BalanceKind.Held ? "page" : null)">Allocated funds</a>
+        <nav class="balance-filter" aria-label="@T("Transaction balances")">
+            <a href="@BalanceLink("billing")" aria-current="@(SelectedBalance == BalanceKind.BillingCredit ? "page" : null)">@T("Billing credit")</a>
+            @if (ShowPurchaseHistory) { <a href="@BalanceLink("purchase")" aria-current="@(SelectedBalance == BalanceKind.PurchaseBalance ? "page" : null)">@T("Purchase balance")</a> }
+            <a href="@BalanceLink("allocated")" aria-current="@(SelectedBalance == BalanceKind.Held ? "page" : null)">@T("Allocated funds")</a>
         </nav>
     }
     @foreach (var statement in view.Statements.Where(statement => !ShowBillingDetails || statement.Balance == SelectedBalance))
@@ -295,27 +295,27 @@ else if (subject is null) { <AdminPageHeader Title="@Title" /> }
             || statement.ClosingBalance != 0;
         if (!showStatement) { continue; }
 
-        <h3>@StatementTitle(statement.Balance)</h3>
-        <p>@(statement.HasMore ? "Balance at end of this page" : "Closing balance"): @Money(statement.ClosingBalance) EUR
-            @if (statement.HasMore) { <span> · showing a page; use Next to see more</span> }
+        <h3>@T(StatementTitle(statement.Balance))</h3>
+        <p>@T(statement.HasMore ? "Balance at end of this page: {0:0.00} EUR" : "Closing balance: {0:0.00} EUR", statement.ClosingBalance)
+            @if (statement.HasMore) { <span> @T("· showing a page; use Next to see more")</span> }
         </p>
-        @if (statement.Lines.Count == 0) { <p>No transactions on this page.</p> }
+        @if (statement.Lines.Count == 0) { <p>@T("No transactions on this page.")</p> }
         else
         {
-        <table tabindex="0" aria-label="@StatementTitle(statement.Balance)"><thead><tr><th scope="col">Date</th><th scope="col">Transaction</th><th scope="col">Amount EUR</th><th scope="col">Running balance EUR</th><th scope="col">Details</th></tr></thead><tbody>
+        <table tabindex="0" aria-label="@T(StatementTitle(statement.Balance))"><thead><tr><th scope="col">@T("Date")</th><th scope="col">@T("Transaction")</th><th scope="col">@T("Amount EUR")</th><th scope="col">@T("Running balance EUR")</th><th scope="col">@T("Details")</th></tr></thead><tbody>
         @foreach (var line in statement.Lines)
         {
-            <tr id="movement-@line.MovementId"><td>@line.EffectiveOn.ToString("d MMM yyyy")</td><td>@MovementTitle(line.Kind)
-                    @if (line.InvoiceId is { } billId) { <br /><a href="@InvoiceUrl(billId)">Bill #@billId</a> }
+            <tr id="movement-@line.MovementId"><td>@line.EffectiveOn.ToString("d MMM yyyy")</td><td>@T(MovementTitle(line.Kind))
+                    @if (line.InvoiceId is { } billId) { <br /><a href="@InvoiceUrl(billId)">@T("Bill #{0}", billId)</a> }
                 </td><td>@Money(line.Amount)</td><td>@Money(line.RunningBalance)</td>
                 <td>
-                    <details><summary>Details</summary><p>@line.Description</p><p>Recorded (UTC): @line.RecordedAt.ToString("yyyy-MM-dd HH:mm")</p>
-                    @if (line.ReceiptId is { } receiptId) { <span>Receipt #@receiptId</span> }
-                    @if (line.InvoiceId is { } invoiceId) { <a href="@($"/billing/invoices/{invoiceId}/pdf")">Invoice #@invoiceId</a> }
-                    @if (line.InvoiceLineId is { } lineId) { <span>line #@lineId</span> }
-                    @if (line.DiscountId is { } discountId) { <span>discount #@discountId</span> }
-                    @if (line.ReversesMovementId is { } reversalId) { <a href="@(Navigation.Uri.Split('#')[0] + $"#movement-{reversalId}")">reverses #@reversalId</a> }
-                    @if (line.LotId is { } lotId) { <span>lot #@lotId (@Money(line.LotOriginalAmount ?? 0) original, @Money(line.LotRemaining ?? 0) remaining)</span> }
+                    <details><summary>@T("Details")</summary><p>@line.Description</p><p>@T("Recorded (UTC): {0}", line.RecordedAt.ToString("yyyy-MM-dd HH:mm"))</p>
+                    @if (line.ReceiptId is { } receiptId) { <span>@T("Receipt #{0}", receiptId)</span> }
+                    @if (line.InvoiceId is { } invoiceId) { <a href="@($"/billing/invoices/{invoiceId}/pdf")">@T("Invoice #{0}", invoiceId)</a> }
+                    @if (line.InvoiceLineId is { } lineId) { <span>@T("line #{0}", lineId)</span> }
+                    @if (line.DiscountId is { } discountId) { <span>@T("discount #{0}", discountId)</span> }
+                    @if (line.ReversesMovementId is { } reversalId) { <a href="@(Navigation.Uri.Split('#')[0] + $"#movement-{reversalId}")">@T("reverses #{0}", reversalId)</a> }
+                    @if (line.LotId is { } lotId) { <span>@T("lot #{0} ({1} original, {2} remaining)", lotId, Money(line.LotOriginalAmount ?? 0), Money(line.LotRemaining ?? 0))</span> }
                     </details>
                 </td>
             </tr>
@@ -325,25 +325,25 @@ else if (subject is null) { <AdminPageHeader Title="@Title" /> }
     }
     @if (HistoryPage > 1 || view.Statements.Any(statement => (!ShowBillingDetails || statement.Balance == SelectedBalance) && statement.HasMore))
     {
-        <nav class="section-pagination" aria-label="Transaction pages">
-            @if (HistoryPage > 1) { <a href="@PageLink("transactionsPage", HistoryPage - 1, "transactions")">Previous transactions</a> }
-            <span>Page @HistoryPage</span>
-            @if (view.Statements.Any(statement => (!ShowBillingDetails || statement.Balance == SelectedBalance) && statement.HasMore)) { <a href="@PageLink("transactionsPage", HistoryPage + 1, "transactions")">Next transactions</a> }
+        <nav class="section-pagination" aria-label="@T("Transaction pages")">
+            @if (HistoryPage > 1) { <a href="@PageLink("transactionsPage", HistoryPage - 1, "transactions")">@T("Previous transactions")</a> }
+            <span>@T("Page {0}", HistoryPage)</span>
+            @if (view.Statements.Any(statement => (!ShowBillingDetails || statement.Balance == SelectedBalance) && statement.HasMore)) { <a href="@PageLink("transactionsPage", HistoryPage + 1, "transactions")">@T("Next transactions")</a> }
         </nav>
     }
     </section>
-    @if (ShowBillingDetails) { <p><a href="@(OverviewUrl + "#billing-settings")">Manage billing settings</a></p> }
+    @if (ShowBillingDetails) { <p><a href="@(OverviewUrl + "#billing-settings")">@T("Manage billing settings")</a></p> }
     }
     @if (board && !ShowServices)
     {
-        <section id="financial-history"><h2>Financial command history</h2>
+        <section id="financial-history"><h2>@T("Financial command history")</h2>
         <ul>@foreach (var operation in view.History) { <li>@operation.OccurredAt.ToString("u") · @operation.Kind · @(operation.ActorId is { } actorId ? $"actor #{actorId}" : "System") · @operation.Reason</li> }</ul>
         </section>
     }
-    @if (board) { <p><a href="@RegistryNavigation.MemberUrl(UserId!.Value, ReturnUrl, MemberSection.Actions)">Financial actions and one-off requests</a></p> }
+    @if (board) { <p><a href="@RegistryNavigation.MemberUrl(UserId!.Value, ReturnUrl, MemberSection.Actions)">@T("Financial actions and one-off requests")</a></p> }
     }
 }
-else { <p>No billing account is available.</p> }
+else { <p>@T("No billing account is available.")</p> }
 
 </div>
 
@@ -357,7 +357,9 @@ else { <p>No billing account is available.</p> }
     private string BillingUrl => UserId is { } id ? RegistryNavigation.MemberUrl(id, ReturnUrl, MemberSection.Billing) : "/billing";
     private string OverviewUrl => UserId is { } id ? RegistryNavigation.MemberUrl(id, ReturnUrl) : "/services";
     private string InvoiceUrl(long invoiceId) => UserId is { } id ? RegistryNavigation.BillUrl(id, invoiceId, ReturnUrl, LocalUrl) : $"/billing/invoices/{invoiceId}";
-    private int CurrentBillsPage => BillsPage ?? 1;
+    private int CurrentBillsPage => view?.PreviousBillCount is { } count ? Math.Min(BillsPage ?? 1, Math.Max(1, (count + PageSize - 1) / PageSize)) : BillsPage ?? 1;
+    private int PreviousBillsCount => view?.PreviousBillCount ?? PreviousBills.Count;
+    private IEnumerable<InvoiceView> PreviousBillRows => view?.PreviousBillCount is not null ? PreviousBills : PreviousBills.Skip((CurrentBillsPage - 1) * PageSize).Take(PageSize);
     private int HistoryPage => TransactionsPage;
     private List<InvoiceView> OutstandingBills => view!.Invoices.Where(invoice => invoice.Invoice.ClosedAt is null && invoice.Remaining > 0).OrderBy(invoice => invoice.Invoice.DueOn).ThenBy(invoice => invoice.Invoice.Id).ToList();
     private List<InvoiceView> PreviousBills => view!.Invoices.Where(invoice => invoice.Invoice.ClosedAt is not null || invoice.Remaining == 0).OrderByDescending(invoice => invoice.Invoice.IssuedAt).ThenByDescending(invoice => invoice.Invoice.Id).ToList();
@@ -383,7 +385,7 @@ else { <p>No billing account is available.</p> }
     public sealed class TransferInput
     {
         public Guid Key { get; set; } = Guid.NewGuid();
-        [Range(typeof(decimal), "0.01", "999999999")] public decimal Amount { get; set; }
+        [MoneyRange("0.01", "999999999")] public MoneyAmount Amount { get; set; }
         public bool ToPurchase { get; set; }
         public bool Confirmed { get; set; }
     }
@@ -406,7 +408,7 @@ else { <p>No billing account is available.</p> }
     private string? actionReview;
     private bool transferReview;
     private bool ShowTransferDialog => ShowBalances && Options.Value.PurchaseBalanceEnabled &&
-        (transferReview || Transfer?.Amount is not (null or 0) ||
+        (transferReview || (Transfer is not null && Transfer.Amount.Value != 0) ||
             (HttpContext.Request.HasFormContentType && HttpContext.Request.Form["_handler"].ToString() is "transfer" or "confirm-transfer"));
     protected override async Task OnInitializedAsync()
     {
@@ -427,7 +429,9 @@ else { <p>No billing account is available.</p> }
                     return;
                 }
             }
-            view = await Queries.Member(actor, UserId ?? Authority.Id(actor), skip: (HistoryPage - 1) * PageSize, take: PageSize, newestFirst: ShowBillingDetails);
+            view = UserId is null
+                ? await Queries.Portal(actor, BillsPage ?? 1, HistoryPage, PageSize, ShowBillingDetails, HttpContext.RequestAborted)
+                : await Queries.Member(actor, UserId.Value, skip: (HistoryPage - 1) * PageSize, take: PageSize, newestFirst: ShowBillingDetails);
             if (ShowServices)
             {
                 services = await Queries.Services(actor);
@@ -488,20 +492,14 @@ else { <p>No billing account is available.</p> }
             case "subscribe":
                 var service = services.SingleOrDefault(service => service.Id == Action.Id)
                     ?? throw new ValidationException("Service is unavailable.");
-                var price = servicePrices.GetValueOrDefault(Action.Id)?.ToString("0.00") ?? "unavailable";
-                return $"Subscribe to {service.Name} with a {Action.Months}-month billing interval. " +
-                    $"Base monthly price: {price} EUR before discounts/proration. " +
-                    "The bill will show the actual charge, including any free time, discount or prorated period. " +
-                    "This starts recurring renewal until you stop it.";
+                var price = servicePrices.GetValueOrDefault(Action.Id)?.ToString("0.00") ?? T("unavailable");
+                return T("Subscribe to {0} with a {1}-month billing interval. Base monthly price: {2} EUR before discounts/proration. The bill will show the actual charge, including any free time, discount or prorated period. This starts recurring renewal until you stop it.", service.Name, Action.Months, price);
             case "stop":
                 var subscription = view!.Subscriptions.SingleOrDefault(subscription => subscription.Enrollment.Id == Action.Id)
                     ?? throw new ValidationException("Subscription is unavailable.");
-                return $"Stop renewal of {subscription.Name}. Keep remaining paid/granted time; " +
-                    "cancel only unfinished requests for this service and return their unused funding to billing credit. " +
-                    "No automatic refund of purchased time.";
+                return T("Stop renewal of {0}. Keep remaining paid/granted time; cancel only unfinished requests for this service and return their unused funding to billing credit. No automatic refund of purchased time.", subscription.Name);
             default:
-                return "Request a prorated membership return period on your existing schedule. " +
-                    "This does not require paying expired bills or inactive months. Available credit may fund it immediately.";
+                return T("Request a prorated membership return period on your existing schedule. This does not require paying expired bills or inactive months. Available credit may fund it immediately.");
         }
     }
     private Task TransferFunds() => Handle(async () =>

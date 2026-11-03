@@ -3,6 +3,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Components;
 using Nulysa.Billing;
 using Nulysa.Services;
+using static Nulysa.Localization.UiText;
 
 namespace Nulysa.Components.Pages;
 
@@ -29,8 +30,8 @@ public partial class ServiceSettings
     private string? notice;
     private bool found;
     private bool IsEditor => Id is not null || AdminNavigation.Path(Navigation.Uri).EndsWith("/new", StringComparison.Ordinal);
-    private string Title => !IsEditor ? "Services" : Id is null ? "Create service" : "Edit service";
-    private IReadOnlyList<BreadcrumbItem> Trail => !IsEditor ? [] : [new("Services", "/admin/settings/services"), new(Title)];
+    private string Title => T(!IsEditor ? "Services" : Id is null ? "Create service" : "Edit service");
+    private IReadOnlyList<BreadcrumbItem> Trail => !IsEditor ? [] : [new(T("Services"), "/admin/settings/services"), new(Title)];
 
     protected override async Task OnInitializedAsync()
     {

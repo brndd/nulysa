@@ -16,49 +16,49 @@
 
 <AdminPageHeader Title="@Title" />
 <AdminSectionTabs Destination="@Destination" />
-@if (notice is not null) { <p role="status" class="success-notice">@notice</p> }
-@if (error is not null) { <p role="alert">@error</p> }
+@if (notice is not null) { <p role="status" class="success-notice">@T(notice)</p> }
+@if (error is not null) { <p role="alert">@ValidationText.Translate(error)</p> }
 @if (Area == "review")
 {
-<h2>Bank synchronization</h2>
-<ul>@foreach (var status in statuses) { <li>@status.Account · @status.Status · last success: @(status.LastSuccess?.ToString("u") ?? "never") · last attempt: @status.LastAttempt?.ToString("u")</li> }</ul>
-@if (statuses.Count == 0) { <p>No bank synchronization recorded. Configure the GoCardless feed before relying on automatic payment status.</p> }
-<h2 id="payment-review">Failed-match review</h2><p>Oldest 100 unresolved transactions. Processing these reveals the next items in the queue.</p><p>Assign a known member and purpose explicitly. Ignoring preserves source facts and keeps donations/outgoing transactions out of member funds. Pending-deletion receipts require manual repair after restoration.</p>
-<table><caption>Unresolved bank transactions</caption><thead><tr><th>ID / received</th><th>Amount</th><th>Reference / source</th><th>Message / counterparty</th><th>Review reason</th></tr></thead><tbody>
-@foreach (var receipt in receipts) { <tr><td><a href="@($"/admin/payments/{receipt.Id}")">Review transaction · @receipt.ReceivedOn</a><small> #@receipt.Id</small></td><td>@receipt.Amount @receipt.Currency</td><td>@receipt.Reference · @receipt.Source / @receipt.SourceAccount / @receipt.ExternalId</td><td>@receipt.Message · @receipt.Counterparty</td><td>@receipt.ReviewReason</td></tr> }
+<h2>@T("Bank synchronization")</h2>
+<ul>@foreach (var status in statuses) { <li>@T("{0} · {1} · last success: {2} · last attempt: {3}", status.Account, status.Status, (status.LastSuccess?.ToString("u") ?? T("Never")), status.LastAttempt?.ToString("u"))</li> }</ul>
+@if (statuses.Count == 0) { <p>@T("No bank synchronization recorded. Configure the GoCardless feed before relying on automatic payment status.")</p> }
+<h2 id="payment-review">@T("Failed-match review")</h2><p>@T("Oldest 100 unresolved transactions. Processing these reveals the next items in the queue.")</p><p>@T("Assign a known member and purpose explicitly. Ignoring preserves source facts and keeps donations/outgoing transactions out of member funds. Pending-deletion receipts require manual repair after restoration.")</p>
+<table tabindex="0"><caption>@T("Unresolved bank transactions")</caption><thead><tr><th scope="col">@T("ID / received")</th><th scope="col">@T("Amount")</th><th scope="col">@T("Reference / source")</th><th scope="col">@T("Message / counterparty")</th><th scope="col">@T("Review reason")</th></tr></thead><tbody>
+@foreach (var receipt in receipts) { <tr><td><a href="@($"/admin/payments/{receipt.Id}")">@T("Review transaction · {0}", receipt.ReceivedOn)</a><small> #@receipt.Id</small></td><td>@receipt.Amount @receipt.Currency</td><td>@receipt.Reference · @receipt.Source / @receipt.SourceAccount / @receipt.ExternalId</td><td>@receipt.Message · @receipt.Counterparty</td><td>@receipt.ReviewReason</td></tr> }
 </tbody></table>
 }
 @if (Area == "import")
 {
-<h2>Import a confirmed bank transaction manually</h2>
-<p>Use the bank's stable transaction ID and actual booked date. Reimporting the same source must not change its facts. Outgoing transactions use a negative amount and are retained for review.</p>
-<EditForm Model="Import" method="post" FormName="manual-receipt" OnValidSubmit="ImportReceipt"><DataAnnotationsValidator /><ValidationSummary />
-    <p><label for="source">Source/provider</label> <InputText id="source" @bind-Value="Import!.Source" required /></p>
-    <p><label for="source-account">Source bank account ID</label> <InputText id="source-account" @bind-Value="Import.SourceAccount" required /></p>
-    <p><label for="external-id">External transaction ID</label> <InputText id="external-id" @bind-Value="Import.ExternalId" required /></p>
-    <p><label for="received">Bank receipt / booked date</label> <InputDate id="received" @bind-Value="Import.ReceivedOn" /></p>
-    <p><label for="received-amount">Amount</label> <InputNumber id="received-amount" @bind-Value="Import.Amount" step="0.01" /> <label for="currency">Currency</label> <InputText id="currency" @bind-Value="Import.Currency" maxlength="3" /></p>
-    <p><label for="reference">Original reference</label> <InputText id="reference" @bind-Value="Import.Reference" maxlength="200" /></p>
-    <p><label for="message">Bank message</label> <InputTextArea id="message" @bind-Value="Import.Message" maxlength="4000" /></p>
-    <p><label for="counterparty">Counterparty (recipient for outgoing transfers)</label> <InputText id="counterparty" @bind-Value="Import.Counterparty" maxlength="1000" /></p><button>Import source fact and match</button>
+<h2>@T("Import a confirmed bank transaction manually")</h2>
+<p>@T("Use the bank's stable transaction ID and actual booked date. Reimporting the same source must not change its facts. Outgoing transactions use a negative amount and are retained for review.")</p>
+<EditForm Model="Import" method="post" FormName="manual-receipt" OnValidSubmit="ImportReceipt"><DataAnnotationsValidator /><FormErrors />
+    <p><label for="source">@T("Source/provider")</label> <InputText id="source" @bind-Value="Import!.Source" required /></p>
+    <p><label for="source-account">@T("Source bank account ID")</label> <InputText id="source-account" @bind-Value="Import.SourceAccount" required /></p>
+    <p><label for="external-id">@T("External transaction ID")</label> <InputText id="external-id" @bind-Value="Import.ExternalId" required /></p>
+    <p><label for="received">@T("Bank receipt / booked date")</label> <InputDate id="received" @bind-Value="Import.ReceivedOn" /></p>
+    <p><label for="received-amount">@T("Amount")</label> <InputMoney id="received-amount" @bind-Value="Import.Amount" /> <label for="currency">@T("Currency")</label> <InputText id="currency" @bind-Value="Import.Currency" maxlength="3" /></p>
+    <p><label for="reference">@T("Original reference")</label> <InputText id="reference" @bind-Value="Import.Reference" maxlength="200" /></p>
+    <p><label for="message">@T("Bank message")</label> <InputTextArea id="message" @bind-Value="Import.Message" maxlength="4000" /></p>
+    <p><label for="counterparty">@T("Counterparty (recipient for outgoing transfers)")</label> <InputText id="counterparty" @bind-Value="Import.Counterparty" maxlength="1000" /></p><button>@T("Import source fact and match")</button>
 </EditForm>
 }
 @if (Area == "accounting")
 {
-<h2>Journal reconciliation</h2>
+<h2>@T("Journal reconciliation")</h2>
 @if (reconciliation is { } r)
 {
-    <dl><dt>Posted receipts</dt><dd>@r.Receipts EUR</dd><dt>Billing credit / purchase balance / held advances</dt><dd>@r.BillingCredit / @r.PurchaseBalance / @r.Held EUR</dd>
-        <dt>Completed purchases / credit corrections / refunds</dt><dd>@r.Purchases / @r.Corrections / @r.Refunds EUR</dd><dt>Unexplained difference</dt><dd>@r.Difference EUR</dd></dl>
-    @if (r.InvalidLines.Count > 0 || r.InvalidReceipts.Count > 0) { <p role="alert">Investigate lines @string.Join(", ", r.InvalidLines) and receipts @string.Join(", ", r.InvalidReceipts). No automatic repairs were applied.</p> }
+    <dl><dt>@T("Posted receipts")</dt><dd>@T("{0} EUR", r.Receipts)</dd><dt>@T("Billing credit / purchase balance / held advances")</dt><dd>@T("{0} / {1} / {2} EUR", r.BillingCredit, r.PurchaseBalance, r.Held)</dd>
+        <dt>@T("Completed purchases / credit corrections / refunds")</dt><dd>@T("{0} / {1} / {2} EUR", r.Purchases, r.Corrections, r.Refunds)</dd><dt>@T("Unexplained difference")</dt><dd>@T("{0} EUR", r.Difference)</dd></dl>
+    @if (r.InvalidLines.Count > 0 || r.InvalidReceipts.Count > 0) { <p role="alert">@T("Investigate lines {0} and receipts {1}. No automatic repairs were applied.", string.Join(", ", r.InvalidLines), string.Join(", ", r.InvalidReceipts))</p> }
 }
-<p>Reconciliation above is lifetime-to-date. CSV ranges use movement effective dates or bank booked dates, not processing timestamps. Bank export includes ignored/outgoing transactions and review dispositions.</p>
-<form method="get" action="/admin/payments/export"><label for="export-start">From</label> <input id="export-start" type="date" name="start" required /> <label for="export-end">Before</label> <input id="export-end" type="date" name="end" required /> <button>Export journal CSV</button> <button formaction="/admin/payments/receipts-export">Export bank transactions CSV</button></form>
+<p>@T("Reconciliation above is lifetime-to-date. CSV ranges use movement effective dates or bank booked dates, not processing timestamps. Bank export includes ignored/outgoing transactions and review dispositions.")</p>
+<form method="get" action="/admin/payments/export"><label for="export-start">@T("From")</label> <input id="export-start" type="date" name="start" required /> <label for="export-end">@T("Before")</label> <input id="export-end" type="date" name="end" required /> <button>@T("Export journal CSV")</button> <button formaction="/admin/payments/receipts-export">@T("Export bank transactions CSV")</button></form>
 }
 @if (Area == "claims")
 {
-<h2>Balances retained after account erasure</h2>
-<p>These financial claims do not restore accounts or recognize returning applicants. Refunds require treasurer verification.</p>
-<ul>@foreach (var claim in claims) { <li><a href="@($"/admin/payments/retained-balances/{claim.AccountId}")">Account #@claim.AccountId</a> · @claim.Name · @claim.Email · billing @claim.BillingCredit EUR · purchase @claim.PurchaseBalance EUR</li> }</ul>
+<h2>@T("Balances retained after account erasure")</h2>
+<p>@T("These financial claims do not restore accounts or recognize returning applicants. Refunds require treasurer verification.")</p>
+<ul>@foreach (var claim in claims) { <li><a href="@($"/admin/payments/retained-balances/{claim.AccountId}")">@T("Account #{0}", claim.AccountId)</a> @T("· {0} · {1} · billing {2} EUR · purchase {3} EUR", claim.Name, claim.Email, claim.BillingCredit, claim.PurchaseBalance)</li> }</ul>
 
 }

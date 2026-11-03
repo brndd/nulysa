@@ -1,6 +1,6 @@
 @inject Microsoft.Extensions.Options.IOptions<AppearanceOptions> Options
 <!doctype html>
-<html lang="en" data-theme="@appearance.Theme" data-mode="@appearance.Mode">
+<html lang="@System.Globalization.CultureInfo.CurrentUICulture.Name" data-theme="@appearance.Theme" data-mode="@appearance.Mode">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />

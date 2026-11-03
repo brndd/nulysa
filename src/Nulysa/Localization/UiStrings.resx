@@ -1,0 +1,2529 @@
+<?xml version='1.0' encoding='utf-8'?>
+<root>
+  <data name=" Bill #{0}, {1:0.00} EUR remaining; {2:0.00} EUR held will be released." xml:space="preserve">
+    <value> Bill #{0}, {1:0.00} EUR remaining; {2:0.00} EUR held will be released.</value>
+  </data>
+  <data name=" Credit {0:0.00} EUR for purchase #{1}." xml:space="preserve">
+    <value> Credit {0:0.00} EUR for purchase #{1}.</value>
+  </data>
+  <data name=" for {0} (#{1})." xml:space="preserve">
+    <value> for {0} (#{1}).</value>
+  </data>
+  <data name=" {0:0.00} EUR from billing credit, currently {1:0.00} EUR available." xml:space="preserve">
+    <value> {0:0.00} EUR from billing credit, currently {1:0.00} EUR available.</value>
+  </data>
+  <data name=" {0:0.00} EUR from purchase balance, currently {1:0.00} EUR available." xml:space="preserve">
+    <value> {0:0.00} EUR from purchase balance, currently {1:0.00} EUR available.</value>
+  </data>
+  <data name=" {0} months; covered through {1:d MMM yyyy}." xml:space="preserve">
+    <value> {0} months; covered through {1:d MMM yyyy}.</value>
+  </data>
+  <data name=" {0}: {1} {2}, {3:d MMM yyyy} through {4:d MMM yyyy}." xml:space="preserve">
+    <value> {0}: {1} {2}, {3:d MMM yyyy} through {4:d MMM yyyy}.</value>
+  </data>
+  <data name="#{0} · fee #{1} · {2} {3} · {4} · {5}" xml:space="preserve">
+    <value>#{0} · fee #{1} · {2} {3} · {4} · {5}</value>
+  </data>
+  <data name=". No member funds will be allocated." xml:space="preserve">
+    <value>. No member funds will be allocated.</value>
+  </data>
+  <data name="A billing period must have positive length." xml:space="preserve">
+    <value>A billing period must have positive length.</value>
+  </data>
+  <data name="A booked transaction requires a valid amount and booking date." xml:space="preserve">
+    <value>A booked transaction requires a valid amount and booking date.</value>
+  </data>
+  <data name="A discount requires a valid fee, future effective dates, and a percentage (0–100) or nonnegative monthly replacement price." xml:space="preserve">
+    <value>A discount requires a valid fee, future effective dates, and a percentage (0–100) or nonnegative monthly replacement price.</value>
+  </data>
+  <data name="A duration extension requires current paid or granted membership coverage." xml:space="preserve">
+    <value>A duration extension requires current paid or granted membership coverage.</value>
+  </data>
+  <data name="A last success more than {0} hours ago is shown as stale. Times below are UTC." xml:space="preserve">
+    <value>A last success more than {0} hours ago is shown as stale. Times below are UTC.</value>
+  </data>
+  <data name="A price already exists for this date. Add a new dated price; issued quotes remain unchanged." xml:space="preserve">
+    <value>A price already exists for this date. Add a new dated price; issued quotes remain unchanged.</value>
+  </data>
+  <data name="A return-period request is already available." xml:space="preserve">
+    <value>A return-period request is already available.</value>
+  </data>
+  <data name="A service's code is permanent. A returning subscriber gets free days only when an administrator explicitly selects that grant." xml:space="preserve">
+    <value>A service's code is permanent. A returning subscriber gets free days only when an administrator explicitly selects that grant.</value>
+  </data>
+  <data name="A service's stable code cannot change." xml:space="preserve">
+    <value>A service's stable code cannot change.</value>
+  </data>
+  <data name="Accept the membership terms." xml:space="preserve">
+    <value>Accept the membership terms.</value>
+  </data>
+  <data name="Access denied" xml:space="preserve">
+    <value>Access denied</value>
+  </data>
+  <data name="Account #{0}" xml:space="preserve">
+    <value>Account #{0}</value>
+  </data>
+  <data name="Account and privacy" xml:space="preserve">
+    <value>Account and privacy</value>
+  </data>
+  <data name="Account overview" xml:space="preserve">
+    <value>Account overview</value>
+  </data>
+  <data name="Account removal and restoration" xml:space="preserve">
+    <value>Account removal and restoration</value>
+  </data>
+  <data name="Account restoration" xml:space="preserve">
+    <value>Account restoration</value>
+  </data>
+  <data name="Accounting and exports" xml:space="preserve">
+    <value>Accounting and exports</value>
+  </data>
+  <data name="Accounting category" xml:space="preserve">
+    <value>Accounting category</value>
+  </data>
+  <data name="Active" xml:space="preserve">
+    <value>Active</value>
+  </data>
+  <data name="Active (including grace)" xml:space="preserve">
+    <value>Active (including grace)</value>
+  </data>
+  <data name="Active and upcoming discounts" xml:space="preserve">
+    <value>Active and upcoming discounts</value>
+  </data>
+  <data name="Active during grace" xml:space="preserve">
+    <value>Active during grace</value>
+  </data>
+  <data name="Active membership is required to subscribe." xml:space="preserve">
+    <value>Active membership is required to subscribe.</value>
+  </data>
+  <data name="Active membership is required to subscribe. Restore membership first." xml:space="preserve">
+    <value>Active membership is required to subscribe. Restore membership first.</value>
+  </data>
+  <data name="Add a dated price" xml:space="preserve">
+    <value>Add a dated price</value>
+  </data>
+  <data name="Add discount" xml:space="preserve">
+    <value>Add discount</value>
+  </data>
+  <data name="Add price" xml:space="preserve">
+    <value>Add price</value>
+  </data>
+  <data name="Add purchase funds" xml:space="preserve">
+    <value>Add purchase funds</value>
+  </data>
+  <data name="Adjust threshold" xml:space="preserve">
+    <value>Adjust threshold</value>
+  </data>
+  <data name="Administration" xml:space="preserve">
+    <value>Administration</value>
+  </data>
+  <data name="After final deletion, rejoining requires a fresh application. Old credentials, qualifications and subscriptions are not restored." xml:space="preserve">
+    <value>After final deletion, rejoining requires a fresh application. Old credentials, qualifications and subscriptions are not restored.</value>
+  </data>
+  <data name="All mail, including invoices" xml:space="preserve">
+    <value>All mail, including invoices</value>
+  </data>
+  <data name="All members" xml:space="preserve">
+    <value>All members</value>
+  </data>
+  <data name="Allocated EUR" xml:space="preserve">
+    <value>Allocated EUR</value>
+  </data>
+  <data name="Allocated funds" xml:space="preserve">
+    <value>Allocated funds</value>
+  </data>
+  <data name="Allocated to unfinished bills: {0} EUR — not included above or available to transfer." xml:space="preserve">
+    <value>Allocated to unfinished bills: {0} EUR — not included above or available to transfer.</value>
+  </data>
+  <data name="Already subscribed." xml:space="preserve">
+    <value>Already subscribed.</value>
+  </data>
+  <data name="Amount" xml:space="preserve">
+    <value>Amount</value>
+  </data>
+  <data name="Amount (EUR)" xml:space="preserve">
+    <value>Amount (EUR)</value>
+  </data>
+  <data name="Amount EUR" xml:space="preserve">
+    <value>Amount EUR</value>
+  </data>
+  <data name="An operation key is required." xml:space="preserve">
+    <value>An operation key is required.</value>
+  </data>
+  <data name="Appearance" xml:space="preserve">
+    <value>Appearance</value>
+  </data>
+  <data name="Appearance saved." xml:space="preserve">
+    <value>Appearance saved.</value>
+  </data>
+  <data name="Application rejection" xml:space="preserve">
+    <value>Application rejection</value>
+  </data>
+  <data name="Application review" xml:space="preserve">
+    <value>Application review</value>
+  </data>
+  <data name="Application verification" xml:space="preserve">
+    <value>Application verification</value>
+  </data>
+  <data name="Applied to outstanding bill #{0}" xml:space="preserve">
+    <value>Applied to outstanding bill #{0}</value>
+  </data>
+  <data name="Applies only within these dates. Issued bills show the actual discounted charge." xml:space="preserve">
+    <value>Applies only within these dates. Issued bills show the actual discounted charge.</value>
+  </data>
+  <data name="Apply" xml:space="preserve">
+    <value>Apply</value>
+  </data>
+  <data name="Apply discount to already paid time" xml:space="preserve">
+    <value>Apply discount to already paid time</value>
+  </data>
+  <data name="Apply for membership" xml:space="preserve">
+    <value>Apply for membership</value>
+  </data>
+  <data name="Approval establishes membership and login before payment and creates the initial membership bill." xml:space="preserve">
+    <value>Approval establishes membership and login before payment and creates the initial membership bill.</value>
+  </data>
+  <data name="Approve membership" xml:space="preserve">
+    <value>Approve membership</value>
+  </data>
+  <data name="Approved {0} by administrator #{1}." xml:space="preserve">
+    <value>Approved {0} by administrator #{1}.</value>
+  </data>
+  <data name="Ask the system operator to check the feed and provider authorization. Review confirmed bank transactions before changing member funds." xml:space="preserve">
+    <value>Ask the system operator to check the feed and provider authorization. Review confirmed bank transactions before changing member funds.</value>
+  </data>
+  <data name="Assign a known member and purpose explicitly. Ignoring preserves source facts and keeps donations/outgoing transactions out of member funds. Pending-deletion receipts require manual repair after restoration." xml:space="preserve">
+    <value>Assign a known member and purpose explicitly. Ignoring preserves source facts and keeps donations/outgoing transactions out of member funds. Pending-deletion receipts require manual repair after restoration.</value>
+  </data>
+  <data name="Association default" xml:space="preserve">
+    <value>Association default</value>
+  </data>
+  <data name="Association settings" xml:space="preserve">
+    <value>Association settings</value>
+  </data>
+  <data name="Attention required" xml:space="preserve">
+    <value>Attention required</value>
+  </data>
+  <data name="Automatic" xml:space="preserve">
+    <value>Automatic</value>
+  </data>
+  <data name="Automatic bank import is disabled." xml:space="preserve">
+    <value>Automatic bank import is disabled.</value>
+  </data>
+  <data name="Automatically used for recurring bills." xml:space="preserve">
+    <value>Automatically used for recurring bills.</value>
+  </data>
+  <data name="Available balances and funds already allocated to bills are separate. Transfers appear in both affected balances; they are not extra bank payments." xml:space="preserve">
+    <value>Available balances and funds already allocated to bills are separate. Transfers appear in both affected balances; they are not extra bank payments.</value>
+  </data>
+  <data name="Available billing credit" xml:space="preserve">
+    <value>Available billing credit</value>
+  </data>
+  <data name="Available billing credit: {0} EUR · Purchase balance: {1} EUR." xml:space="preserve">
+    <value>Available billing credit: {0} EUR · Purchase balance: {1} EUR.</value>
+  </data>
+  <data name="Available billing credit: {0} EUR · purchase balance: {1} EUR · held: {2} EUR" xml:space="preserve">
+    <value>Available billing credit: {0} EUR · purchase balance: {1} EUR · held: {2} EUR</value>
+  </data>
+  <data name="Available billing credit: {0} EUR. Valid bills may use this automatically. Prices and eligibility are checked again when you confirm." xml:space="preserve">
+    <value>Available billing credit: {0} EUR. Valid bills may use this automatically. Prices and eligibility are checked again when you confirm.</value>
+  </data>
+  <data name="Available purchase balance" xml:space="preserve">
+    <value>Available purchase balance</value>
+  </data>
+  <data name="Available source balance: {0} EUR." xml:space="preserve">
+    <value>Available source balance: {0} EUR.</value>
+  </data>
+  <data name="Awaiting payment" xml:space="preserve">
+    <value>Awaiting payment</value>
+  </data>
+  <data name="Awaiting payment — no current coverage" xml:space="preserve">
+    <value>Awaiting payment — no current coverage</value>
+  </data>
+  <data name="Awaiting verification: {0}" xml:space="preserve">
+    <value>Awaiting verification: {0}</value>
+  </data>
+  <data name="Back to account overview" xml:space="preserve">
+    <value>Back to account overview</value>
+  </data>
+  <data name="Back to account settings" xml:space="preserve">
+    <value>Back to account settings</value>
+  </data>
+  <data name="Back to billing details" xml:space="preserve">
+    <value>Back to billing details</value>
+  </data>
+  <data name="Back to fees and prices" xml:space="preserve">
+    <value>Back to fees and prices</value>
+  </data>
+  <data name="Back to payments" xml:space="preserve">
+    <value>Back to payments</value>
+  </data>
+  <data name="Balance adjustment" xml:space="preserve">
+    <value>Balance adjustment</value>
+  </data>
+  <data name="Balance at end of this page: {0:0.00} EUR" xml:space="preserve">
+    <value>Balance at end of this page: {0:0.00} EUR</value>
+  </data>
+  <data name="Balance statements" xml:space="preserve">
+    <value>Balance statements</value>
+  </data>
+  <data name="Balances retained after account erasure" xml:space="preserve">
+    <value>Balances retained after account erasure</value>
+  </data>
+  <data name="Bank account" xml:space="preserve">
+    <value>Bank account</value>
+  </data>
+  <data name="Bank message" xml:space="preserve">
+    <value>Bank message</value>
+  </data>
+  <data name="Bank payments appear after confirmation and processing. A bill can remain open for an optional service even when membership is paid." xml:space="preserve">
+    <value>Bank payments appear after confirmation and processing. A bill can remain open for an optional service even when membership is paid.</value>
+  </data>
+  <data name="Bank receipt / booked date" xml:space="preserve">
+    <value>Bank receipt / booked date</value>
+  </data>
+  <data name="Bank synchronization" xml:space="preserve">
+    <value>Bank synchronization</value>
+  </data>
+  <data name="Bank synchronization alert" xml:space="preserve">
+    <value>Bank synchronization alert</value>
+  </data>
+  <data name="Bank transaction imported. Review its matching result in Payment review." xml:space="preserve">
+    <value>Bank transaction imported. Review its matching result in Payment review.</value>
+  </data>
+  <data name="Base price: {0:0.00} EUR/month before discounts and proration. Initial free days: {1}, only if eligible; returning subscriptions do not automatically receive them again." xml:space="preserve">
+    <value>Base price: {0:0.00} EUR/month before discounts and proration. Initial free days: {1}, only if eligible; returning subscriptions do not automatically receive them again.</value>
+  </data>
+  <data name="Before" xml:space="preserve">
+    <value>Before</value>
+  </data>
+  <data name="Before you confirm" xml:space="preserve">
+    <value>Before you confirm</value>
+  </data>
+  <data name="Benefits available through" xml:space="preserve">
+    <value>Benefits available through</value>
+  </data>
+  <data name="Benefits available through {0:d MMM yyyy}" xml:space="preserve">
+    <value>Benefits available through {0:d MMM yyyy}</value>
+  </data>
+  <data name="Bill #{0}" xml:space="preserve">
+    <value>Bill #{0}</value>
+  </data>
+  <data name="Bill #{0} · {1} · {2:0.00} EUR remaining" xml:space="preserve">
+    <value>Bill #{0} · {1} · {2:0.00} EUR remaining</value>
+  </data>
+  <data name="Bill details" xml:space="preserve">
+    <value>Bill details</value>
+  </data>
+  <data name="Bill not found for this member." xml:space="preserve">
+    <value>Bill not found for this member.</value>
+  </data>
+  <data name="Bill not found." xml:space="preserve">
+    <value>Bill not found.</value>
+  </data>
+  <data name="Bill with unfinished lines" xml:space="preserve">
+    <value>Bill with unfinished lines</value>
+  </data>
+  <data name="Billing corrections" xml:space="preserve">
+    <value>Billing corrections</value>
+  </data>
+  <data name="Billing credit" xml:space="preserve">
+    <value>Billing credit</value>
+  </data>
+  <data name="Billing credit ({0} EUR available)" xml:space="preserve">
+    <value>Billing credit ({0} EUR available)</value>
+  </data>
+  <data name="Billing credit / purchase balance / held advances" xml:space="preserve">
+    <value>Billing credit / purchase balance / held advances</value>
+  </data>
+  <data name="Billing credit allocated to a bill" xml:space="preserve">
+    <value>Billing credit allocated to a bill</value>
+  </data>
+  <data name="Billing credit statement" xml:space="preserve">
+    <value>Billing credit statement</value>
+  </data>
+  <data name="Billing credit → purchase balance" xml:space="preserve">
+    <value>Billing credit → purchase balance</value>
+  </data>
+  <data name="Billing details" xml:space="preserve">
+    <value>Billing details</value>
+  </data>
+  <data name="Billing diagnostics" xml:space="preserve">
+    <value>Billing diagnostics</value>
+  </data>
+  <data name="Billing instruction is unavailable." xml:space="preserve">
+    <value>Billing instruction is unavailable.</value>
+  </data>
+  <data name="Billing interval saved for the next unissued period." xml:space="preserve">
+    <value>Billing interval saved for the next unissued period.</value>
+  </data>
+  <data name="Billing intervals" xml:space="preserve">
+    <value>Billing intervals</value>
+  </data>
+  <data name="Billing months" xml:space="preserve">
+    <value>Billing months</value>
+  </data>
+  <data name="Billing settings" xml:space="preserve">
+    <value>Billing settings</value>
+  </data>
+  <data name="Board administration" xml:space="preserve">
+    <value>Board administration</value>
+  </data>
+  <data name="Board work queues" xml:space="preserve">
+    <value>Board work queues</value>
+  </data>
+  <data name="Booked transaction lacks a stable provider identifier." xml:space="preserve">
+    <value>Booked transaction lacks a stable provider identifier.</value>
+  </data>
+  <data name="Breadcrumb" xml:space="preserve">
+    <value>Breadcrumb</value>
+  </data>
+  <data name="Calculate the remaining credit for a completed purchase's unused future discounted time. Credit can immediately fund valid recurring bills." xml:space="preserve">
+    <value>Calculate the remaining credit for a completed purchase's unused future discounted time. Credit can immediately fund valid recurring bills.</value>
+  </data>
+  <data name="Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Cancel and return" xml:space="preserve">
+    <value>Cancel and return</value>
+  </data>
+  <data name="Cancel and return to services" xml:space="preserve">
+    <value>Cancel and return to services</value>
+  </data>
+  <data name="Cancel pending deletion" xml:space="preserve">
+    <value>Cancel pending deletion</value>
+  </data>
+  <data name="Cancel unfinished bill" xml:space="preserve">
+    <value>Cancel unfinished bill</value>
+  </data>
+  <data name="Cancel unfinished lines and release their held funds. Completed purchases remain unchanged; cancellation may affect standing." xml:space="preserve">
+    <value>Cancel unfinished lines and release their held funds. Completed purchases remain unchanged; cancellation may affect standing.</value>
+  </data>
+  <data name="Cancelled" xml:space="preserve">
+    <value>Cancelled</value>
+  </data>
+  <data name="Category" xml:space="preserve">
+    <value>Category</value>
+  </data>
+  <data name="Change login email" xml:space="preserve">
+    <value>Change login email</value>
+  </data>
+  <data name="Change next unissued period" xml:space="preserve">
+    <value>Change next unissued period</value>
+  </data>
+  <data name="Change password" xml:space="preserve">
+    <value>Change password</value>
+  </data>
+  <data name="Changes affect the next unissued invoice. Issued requests and their references stay valid." xml:space="preserve">
+    <value>Changes affect the next unissued invoice. Issued requests and their references stay valid.</value>
+  </data>
+  <data name="Changes future pricing and may complete already funded requests. Completed purchases keep their original facts." xml:space="preserve">
+    <value>Changes future pricing and may complete already funded requests. Completed purchases keep their original facts.</value>
+  </data>
+  <data name="Charge EUR" xml:space="preserve">
+    <value>Charge EUR</value>
+  </data>
+  <data name="Check the form" xml:space="preserve">
+    <value>Check the form</value>
+  </data>
+  <data name="Check the submitted value." xml:space="preserve">
+    <value>Check the submitted value.</value>
+  </data>
+  <data name="Check the value for {0}." xml:space="preserve">
+    <value>Check the value for {0}.</value>
+  </data>
+  <data name="Choose a bill" xml:space="preserve">
+    <value>Choose a bill</value>
+  </data>
+  <data name="Choose a bill with unfinished lines in this account." xml:space="preserve">
+    <value>Choose a bill with unfinished lines in this account.</value>
+  </data>
+  <data name="Choose a billing action." xml:space="preserve">
+    <value>Choose a billing action.</value>
+  </data>
+  <data name="Choose a destination" xml:space="preserve">
+    <value>Choose a destination</value>
+  </data>
+  <data name="Choose a different member" xml:space="preserve">
+    <value>Choose a different member</value>
+  </data>
+  <data name="Choose a discount" xml:space="preserve">
+    <value>Choose a discount</value>
+  </data>
+  <data name="Choose a fee, future dates and a valid discount value." xml:space="preserve">
+    <value>Choose a fee, future dates and a valid discount value.</value>
+  </data>
+  <data name="Choose a financial action." xml:space="preserve">
+    <value>Choose a financial action.</value>
+  </data>
+  <data name="Choose a listed colour mode." xml:space="preserve">
+    <value>Choose a listed colour mode.</value>
+  </data>
+  <data name="Choose a listed language." xml:space="preserve">
+    <value>Choose a listed language.</value>
+  </data>
+  <data name="Choose a listed theme." xml:space="preserve">
+    <value>Choose a listed theme.</value>
+  </data>
+  <data name="Choose a member and payment purpose." xml:space="preserve">
+    <value>Choose a member and payment purpose.</value>
+  </data>
+  <data name="Choose a membership action." xml:space="preserve">
+    <value>Choose a membership action.</value>
+  </data>
+  <data name="Choose a posted receipt in this account." xml:space="preserve">
+    <value>Choose a posted receipt in this account.</value>
+  </data>
+  <data name="Choose a purchase" xml:space="preserve">
+    <value>Choose a purchase</value>
+  </data>
+  <data name="Choose a purpose" xml:space="preserve">
+    <value>Choose a purpose</value>
+  </data>
+  <data name="Choose a receipt" xml:space="preserve">
+    <value>Choose a receipt</value>
+  </data>
+  <data name="Choose an adjustment." xml:space="preserve">
+    <value>Choose an adjustment.</value>
+  </data>
+  <data name="Choose an allowed billing interval." xml:space="preserve">
+    <value>Choose an allowed billing interval.</value>
+  </data>
+  <data name="Choose an available destination belonging to this member." xml:space="preserve">
+    <value>Choose an available destination belonging to this member.</value>
+  </data>
+  <data name="Choose an available discount in this account." xml:space="preserve">
+    <value>Choose an available discount in this account.</value>
+  </data>
+  <data name="Choose an existing financial account ID." xml:space="preserve">
+    <value>Choose an existing financial account ID.</value>
+  </data>
+  <data name="Choose how this portal looks on this browser. Your choice does not change association identity or account permissions." xml:space="preserve">
+    <value>Choose how this portal looks on this browser. Your choice does not change association identity or account permissions.</value>
+  </data>
+  <data name="Choose purpose / search" xml:space="preserve">
+    <value>Choose purpose / search</value>
+  </data>
+  <data name="Choose the language used on this browser. Automatic uses your account's preferred language, then your browser language, then the association default." xml:space="preserve">
+    <value>Choose the language used on this browser. Automatic uses your account's preferred language, then your browser language, then the association default.</value>
+  </data>
+  <data name="Choose the one-off request action." xml:space="preserve">
+    <value>Choose the one-off request action.</value>
+  </data>
+  <data name="Clear filters" xml:space="preserve">
+    <value>Clear filters</value>
+  </data>
+  <data name="Closed payment request" xml:space="preserve">
+    <value>Closed payment request</value>
+  </data>
+  <data name="Closing balance: {0:0.00} EUR" xml:space="preserve">
+    <value>Closing balance: {0:0.00} EUR</value>
+  </data>
+  <data name="Colour mode" xml:space="preserve">
+    <value>Colour mode</value>
+  </data>
+  <data name="Command history" xml:space="preserve">
+    <value>Command history</value>
+  </data>
+  <data name="Communication preferences" xml:space="preserve">
+    <value>Communication preferences</value>
+  </data>
+  <data name="Communication preferences saved. Required notices remain enabled." xml:space="preserve">
+    <value>Communication preferences saved. Required notices remain enabled.</value>
+  </data>
+  <data name="Communications" xml:space="preserve">
+    <value>Communications</value>
+  </data>
+  <data name="Completed" xml:space="preserve">
+    <value>Completed</value>
+  </data>
+  <data name="Completed bank refund reference and reason" xml:space="preserve">
+    <value>Completed bank refund reference and reason</value>
+  </data>
+  <data name="Completed purchase" xml:space="preserve">
+    <value>Completed purchase</value>
+  </data>
+  <data name="Completed purchases / credit corrections / refunds" xml:space="preserve">
+    <value>Completed purchases / credit corrections / refunds</value>
+  </data>
+  <data name="Completed refund amount EUR" xml:space="preserve">
+    <value>Completed refund amount EUR</value>
+  </data>
+  <data name="Completed, closed and other bills that do not currently request payment. Showing up to {0} per page." xml:space="preserve">
+    <value>Completed, closed and other bills that do not currently request payment. Showing up to {0} per page.</value>
+  </data>
+  <data name="Completed: {0} EUR · Allocated: {1} EUR · Remaining:" xml:space="preserve">
+    <value>Completed: {0} EUR · Allocated: {1} EUR · Remaining:</value>
+  </data>
+  <data name="Configure a price effective before this billing period first." xml:space="preserve">
+    <value>Configure a price effective before this billing period first.</value>
+  </data>
+  <data name="Configure the membership price before approving applicants. Prices are EUR per month. Issued lines keep their quoted prices." xml:space="preserve">
+    <value>Configure the membership price before approving applicants. Prices are EUR per month. Issued lines keep their quoted prices.</value>
+  </data>
+  <data name="Confirm adjustment" xml:space="preserve">
+    <value>Confirm adjustment</value>
+  </data>
+  <data name="Confirm disposition" xml:space="preserve">
+    <value>Confirm disposition</value>
+  </data>
+  <data name="Confirm email change" xml:space="preserve">
+    <value>Confirm email change</value>
+  </data>
+  <data name="Confirm membership" xml:space="preserve">
+    <value>Confirm membership</value>
+  </data>
+  <data name="Confirm new email" xml:space="preserve">
+    <value>Confirm new email</value>
+  </data>
+  <data name="Confirm new password" xml:space="preserve">
+    <value>Confirm new password</value>
+  </data>
+  <data name="Confirm one-off request" xml:space="preserve">
+    <value>Confirm one-off request</value>
+  </data>
+  <data name="Confirm password" xml:space="preserve">
+    <value>Confirm password</value>
+  </data>
+  <data name="Confirm resignation." xml:space="preserve">
+    <value>Confirm resignation.</value>
+  </data>
+  <data name="Confirm service change" xml:space="preserve">
+    <value>Confirm service change</value>
+  </data>
+  <data name="Confirm the admission decision." xml:space="preserve">
+    <value>Confirm the admission decision.</value>
+  </data>
+  <data name="Confirm the membership action." xml:space="preserve">
+    <value>Confirm the membership action.</value>
+  </data>
+  <data name="Confirm transfer" xml:space="preserve">
+    <value>Confirm transfer</value>
+  </data>
+  <data name="ConfirmPassword" xml:space="preserve">
+    <value>ConfirmPassword</value>
+  </data>
+  <data name="Conflicting source transaction; reconcile with the provider instead of overwriting it." xml:space="preserve">
+    <value>Conflicting source transaction; reconcile with the provider instead of overwriting it.</value>
+  </data>
+  <data name="Contact an administrator to request a membership return period." xml:space="preserve">
+    <value>Contact an administrator to request a membership return period.</value>
+  </data>
+  <data name="Counterparty (recipient for outgoing transfers)" xml:space="preserve">
+    <value>Counterparty (recipient for outgoing transfers)</value>
+  </data>
+  <data name="Coverage changed. Review the grant again." xml:space="preserve">
+    <value>Coverage changed. Review the grant again.</value>
+  </data>
+  <data name="Coverage history" xml:space="preserve">
+    <value>Coverage history</value>
+  </data>
+  <data name="Coverage history and forecasts include both displayed dates. Forecasts are estimates, not payment requests." xml:space="preserve">
+    <value>Coverage history and forecasts include both displayed dates. Forecasts are estimates, not payment requests.</value>
+  </data>
+  <data name="Covered" xml:space="preserve">
+    <value>Covered</value>
+  </data>
+  <data name="Covered through" xml:space="preserve">
+    <value>Covered through</value>
+  </data>
+  <data name="Covered through {0:d MMM yyyy}" xml:space="preserve">
+    <value>Covered through {0:d MMM yyyy}</value>
+  </data>
+  <data name="Create service" xml:space="preserve">
+    <value>Create service</value>
+  </data>
+  <data name="Created / attempts" xml:space="preserve">
+    <value>Created / attempts</value>
+  </data>
+  <data name="Credit adjustment" xml:space="preserve">
+    <value>Credit adjustment</value>
+  </data>
+  <data name="Currency" xml:space="preserve">
+    <value>Currency</value>
+  </data>
+  <data name="Current balances" xml:space="preserve">
+    <value>Current balances</value>
+  </data>
+  <data name="Current email:" xml:space="preserve">
+    <value>Current email:</value>
+  </data>
+  <data name="Current facts and authority will be rechecked when confirmed." xml:space="preserve">
+    <value>Current facts and authority will be rechecked when confirmed.</value>
+  </data>
+  <data name="Current monthly price EUR" xml:space="preserve">
+    <value>Current monthly price EUR</value>
+  </data>
+  <data name="Current password" xml:space="preserve">
+    <value>Current password</value>
+  </data>
+  <data name="CurrentPassword" xml:space="preserve">
+    <value>CurrentPassword</value>
+  </data>
+  <data name="Dark" xml:space="preserve">
+    <value>Dark</value>
+  </data>
+  <data name="Dark mode" xml:space="preserve">
+    <value>Dark mode</value>
+  </data>
+  <data name="Date" xml:space="preserve">
+    <value>Date</value>
+  </data>
+  <data name="Date of birth" xml:space="preserve">
+    <value>Date of birth</value>
+  </data>
+  <data name="DateOfBirth" xml:space="preserve">
+    <value>DateOfBirth</value>
+  </data>
+  <data name="Dated price saved. Issued bills retain their quoted prices." xml:space="preserve">
+    <value>Dated price saved. Issued bills retain their quoted prices.</value>
+  </data>
+  <data name="Default" xml:space="preserve">
+    <value>Default</value>
+  </data>
+  <data name="Deletion normally happens {0}–{1} calendar days after resignation, potentially later if a batch is delayed. It never happens before the waiting period." xml:space="preserve">
+    <value>Deletion normally happens {0}–{1} calendar days after resignation, potentially later if a batch is delayed. It never happens before the waiting period.</value>
+  </data>
+  <data name="Deletion warning" xml:space="preserve">
+    <value>Deletion warning</value>
+  </data>
+  <data name="Delivery ID" xml:space="preserve">
+    <value>Delivery ID</value>
+  </data>
+  <data name="Delivery state" xml:space="preserve">
+    <value>Delivery state</value>
+  </data>
+  <data name="Description" xml:space="preserve">
+    <value>Description</value>
+  </data>
+  <data name="Details" xml:space="preserve">
+    <value>Details</value>
+  </data>
+  <data name="Diagnostic observations, not business history. A later successful occurrence can clear them." xml:space="preserve">
+    <value>Diagnostic observations, not business history. A later successful occurrence can clear them.</value>
+  </data>
+  <data name="Discount" xml:space="preserve">
+    <value>Discount</value>
+  </data>
+  <data name="Discount is unavailable." xml:space="preserve">
+    <value>Discount is unavailable.</value>
+  </data>
+  <data name="Discount type" xml:space="preserve">
+    <value>Discount type</value>
+  </data>
+  <data name="Discount value" xml:space="preserve">
+    <value>Discount value</value>
+  </data>
+  <data name="Discounts" xml:space="preserve">
+    <value>Discounts</value>
+  </data>
+  <data name="Discounts for the same fee cannot overlap; withdraw the previous discount first." xml:space="preserve">
+    <value>Discounts for the same fee cannot overlap; withdraw the previous discount first.</value>
+  </data>
+  <data name="Display preferences" xml:space="preserve">
+    <value>Display preferences</value>
+  </data>
+  <data name="Disposition / purpose" xml:space="preserve">
+    <value>Disposition / purpose</value>
+  </data>
+  <data name="Download current PDF" xml:space="preserve">
+    <value>Download current PDF</value>
+  </data>
+  <data name="Due today" xml:space="preserve">
+    <value>Due today</value>
+  </data>
+  <data name="Edit service" xml:space="preserve">
+    <value>Edit service</value>
+  </data>
+  <data name="Edit service definition" xml:space="preserve">
+    <value>Edit service definition</value>
+  </data>
+  <data name="Effective" xml:space="preserve">
+    <value>Effective</value>
+  </data>
+  <data name="Effective from" xml:space="preserve">
+    <value>Effective from</value>
+  </data>
+  <data name="Email" xml:space="preserve">
+    <value>Email</value>
+  </data>
+  <data name="Email change" xml:space="preserve">
+    <value>Email change</value>
+  </data>
+  <data name="Email invoice PDFs" xml:space="preserve">
+    <value>Email invoice PDFs</value>
+  </data>
+  <data name="Email verified. Your application is now awaiting administrator review. Verification alone does not grant login access." xml:space="preserve">
+    <value>Email verified. Your application is now awaiting administrator review. Verification alone does not grant login access.</value>
+  </data>
+  <data name="End your membership" xml:space="preserve">
+    <value>End your membership</value>
+  </data>
+  <data name="English" xml:space="preserve">
+    <value>English</value>
+  </data>
+  <data name="Enter a valid date of birth." xml:space="preserve">
+    <value>Enter a valid date of birth.</value>
+  </data>
+  <data name="Enter a valid email address." xml:space="preserve">
+    <value>Enter a valid email address.</value>
+  </data>
+  <data name="Enter an amount using the selected language's decimal separator, without thousands separators." xml:space="preserve">
+    <value>Enter an amount using the selected language's decimal separator, without thousands separators.</value>
+  </data>
+  <data name="Enter your current password and a new password of at most 256 characters." xml:space="preserve">
+    <value>Enter your current password and a new password of at most 256 characters.</value>
+  </data>
+  <data name="Essential mail" xml:space="preserve">
+    <value>Essential mail</value>
+  </data>
+  <data name="Essential mail includes verification, welcome, security, membership and deletion notices. Invoice emails are optional and can be included below." xml:space="preserve">
+    <value>Essential mail includes verification, welcome, security, membership and deletion notices. Invoice emails are optional and can be included below.</value>
+  </data>
+  <data name="Essential mail problems" xml:space="preserve">
+    <value>Essential mail problems</value>
+  </data>
+  <data name="Expired" xml:space="preserve">
+    <value>Expired</value>
+  </data>
+  <data name="Explanation is too long." xml:space="preserve">
+    <value>Explanation is too long.</value>
+  </data>
+  <data name="Export bank transactions CSV" xml:space="preserve">
+    <value>Export bank transactions CSV</value>
+  </data>
+  <data name="Export journal CSV" xml:space="preserve">
+    <value>Export journal CSV</value>
+  </data>
+  <data name="Extend current paid or granted membership coverage by whole months, releasing holds for newly covered days." xml:space="preserve">
+    <value>Extend current paid or granted membership coverage by whole months, releasing holds for newly covered days.</value>
+  </data>
+  <data name="External transaction ID" xml:space="preserve">
+    <value>External transaction ID</value>
+  </data>
+  <data name="Failed" xml:space="preserve">
+    <value>Failed</value>
+  </data>
+  <data name="Failed and uncertain" xml:space="preserve">
+    <value>Failed and uncertain</value>
+  </data>
+  <data name="Failed means delivery was not confirmed. Rejected applicant payloads are erased at their configured deadline even if sending failed. A queued message is not proof of delivery." xml:space="preserve">
+    <value>Failed means delivery was not confirmed. Rejected applicant payloads are erased at their configured deadline even if sending failed. A queued message is not proof of delivery.</value>
+  </data>
+  <data name="Failed — delivery not confirmed" xml:space="preserve">
+    <value>Failed — delivery not confirmed</value>
+  </data>
+  <data name="Failed-match review" xml:space="preserve">
+    <value>Failed-match review</value>
+  </data>
+  <data name="Fee" xml:space="preserve">
+    <value>Fee</value>
+  </data>
+  <data name="Fee prices" xml:space="preserve">
+    <value>Fee prices</value>
+  </data>
+  <data name="Fees and current prices" xml:space="preserve">
+    <value>Fees and current prices</value>
+  </data>
+  <data name="Fees and prices" xml:space="preserve">
+    <value>Fees and prices</value>
+  </data>
+  <data name="Filter mail" xml:space="preserve">
+    <value>Filter mail</value>
+  </data>
+  <data name="Final failures" xml:space="preserve">
+    <value>Final failures</value>
+  </data>
+  <data name="Finances" xml:space="preserve">
+    <value>Finances</value>
+  </data>
+  <data name="Financial action" xml:space="preserve">
+    <value>Financial action</value>
+  </data>
+  <data name="Financial action saved. Review updated balances and coverage." xml:space="preserve">
+    <value>Financial action saved. Review updated balances and coverage.</value>
+  </data>
+  <data name="Financial actions" xml:space="preserve">
+    <value>Financial actions</value>
+  </data>
+  <data name="Financial actions and one-off requests" xml:space="preserve">
+    <value>Financial actions and one-off requests</value>
+  </data>
+  <data name="Financial command history" xml:space="preserve">
+    <value>Financial command history</value>
+  </data>
+  <data name="Financial history and balance statements" xml:space="preserve">
+    <value>Financial history and balance statements</value>
+  </data>
+  <data name="Find a member to maintain their details, review membership and services, or manage payments. Standing uses current membership coverage and grace; unpaid optional services do not make membership inactive." xml:space="preserve">
+    <value>Find a member to maintain their details, review membership and services, or manage payments. Standing uses current membership coverage and grace; unpaid optional services do not make membership inactive.</value>
+  </data>
+  <data name="Find member by name, email or member number" xml:space="preserve">
+    <value>Find member by name, email or member number</value>
+  </data>
+  <data name="For explicit purchases; not automatically used for bills." xml:space="preserve">
+    <value>For explicit purchases; not automatically used for bills.</value>
+  </data>
+  <data name="For personal-data access, correction or erasure requests, contact the association's administrators." xml:space="preserve">
+    <value>For personal-data access, correction or erasure requests, contact the association's administrators.</value>
+  </data>
+  <data name="Forecasts — not issued invoices" xml:space="preserve">
+    <value>Forecasts — not issued invoices</value>
+  </data>
+  <data name="Forgot password?" xml:space="preserve">
+    <value>Forgot password?</value>
+  </data>
+  <data name="Free days" xml:space="preserve">
+    <value>Free days</value>
+  </data>
+  <data name="Free-day grants must be made in the administration view." xml:space="preserve">
+    <value>Free-day grants must be made in the administration view.</value>
+  </data>
+  <data name="FreeDays" xml:space="preserve">
+    <value>FreeDays</value>
+  </data>
+  <data name="From" xml:space="preserve">
+    <value>From</value>
+  </data>
+  <data name="From / to" xml:space="preserve">
+    <value>From / to</value>
+  </data>
+  <data name="Funding order after membership (lower first)" xml:space="preserve">
+    <value>Funding order after membership (lower first)</value>
+  </data>
+  <data name="Grace days" xml:space="preserve">
+    <value>Grace days</value>
+  </data>
+  <data name="GraceDays" xml:space="preserve">
+    <value>GraceDays</value>
+  </data>
+  <data name="Grant between 1 and 120 whole months." xml:space="preserve">
+    <value>Grant between 1 and 120 whole months.</value>
+  </data>
+  <data name="Grant configured free days ({0}) to a returning subscriber" xml:space="preserve">
+    <value>Grant configured free days ({0}) to a returning subscriber</value>
+  </data>
+  <data name="Grant membership months" xml:space="preserve">
+    <value>Grant membership months</value>
+  </data>
+  <data name="Granted coverage" xml:space="preserve">
+    <value>Granted coverage</value>
+  </data>
+  <data name="Healthy" xml:space="preserve">
+    <value>Healthy</value>
+  </data>
+  <data name="Held/funding movements" xml:space="preserve">
+    <value>Held/funding movements</value>
+  </data>
+  <data name="I accept the association's" xml:space="preserve">
+    <value>I accept the association's</value>
+  </data>
+  <data name="I accept the association's membership terms." xml:space="preserve">
+    <value>I accept the association's membership terms.</value>
+  </data>
+  <data name="I confirm admission before payment and creation of the initial bill." xml:space="preserve">
+    <value>I confirm admission before payment and creation of the initial bill.</value>
+  </data>
+  <data name="I understand and want to resign now." xml:space="preserve">
+    <value>I understand and want to resign now.</value>
+  </data>
+  <data name="IBAN" xml:space="preserve">
+    <value>IBAN</value>
+  </data>
+  <data name="ID / received" xml:space="preserve">
+    <value>ID / received</value>
+  </data>
+  <data name="If an eligible application exists, a new email has been queued. Requests are limited to once every minute." xml:space="preserve">
+    <value>If an eligible application exists, a new email has been queued. Requests are limited to once every minute.</value>
+  </data>
+  <data name="If this address has an eligible account, a reset email has been queued. Requests are limited to once every minute." xml:space="preserve">
+    <value>If this address has an eligible account, a reset email has been queued. Requests are limited to once every minute.</value>
+  </data>
+  <data name="If this address is eligible, a verification email has been queued. Check your email before administrator review. You cannot log in until approval." xml:space="preserve">
+    <value>If this address is eligible, a verification email has been queued. Check your email before administrator review. You cannot log in until approval.</value>
+  </data>
+  <data name="Import a confirmed bank transaction manually" xml:space="preserve">
+    <value>Import a confirmed bank transaction manually</value>
+  </data>
+  <data name="Import source fact and match" xml:space="preserve">
+    <value>Import source fact and match</value>
+  </data>
+  <data name="Inactive" xml:space="preserve">
+    <value>Inactive</value>
+  </data>
+  <data name="Inactive for at least {0} days" xml:space="preserve">
+    <value>Inactive for at least {0} days</value>
+  </data>
+  <data name="Inactive members" xml:space="preserve">
+    <value>Inactive members</value>
+  </data>
+  <data name="Inactive since {0}" xml:space="preserve">
+    <value>Inactive since {0}</value>
+  </data>
+  <data name="Inactive — membership continues; billing paused" xml:space="preserve">
+    <value>Inactive — membership continues; billing paused</value>
+  </data>
+  <data name="Inactivity review threshold (days)" xml:space="preserve">
+    <value>Inactivity review threshold (days)</value>
+  </data>
+  <data name="Incorrect password." xml:space="preserve">
+    <value>Incorrect password.</value>
+  </data>
+  <data name="Initial free calendar days" xml:space="preserve">
+    <value>Initial free calendar days</value>
+  </data>
+  <data name="Invalid application key." xml:space="preserve">
+    <value>Invalid application key.</value>
+  </data>
+  <data name="Invalid booked transaction: provide stable source IDs, currency, receipt date and a nonzero cent amount." xml:space="preserve">
+    <value>Invalid booked transaction: provide stable source IDs, currency, receipt date and a nonzero cent amount.</value>
+  </data>
+  <data name="Invalid or expired email change." xml:space="preserve">
+    <value>Invalid or expired email change.</value>
+  </data>
+  <data name="Invalid or expired verification link." xml:space="preserve">
+    <value>Invalid or expired verification link.</value>
+  </data>
+  <data name="Invalid service configuration." xml:space="preserve">
+    <value>Invalid service configuration.</value>
+  </data>
+  <data name="Invalid token." xml:space="preserve">
+    <value>Invalid token.</value>
+  </data>
+  <data name="Investigate lines {0} and receipts {1}. No automatic repairs were applied." xml:space="preserve">
+    <value>Investigate lines {0} and receipts {1}. No automatic repairs were applied.</value>
+  </data>
+  <data name="Invoice" xml:space="preserve">
+    <value>Invoice</value>
+  </data>
+  <data name="Invoice #{0}" xml:space="preserve">
+    <value>Invoice #{0}</value>
+  </data>
+  <data name="Invoice #{0} funding · periods include both displayed dates" xml:space="preserve">
+    <value>Invoice #{0} funding · periods include both displayed dates</value>
+  </data>
+  <data name="Invoice #{0} — {1}" xml:space="preserve">
+    <value>Invoice #{0} — {1}</value>
+  </data>
+  <data name="Invoice / PDF" xml:space="preserve">
+    <value>Invoice / PDF</value>
+  </data>
+  <data name="Invoice belongs to another account." xml:space="preserve">
+    <value>Invoice belongs to another account.</value>
+  </data>
+  <data name="Invoice email preference saved." xml:space="preserve">
+    <value>Invoice email preference saved.</value>
+  </data>
+  <data name="Invoice funding details" xml:space="preserve">
+    <value>Invoice funding details</value>
+  </data>
+  <data name="Issue a separate advance request with its own reference. No subscription, reservation or debt is created." xml:space="preserve">
+    <value>Issue a separate advance request with its own reference. No subscription, reservation or debt is created.</value>
+  </data>
+  <data name="Issue one-off request" xml:space="preserve">
+    <value>Issue one-off request</value>
+  </data>
+  <data name="Issue {0} ({1}): {2} EUR, pay by {3}." xml:space="preserve">
+    <value>Issue {0} ({1}): {2} EUR, pay by {3}.</value>
+  </data>
+  <data name="Joined {0}" xml:space="preserve">
+    <value>Joined {0}</value>
+  </data>
+  <data name="Journal reconciliation" xml:space="preserve">
+    <value>Journal reconciliation</value>
+  </data>
+  <data name="Keep your contact details and email address up to date." xml:space="preserve">
+    <value>Keep your contact details and email address up to date.</value>
+  </data>
+  <data name="Language" xml:space="preserve">
+    <value>Language</value>
+  </data>
+  <data name="Language saved." xml:space="preserve">
+    <value>Language saved.</value>
+  </data>
+  <data name="Language: {0}" xml:space="preserve">
+    <value>Language: {0}</value>
+  </data>
+  <data name="Last attempt: {0}" xml:space="preserve">
+    <value>Last attempt: {0}</value>
+  </data>
+  <data name="Last recorded state: {0}" xml:space="preserve">
+    <value>Last recorded state: {0}</value>
+  </data>
+  <data name="Last success" xml:space="preserve">
+    <value>Last success</value>
+  </data>
+  <data name="Last successful sync:" xml:space="preserve">
+    <value>Last successful sync:</value>
+  </data>
+  <data name="Latest 100 posted receipts. Completed purchases and spent money cannot be reversed here." xml:space="preserve">
+    <value>Latest 100 posted receipts. Completed purchases and spent money cannot be reversed here.</value>
+  </data>
+  <data name="Latest essential mail deliveries (up to 50)" xml:space="preserve">
+    <value>Latest essential mail deliveries (up to 50)</value>
+  </data>
+  <data name="Latest final failure observations (up to 50)" xml:space="preserve">
+    <value>Latest final failure observations (up to 50)</value>
+  </data>
+  <data name="Leave unchanged" xml:space="preserve">
+    <value>Leave unchanged</value>
+  </data>
+  <data name="Light" xml:space="preserve">
+    <value>Light</value>
+  </data>
+  <data name="Line / period" xml:space="preserve">
+    <value>Line / period</value>
+  </data>
+  <data name="Links expire with the unverified application (24 hours by default). Resending does not extend retention. After expiry, submit a fresh application." xml:space="preserve">
+    <value>Links expire with the unverified application (24 hours by default). Resending does not extend retention. After expiry, submit a fresh application.</value>
+  </data>
+  <data name="Log in" xml:space="preserve">
+    <value>Log in</value>
+  </data>
+  <data name="Log out" xml:space="preserve">
+    <value>Log out</value>
+  </data>
+  <data name="Logger" xml:space="preserve">
+    <value>Logger</value>
+  </data>
+  <data name="Login and services blocked." xml:space="preserve">
+    <value>Login and services blocked.</value>
+  </data>
+  <data name="Mail problem pages" xml:space="preserve">
+    <value>Mail problem pages</value>
+  </data>
+  <data name="Mail problems" xml:space="preserve">
+    <value>Mail problems</value>
+  </data>
+  <data name="Maintenance schedules" xml:space="preserve">
+    <value>Maintenance schedules</value>
+  </data>
+  <data name="Manage billing settings" xml:space="preserve">
+    <value>Manage billing settings</value>
+  </data>
+  <data name="Manual import" xml:space="preserve">
+    <value>Manual import</value>
+  </data>
+  <data name="Matrix ID" xml:space="preserve">
+    <value>Matrix ID</value>
+  </data>
+  <data name="Matrix ID (optional)" xml:space="preserve">
+    <value>Matrix ID (optional)</value>
+  </data>
+  <data name="MatrixId" xml:space="preserve">
+    <value>MatrixId</value>
+  </data>
+  <data name="Member #{0}" xml:space="preserve">
+    <value>Member #{0}</value>
+  </data>
+  <data name="Member #{0} · Joined {1} · Login email: {2}" xml:space="preserve">
+    <value>Member #{0} · Joined {1} · Login email: {2}</value>
+  </data>
+  <data name="Member billing credit" xml:space="preserve">
+    <value>Member billing credit</value>
+  </data>
+  <data name="Member details" xml:space="preserve">
+    <value>Member details</value>
+  </data>
+  <data name="Member no longer exists." xml:space="preserve">
+    <value>Member no longer exists.</value>
+  </data>
+  <data name="Member portal" xml:space="preserve">
+    <value>Member portal</value>
+  </data>
+  <data name="Member registry" xml:space="preserve">
+    <value>Member registry</value>
+  </data>
+  <data name="Member self-service" xml:space="preserve">
+    <value>Member self-service</value>
+  </data>
+  <data name="Member workspace" xml:space="preserve">
+    <value>Member workspace</value>
+  </data>
+  <data name="Members" xml:space="preserve">
+    <value>Members</value>
+  </data>
+  <data name="Members may subscribe and resubscribe themselves" xml:space="preserve">
+    <value>Members may subscribe and resubscribe themselves</value>
+  </data>
+  <data name="Members per page" xml:space="preserve">
+    <value>Members per page</value>
+  </data>
+  <data name="Membership" xml:space="preserve">
+    <value>Membership</value>
+  </data>
+  <data name="Membership &amp; payments" xml:space="preserve">
+    <value>Membership &amp; payments</value>
+  </data>
+  <data name="Membership and payments" xml:space="preserve">
+    <value>Membership and payments</value>
+  </data>
+  <data name="Membership and services" xml:space="preserve">
+    <value>Membership and services</value>
+  </data>
+  <data name="Membership approved. Welcome email queued; delivery is not yet confirmed." xml:space="preserve">
+    <value>Membership approved. Welcome email queued; delivery is not yet confirmed.</value>
+  </data>
+  <data name="Membership billing is paused. Already-purchased service time keeps expiring normally. Review return options below; pending deletion must be cancelled before a return can be requested." xml:space="preserve">
+    <value>Membership billing is paused. Already-purchased service time keeps expiring normally. Review return options below; pending deletion must be cancelled before a return can be requested.</value>
+  </data>
+  <data name="Membership grace notice" xml:space="preserve">
+    <value>Membership grace notice</value>
+  </data>
+  <data name="Membership grants" xml:space="preserve">
+    <value>Membership grants</value>
+  </data>
+  <data name="Membership history" xml:space="preserve">
+    <value>Membership history</value>
+  </data>
+  <data name="Membership inactive" xml:space="preserve">
+    <value>Membership inactive</value>
+  </data>
+  <data name="Membership inactivity notice" xml:space="preserve">
+    <value>Membership inactivity notice</value>
+  </data>
+  <data name="Membership is active or already has a return request." xml:space="preserve">
+    <value>Membership is active or already has a return request.</value>
+  </data>
+  <data name="Membership is inactive, but you are still a member." xml:space="preserve">
+    <value>Membership is inactive, but you are still a member.</value>
+  </data>
+  <data name="Membership is inactive, but you are still a member. Review return options instead of paying expired bills." xml:space="preserve">
+    <value>Membership is inactive, but you are still a member. Review return options instead of paying expired bills.</value>
+  </data>
+  <data name="Membership lifecycle" xml:space="preserve">
+    <value>Membership lifecycle</value>
+  </data>
+  <data name="Membership on this bill is covered, even if other items remain unfinished." xml:space="preserve">
+    <value>Membership on this bill is covered, even if other items remain unfinished.</value>
+  </data>
+  <data name="Membership or service fee" xml:space="preserve">
+    <value>Membership or service fee</value>
+  </data>
+  <data name="Membership remains active during grace." xml:space="preserve">
+    <value>Membership remains active during grace.</value>
+  </data>
+  <data name="Membership remains active during grace. Review your membership payment before grace ends." xml:space="preserve">
+    <value>Membership remains active during grace. Review your membership payment before grace ends.</value>
+  </data>
+  <data name="Membership terminated and account deletion started. Login and services are blocked." xml:space="preserve">
+    <value>Membership terminated and account deletion started. Login and services are blocked.</value>
+  </data>
+  <data name="Membership terms" xml:space="preserve">
+    <value>Membership terms</value>
+  </data>
+  <data name="Membership: {0}" xml:space="preserve">
+    <value>Membership: {0}</value>
+  </data>
+  <data name="Menu" xml:space="preserve">
+    <value>Menu</value>
+  </data>
+  <data name="Message" xml:space="preserve">
+    <value>Message</value>
+  </data>
+  <data name="Message / counterparty" xml:space="preserve">
+    <value>Message / counterparty</value>
+  </data>
+  <data name="Message scope" xml:space="preserve">
+    <value>Message scope</value>
+  </data>
+  <data name="Message to administrators" xml:space="preserve">
+    <value>Message to administrators</value>
+  </data>
+  <data name="Minimum days applies to the Inactive members filter. Use 0 for all inactive members, including those without a known inactivity date. This filter never terminates membership or starts deletion." xml:space="preserve">
+    <value>Minimum days applies to the Inactive members filter. Use 0 for all inactive members, including those without a known inactivity date. This filter never terminates membership or starts deletion.</value>
+  </data>
+  <data name="Minimum days inactive" xml:space="preserve">
+    <value>Minimum days inactive</value>
+  </data>
+  <data name="Monthly EUR" xml:space="preserve">
+    <value>Monthly EUR</value>
+  </data>
+  <data name="Monthly price EUR" xml:space="preserve">
+    <value>Monthly price EUR</value>
+  </data>
+  <data name="MonthlyPrice" xml:space="preserve">
+    <value>MonthlyPrice</value>
+  </data>
+  <data name="Most recently joined" xml:space="preserve">
+    <value>Most recently joined</value>
+  </data>
+  <data name="Move" xml:space="preserve">
+    <value>Move</value>
+  </data>
+  <data name="Move funds between balances" xml:space="preserve">
+    <value>Move funds between balances</value>
+  </data>
+  <data name="Move {0:0.00} EUR from billing credit to purchase balance." xml:space="preserve">
+    <value>Move {0:0.00} EUR from billing credit to purchase balance.</value>
+  </data>
+  <data name="Move {0:0.00} EUR from purchase balance to billing credit." xml:space="preserve">
+    <value>Move {0:0.00} EUR from purchase balance to billing credit.</value>
+  </data>
+  <data name="Moving money into billing credit immediately funds valid recurring bills. Allocated or spent money cannot be transferred back. This is an internal transfer, not a bank payment." xml:space="preserve">
+    <value>Moving money into billing credit immediately funds valid recurring bills. Allocated or spent money cannot be transferred back. This is an internal transfer, not a bank payment.</value>
+  </data>
+  <data name="Moving money into billing credit immediately funds valid recurring bills. Held or spent money cannot be transferred back." xml:space="preserve">
+    <value>Moving money into billing credit immediately funds valid recurring bills. Held or spent money cannot be transferred back.</value>
+  </data>
+  <data name="Municipality" xml:space="preserve">
+    <value>Municipality</value>
+  </data>
+  <data name="My account" xml:space="preserve">
+    <value>My account</value>
+  </data>
+  <data name="Name" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="Name / code" xml:space="preserve">
+    <value>Name / code</value>
+  </data>
+  <data name="Needs attention" xml:space="preserve">
+    <value>Needs attention</value>
+  </data>
+  <data name="Needs your attention" xml:space="preserve">
+    <value>Needs your attention</value>
+  </data>
+  <data name="Never" xml:space="preserve">
+    <value>Never</value>
+  </data>
+  <data name="Never — no successful sync recorded" xml:space="preserve">
+    <value>Never — no successful sync recorded</value>
+  </data>
+  <data name="New email" xml:space="preserve">
+    <value>New email</value>
+  </data>
+  <data name="New email awaiting verification: {0}." xml:space="preserve">
+    <value>New email awaiting verification: {0}.</value>
+  </data>
+  <data name="New password" xml:space="preserve">
+    <value>New password</value>
+  </data>
+  <data name="New price changes cannot be backdated." xml:space="preserve">
+    <value>New price changes cannot be backdated.</value>
+  </data>
+  <data name="NewPassword" xml:space="preserve">
+    <value>NewPassword</value>
+  </data>
+  <data name="Newest transactions first. Showing up to {0} changes to the selected balance per page." xml:space="preserve">
+    <value>Newest transactions first. Showing up to {0} changes to the selected balance per page.</value>
+  </data>
+  <data name="Next" xml:space="preserve">
+    <value>Next</value>
+  </data>
+  <data name="Next bills" xml:space="preserve">
+    <value>Next bills</value>
+  </data>
+  <data name="Next execution" xml:space="preserve">
+    <value>Next execution</value>
+  </data>
+  <data name="Next members" xml:space="preserve">
+    <value>Next members</value>
+  </data>
+  <data name="Next messages" xml:space="preserve">
+    <value>Next messages</value>
+  </data>
+  <data name="Next transactions" xml:space="preserve">
+    <value>Next transactions</value>
+  </data>
+  <data name="Nickname" xml:space="preserve">
+    <value>Nickname</value>
+  </data>
+  <data name="Nickname (optional)" xml:space="preserve">
+    <value>Nickname (optional)</value>
+  </data>
+  <data name="No automatic refund of purchased time." xml:space="preserve">
+    <value>No automatic refund of purchased time.</value>
+  </data>
+  <data name="No bank synchronization recorded. Configure the GoCardless feed before relying on automatic payment status." xml:space="preserve">
+    <value>No bank synchronization recorded. Configure the GoCardless feed before relying on automatic payment status.</value>
+  </data>
+  <data name="No billing account is available." xml:space="preserve">
+    <value>No billing account is available.</value>
+  </data>
+  <data name="No billing email preference is available for this account." xml:space="preserve">
+    <value>No billing email preference is available for this account.</value>
+  </data>
+  <data name="No bills currently request payment." xml:space="preserve">
+    <value>No bills currently request payment.</value>
+  </data>
+  <data name="No known mail problems match these filters. This does not establish that mail delivery is healthy." xml:space="preserve">
+    <value>No known mail problems match these filters. This does not establish that mail delivery is healthy.</value>
+  </data>
+  <data name="No members match these filters. Try a broader search or clear the filters." xml:space="preserve">
+    <value>No members match these filters. Try a broader search or clear the filters.</value>
+  </data>
+  <data name="No membership billing account is available. Contact an administrator if you need help." xml:space="preserve">
+    <value>No membership billing account is available. Contact an administrator if you need help.</value>
+  </data>
+  <data name="No membership record is available for this account." xml:space="preserve">
+    <value>No membership record is available for this account.</value>
+  </data>
+  <data name="No payment is requested for this bill." xml:space="preserve">
+    <value>No payment is requested for this bill.</value>
+  </data>
+  <data name="No payments or email changes need your attention." xml:space="preserve">
+    <value>No payments or email changes need your attention.</value>
+  </data>
+  <data name="No previous bills." xml:space="preserve">
+    <value>No previous bills.</value>
+  </data>
+  <data name="No successful bank synchronization has been recorded. An empty payment-review queue does not establish that payments are up to date." xml:space="preserve">
+    <value>No successful bank synchronization has been recorded. An empty payment-review queue does not establish that payments are up to date.</value>
+  </data>
+  <data name="No transactions on this page." xml:space="preserve">
+    <value>No transactions on this page.</value>
+  </data>
+  <data name="No verified applications are awaiting a decision." xml:space="preserve">
+    <value>No verified applications are awaiting a decision.</value>
+  </data>
+  <data name="None" xml:space="preserve">
+    <value>None</value>
+  </data>
+  <data name="None recorded" xml:space="preserve">
+    <value>None recorded</value>
+  </data>
+  <data name="Not configured" xml:space="preserve">
+    <value>Not configured</value>
+  </data>
+  <data name="Not subscribed" xml:space="preserve">
+    <value>Not subscribed</value>
+  </data>
+  <data name="Not subscribed. An administrator must add this service." xml:space="preserve">
+    <value>Not subscribed. An administrator must add this service.</value>
+  </data>
+  <data name="Not supplied" xml:space="preserve">
+    <value>Not supplied</value>
+  </data>
+  <data name="Oldest 100 unresolved transactions. Processing these reveals the next items in the queue." xml:space="preserve">
+    <value>Oldest 100 unresolved transactions. Processing these reveals the next items in the queue.</value>
+  </data>
+  <data name="Oldest pending work age (seconds)" xml:space="preserve">
+    <value>Oldest pending work age (seconds)</value>
+  </data>
+  <data name="On this page" xml:space="preserve">
+    <value>On this page</value>
+  </data>
+  <data name="On this page:" xml:space="preserve">
+    <value>On this page:</value>
+  </data>
+  <data name="One-off bill" xml:space="preserve">
+    <value>One-off bill</value>
+  </data>
+  <data name="One-off invoice" xml:space="preserve">
+    <value>One-off invoice</value>
+  </data>
+  <data name="OneOff" xml:space="preserve">
+    <value>OneOff</value>
+  </data>
+  <data name="Only a verified application can be rejected." xml:space="preserve">
+    <value>Only a verified application can be rejected.</value>
+  </data>
+  <data name="Only a verified, undecided application can be approved." xml:space="preserve">
+    <value>Only a verified, undecided application can be approved.</value>
+  </data>
+  <data name="Only email-verified applications awaiting a decision appear here (up to 100)." xml:space="preserve">
+    <value>Only email-verified applications awaiting a decision appear here (up to 100).</value>
+  </data>
+  <data name="Only incoming EUR receipts can be assigned to a live member." xml:space="preserve">
+    <value>Only incoming EUR receipts can be assigned to a live member.</value>
+  </data>
+  <data name="Only incoming EUR transactions can be assigned. Review the source facts and choose read / ignore where appropriate." xml:space="preserve">
+    <value>Only incoming EUR transactions can be assigned. Review the source facts and choose read / ignore where appropriate.</value>
+  </data>
+  <data name="Open Payments and accounting for the full journal export and reconciliation" xml:space="preserve">
+    <value>Open Payments and accounting for the full journal export and reconciliation</value>
+  </data>
+  <data name="Open invoices: {0} · receipts requiring review: {1}" xml:space="preserve">
+    <value>Open invoices: {0} · receipts requiring review: {1}</value>
+  </data>
+  <data name="Open membership terms and privacy information" xml:space="preserve">
+    <value>Open membership terms and privacy information</value>
+  </data>
+  <data name="Open payment request" xml:space="preserve">
+    <value>Open payment request</value>
+  </data>
+  <data name="Open payments and accounting" xml:space="preserve">
+    <value>Open payments and accounting</value>
+  </data>
+  <data name="Optional rejection explanation (emailed, then erased with the application)" xml:space="preserve">
+    <value>Optional rejection explanation (emailed, then erased with the application)</value>
+  </data>
+  <data name="Original reference" xml:space="preserve">
+    <value>Original reference</value>
+  </data>
+  <data name="Original source facts" xml:space="preserve">
+    <value>Original source facts</value>
+  </data>
+  <data name="Other application details" xml:space="preserve">
+    <value>Other application details</value>
+  </data>
+  <data name="Outstanding bills" xml:space="preserve">
+    <value>Outstanding bills</value>
+  </data>
+  <data name="Outstanding bills needing payment: {0}." xml:space="preserve">
+    <value>Outstanding bills needing payment: {0}.</value>
+  </data>
+  <data name="Overview" xml:space="preserve">
+    <value>Overview</value>
+  </data>
+  <data name="Page {0}" xml:space="preserve">
+    <value>Page {0}</value>
+  </data>
+  <data name="Page {0} of {1}" xml:space="preserve">
+    <value>Page {0} of {1}</value>
+  </data>
+  <data name="Partly funded" xml:space="preserve">
+    <value>Partly funded</value>
+  </data>
+  <data name="Password" xml:space="preserve">
+    <value>Password</value>
+  </data>
+  <data name="Password changed" xml:space="preserve">
+    <value>Password changed</value>
+  </data>
+  <data name="Password changed. A notification email has been queued." xml:space="preserve">
+    <value>Password changed. A notification email has been queued.</value>
+  </data>
+  <data name="Password must not exceed 256 characters." xml:space="preserve">
+    <value>Password must not exceed 256 characters.</value>
+  </data>
+  <data name="Password reset" xml:space="preserve">
+    <value>Password reset</value>
+  </data>
+  <data name="Passwords must be at least {0} characters." xml:space="preserve">
+    <value>Passwords must be at least {0} characters.</value>
+  </data>
+  <data name="Passwords must have at least one digit ('0'-'9')." xml:space="preserve">
+    <value>Passwords must have at least one digit ('0'-'9').</value>
+  </data>
+  <data name="Passwords must have at least one lowercase ('a'-'z')." xml:space="preserve">
+    <value>Passwords must have at least one lowercase ('a'-'z').</value>
+  </data>
+  <data name="Passwords must have at least one non alphanumeric character." xml:space="preserve">
+    <value>Passwords must have at least one non alphanumeric character.</value>
+  </data>
+  <data name="Passwords must have at least one uppercase ('A'-'Z')." xml:space="preserve">
+    <value>Passwords must have at least one uppercase ('A'-'Z').</value>
+  </data>
+  <data name="Passwords must use at least {0} different characters." xml:space="preserve">
+    <value>Passwords must use at least {0} different characters.</value>
+  </data>
+  <data name="Pay by" xml:space="preserve">
+    <value>Pay by</value>
+  </data>
+  <data name="Pay by bank transfer" xml:space="preserve">
+    <value>Pay by bank transfer</value>
+  </data>
+  <data name="Pay by {0:d MMM yyyy}" xml:space="preserve">
+    <value>Pay by {0:d MMM yyyy}</value>
+  </data>
+  <data name="Pay by {0}" xml:space="preserve">
+    <value>Pay by {0}</value>
+  </data>
+  <data name="Payment added to billing credit" xml:space="preserve">
+    <value>Payment added to billing credit</value>
+  </data>
+  <data name="Payment allocated to a bill" xml:space="preserve">
+    <value>Payment allocated to a bill</value>
+  </data>
+  <data name="Payment allocation reversed" xml:space="preserve">
+    <value>Payment allocation reversed</value>
+  </data>
+  <data name="Payment exceptions" xml:space="preserve">
+    <value>Payment exceptions</value>
+  </data>
+  <data name="Payment review" xml:space="preserve">
+    <value>Payment review</value>
+  </data>
+  <data name="Payment standing depends on confirmed transactions imported manually. Contact the system operator to configure the feed." xml:space="preserve">
+    <value>Payment standing depends on confirmed transactions imported manually. Contact the system operator to configure the feed.</value>
+  </data>
+  <data name="Payment standing, invoices, coverage and services" xml:space="preserve">
+    <value>Payment standing, invoices, coverage and services</value>
+  </data>
+  <data name="Pending deletion" xml:space="preserve">
+    <value>Pending deletion</value>
+  </data>
+  <data name="Pending deletion cancelled. Coverage and payments were not renewed or repaired." xml:space="preserve">
+    <value>Pending deletion cancelled. Coverage and payments were not renewed or repaired.</value>
+  </data>
+  <data name="Pending deletion or unavailable" xml:space="preserve">
+    <value>Pending deletion or unavailable</value>
+  </data>
+  <data name="Pending deletion, then longest inactive" xml:space="preserve">
+    <value>Pending deletion, then longest inactive</value>
+  </data>
+  <data name="Pending deletion. Login and services are blocked. Eligible for a fortnightly deletion batch from {0} (UTC)." xml:space="preserve">
+    <value>Pending deletion. Login and services are blocked. Eligible for a fortnightly deletion batch from {0} (UTC).</value>
+  </data>
+  <data name="Pending deletion; login and services blocked." xml:space="preserve">
+    <value>Pending deletion; login and services blocked.</value>
+  </data>
+  <data name="Pending deletions" xml:space="preserve">
+    <value>Pending deletions</value>
+  </data>
+  <data name="Pending one-shot jobs" xml:space="preserve">
+    <value>Pending one-shot jobs</value>
+  </data>
+  <data name="Percentage" xml:space="preserve">
+    <value>Percentage</value>
+  </data>
+  <data name="Personal details" xml:space="preserve">
+    <value>Personal details</value>
+  </data>
+  <data name="Personal details saved." xml:space="preserve">
+    <value>Personal details saved.</value>
+  </data>
+  <data name="Phone" xml:space="preserve">
+    <value>Phone</value>
+  </data>
+  <data name="Phone number (optional)" xml:space="preserve">
+    <value>Phone number (optional)</value>
+  </data>
+  <data name="PhoneNumber" xml:space="preserve">
+    <value>PhoneNumber</value>
+  </data>
+  <data name="Portal language" xml:space="preserve">
+    <value>Portal language</value>
+  </data>
+  <data name="Posted bank receipt" xml:space="preserve">
+    <value>Posted bank receipt</value>
+  </data>
+  <data name="Posted receipts" xml:space="preserve">
+    <value>Posted receipts</value>
+  </data>
+  <data name="Posted receipts cannot be ignored." xml:space="preserve">
+    <value>Posted receipts cannot be ignored.</value>
+  </data>
+  <data name="Powered by Nulysa" xml:space="preserve">
+    <value>Powered by Nulysa</value>
+  </data>
+  <data name="Preferred language" xml:space="preserve">
+    <value>Preferred language</value>
+  </data>
+  <data name="Previous" xml:space="preserve">
+    <value>Previous</value>
+  </data>
+  <data name="Previous bill pages" xml:space="preserve">
+    <value>Previous bill pages</value>
+  </data>
+  <data name="Previous bills" xml:space="preserve">
+    <value>Previous bills</value>
+  </data>
+  <data name="Previous bills ({0})" xml:space="preserve">
+    <value>Previous bills ({0})</value>
+  </data>
+  <data name="Previous discount credits require treasurer reconciliation." xml:space="preserve">
+    <value>Previous discount credits require treasurer reconciliation.</value>
+  </data>
+  <data name="Previous members" xml:space="preserve">
+    <value>Previous members</value>
+  </data>
+  <data name="Previous messages" xml:space="preserve">
+    <value>Previous messages</value>
+  </data>
+  <data name="Previous transactions" xml:space="preserve">
+    <value>Previous transactions</value>
+  </data>
+  <data name="Price history for {0}" xml:space="preserve">
+    <value>Price history for {0}</value>
+  </data>
+  <data name="Prices" xml:space="preserve">
+    <value>Prices</value>
+  </data>
+  <data name="Prices for {0}" xml:space="preserve">
+    <value>Prices for {0}</value>
+  </data>
+  <data name="Pricing is not available. Contact an administrator before subscribing." xml:space="preserve">
+    <value>Pricing is not available. Contact an administrator before subscribing.</value>
+  </data>
+  <data name="Priority" xml:space="preserve">
+    <value>Priority</value>
+  </data>
+  <data name="Provide a description, category, positive cent amount and future payment deadline." xml:space="preserve">
+    <value>Provide a description, category, positive cent amount and future payment deadline.</value>
+  </data>
+  <data name="Provider acceptance is not inbox delivery. Review/failed sends require investigation, not arbitrary job replay. Recipient addresses and token-bearing bodies are not retained here." xml:space="preserve">
+    <value>Provider acceptance is not inbox delivery. Review/failed sends require investigation, not arbitrary job replay. Recipient addresses and token-bearing bodies are not retained here.</value>
+  </data>
+  <data name="Provider reference" xml:space="preserve">
+    <value>Provider reference</value>
+  </data>
+  <data name="Purchase / period" xml:space="preserve">
+    <value>Purchase / period</value>
+  </data>
+  <data name="Purchase balance" xml:space="preserve">
+    <value>Purchase balance</value>
+  </data>
+  <data name="Purchase balance ({0} EUR available)" xml:space="preserve">
+    <value>Purchase balance ({0} EUR available)</value>
+  </data>
+  <data name="Purchase balance deposit" xml:space="preserve">
+    <value>Purchase balance deposit</value>
+  </data>
+  <data name="Purchase balance is disabled." xml:space="preserve">
+    <value>Purchase balance is disabled.</value>
+  </data>
+  <data name="Purchase balance statement" xml:space="preserve">
+    <value>Purchase balance statement</value>
+  </data>
+  <data name="Purchase balance → billing credit" xml:space="preserve">
+    <value>Purchase balance → billing credit</value>
+  </data>
+  <data name="Purchase completed" xml:space="preserve">
+    <value>Purchase completed</value>
+  </data>
+  <data name="Purchase deposits are unavailable or conflict with a group selection." xml:space="preserve">
+    <value>Purchase deposits are unavailable or conflict with a group selection.</value>
+  </data>
+  <data name="Purchase-deposit reference" xml:space="preserve">
+    <value>Purchase-deposit reference</value>
+  </data>
+  <data name="Purchased coverage" xml:space="preserve">
+    <value>Purchased coverage</value>
+  </data>
+  <data name="Read / ignore without allocation" xml:space="preserve">
+    <value>Read / ignore without allocation</value>
+  </data>
+  <data name="Read membership terms" xml:space="preserve">
+    <value>Read membership terms</value>
+  </data>
+  <data name="Read the association's" xml:space="preserve">
+    <value>Read the association's</value>
+  </data>
+  <data name="Read the association's membership terms and privacy information before applying." xml:space="preserve">
+    <value>Read the association's membership terms and privacy information before applying.</value>
+  </data>
+  <data name="Read-only snapshot. Reload to refresh. All timestamps are UTC." xml:space="preserve">
+    <value>Read-only snapshot. Reload to refresh. All timestamps are UTC.</value>
+  </data>
+  <data name="Reason" xml:space="preserve">
+    <value>Reason</value>
+  </data>
+  <data name="Reason (optional)" xml:space="preserve">
+    <value>Reason (optional)</value>
+  </data>
+  <data name="Reason / verified restoration request" xml:space="preserve">
+    <value>Reason / verified restoration request</value>
+  </data>
+  <data name="Reason is too long." xml:space="preserve">
+    <value>Reason is too long.</value>
+  </data>
+  <data name="Reason: {0}" xml:space="preserve">
+    <value>Reason: {0}</value>
+  </data>
+  <data name="Receipt #{0}" xml:space="preserve">
+    <value>Receipt #{0}</value>
+  </data>
+  <data name="Receipt #{0} · {1} / {2} / {3} · imported {4}" xml:space="preserve">
+    <value>Receipt #{0} · {1} / {2} / {3} · imported {4}</value>
+  </data>
+  <data name="Recent successful synchronization" xml:space="preserve">
+    <value>Recent successful synchronization</value>
+  </data>
+  <data name="Recipient" xml:space="preserve">
+    <value>Recipient</value>
+  </data>
+  <data name="Reconcile failed or uncertain delivery" xml:space="preserve">
+    <value>Reconcile failed or uncertain delivery</value>
+  </data>
+  <data name="Reconciliation above is lifetime-to-date. CSV ranges use movement effective dates or bank booked dates, not processing timestamps. Bank export includes ignored/outgoing transactions and review dispositions." xml:space="preserve">
+    <value>Reconciliation above is lifetime-to-date. CSV ranges use movement effective dates or bank booked dates, not processing timestamps. Bank export includes ignored/outgoing transactions and review dispositions.</value>
+  </data>
+  <data name="Record completed refund" xml:space="preserve">
+    <value>Record completed refund</value>
+  </data>
+  <data name="Record money already sent through the bank. This form does not send money. Only available funds can be refunded." xml:space="preserve">
+    <value>Record money already sent through the bank. This form does not send money. Only available funds can be refunded.</value>
+  </data>
+  <data name="Record only a confirmed refund within the available balance; held and spent funds are unavailable." xml:space="preserve">
+    <value>Record only a confirmed refund within the available balance; held and spent funds are unavailable.</value>
+  </data>
+  <data name="Recorded" xml:space="preserve">
+    <value>Recorded</value>
+  </data>
+  <data name="Recorded (UTC): {0}" xml:space="preserve">
+    <value>Recorded (UTC): {0}</value>
+  </data>
+  <data name="Recurring billing group" xml:space="preserve">
+    <value>Recurring billing group</value>
+  </data>
+  <data name="Recurring group" xml:space="preserve">
+    <value>Recurring group</value>
+  </data>
+  <data name="Reference" xml:space="preserve">
+    <value>Reference</value>
+  </data>
+  <data name="Reference / source" xml:space="preserve">
+    <value>Reference / source</value>
+  </data>
+  <data name="Reference: {0}" xml:space="preserve">
+    <value>Reference: {0}</value>
+  </data>
+  <data name="Refund recorded" xml:space="preserve">
+    <value>Refund recorded</value>
+  </data>
+  <data name="Refund source" xml:space="preserve">
+    <value>Refund source</value>
+  </data>
+  <data name="Registry pages" xml:space="preserve">
+    <value>Registry pages</value>
+  </data>
+  <data name="Reject and email applicant" xml:space="preserve">
+    <value>Reject and email applicant</value>
+  </data>
+  <data name="Reject application" xml:space="preserve">
+    <value>Reject application</value>
+  </data>
+  <data name="Reject application from {0}" xml:space="preserve">
+    <value>Reject application from {0}</value>
+  </data>
+  <data name="Rejection email queued. Delivery is not yet confirmed; applicant data will be erased after sending or at its retention deadline." xml:space="preserve">
+    <value>Rejection email queued. Delivery is not yet confirmed; applicant data will be erased after sending or at its retention deadline.</value>
+  </data>
+  <data name="Rejection queues an email, then permanently erases the application and applicant details. Queued does not mean delivered." xml:space="preserve">
+    <value>Rejection queues an email, then permanently erases the application and applicant details. Queued does not mean delivered.</value>
+  </data>
+  <data name="Remaining EUR" xml:space="preserve">
+    <value>Remaining EUR</value>
+  </data>
+  <data name="Remaining amount" xml:space="preserve">
+    <value>Remaining amount</value>
+  </data>
+  <data name="Remaining:" xml:space="preserve">
+    <value>Remaining:</value>
+  </data>
+  <data name="Remove account" xml:space="preserve">
+    <value>Remove account</value>
+  </data>
+  <data name="Remove immediately" xml:space="preserve">
+    <value>Remove immediately</value>
+  </data>
+  <data name="Renewal grace" xml:space="preserve">
+    <value>Renewal grace</value>
+  </data>
+  <data name="Renewal grace days after the due date (zero allowed)" xml:space="preserve">
+    <value>Renewal grace days after the due date (zero allowed)</value>
+  </data>
+  <data name="Renewal stopped — covered" xml:space="preserve">
+    <value>Renewal stopped — covered</value>
+  </data>
+  <data name="Renewal stopped. Remaining coverage keeps its original dates." xml:space="preserve">
+    <value>Renewal stopped. Remaining coverage keeps its original dates.</value>
+  </data>
+  <data name="Renewal stopped. Remaining covered time keeps its original dates and still requires active membership." xml:space="preserve">
+    <value>Renewal stopped. Remaining covered time keeps its original dates and still requires active membership.</value>
+  </data>
+  <data name="Replacement monthly price" xml:space="preserve">
+    <value>Replacement monthly price</value>
+  </data>
+  <data name="Request a prorated membership return period on your existing schedule. This does not require paying expired bills or inactive months. Available credit may fund it immediately." xml:space="preserve">
+    <value>Request a prorated membership return period on your existing schedule. This does not require paying expired bills or inactive months. Available credit may fund it immediately.</value>
+  </data>
+  <data name="Request membership return period" xml:space="preserve">
+    <value>Request membership return period</value>
+  </data>
+  <data name="Required security, membership, grace and deletion notices cannot be disabled. Bills remain available in the portal even if you turn off invoice emails." xml:space="preserve">
+    <value>Required security, membership, grace and deletion notices cannot be disabled. Bills remain available in the portal even if you turn off invoice emails.</value>
+  </data>
+  <data name="Resend verification" xml:space="preserve">
+    <value>Resend verification</value>
+  </data>
+  <data name="Resend verification email" xml:space="preserve">
+    <value>Resend verification email</value>
+  </data>
+  <data name="Reset password" xml:space="preserve">
+    <value>Reset password</value>
+  </data>
+  <data name="Resign and begin account deletion" xml:space="preserve">
+    <value>Resign and begin account deletion</value>
+  </data>
+  <data name="Resign and request account deletion" xml:space="preserve">
+    <value>Resign and request account deletion</value>
+  </data>
+  <data name="Resign from membership" xml:space="preserve">
+    <value>Resign from membership</value>
+  </data>
+  <data name="Resignation immediately blocks login and member services, even if you have paid for future time. It starts account erasure after the configured waiting period and a fortnightly batch. There is no automatic refund for unused membership time. Only an administrator can cancel pending deletion before actual erasure." xml:space="preserve">
+    <value>Resignation immediately blocks login and member services, even if you have paid for future time. It starts account erasure after the configured waiting period and a fortnightly batch. There is no automatic refund for unused membership time. Only an administrator can cancel pending deletion before actual erasure.</value>
+  </data>
+  <data name="Resignation immediately blocks login and services and starts account deletion, even if you have paid for future time." xml:space="preserve">
+    <value>Resignation immediately blocks login and services and starts account deletion, even if you have paid for future time.</value>
+  </data>
+  <data name="Restore account" xml:space="preserve">
+    <value>Restore account</value>
+  </data>
+  <data name="Retained balance #{0}" xml:space="preserve">
+    <value>Retained balance #{0}</value>
+  </data>
+  <data name="Retained balances" xml:space="preserve">
+    <value>Retained balances</value>
+  </data>
+  <data name="Retained financial account #{0}. The member account was erased. Only financial evidence and any unspent claim remain." xml:space="preserve">
+    <value>Retained financial account #{0}. The member account was erased. Only financial evidence and any unspent claim remain.</value>
+  </data>
+  <data name="Retained invoice evidence" xml:space="preserve">
+    <value>Retained invoice evidence</value>
+  </data>
+  <data name="Retired" xml:space="preserve">
+    <value>Retired</value>
+  </data>
+  <data name="Retired (hidden from members and new subscriptions)" xml:space="preserve">
+    <value>Retired (hidden from members and new subscriptions)</value>
+  </data>
+  <data name="Retirement" xml:space="preserve">
+    <value>Retirement</value>
+  </data>
+  <data name="Return an eligible unspent receipt to payment review for reassignment. Source facts remain unchanged; purchased coverage cannot be clawed back." xml:space="preserve">
+    <value>Return an eligible unspent receipt to payment review for reassignment. Source facts remain unchanged; purchased coverage cannot be clawed back.</value>
+  </data>
+  <data name="Return to portal" xml:space="preserve">
+    <value>Return to portal</value>
+  </data>
+  <data name="Return to the member portal" xml:space="preserve">
+    <value>Return to the member portal</value>
+  </data>
+  <data name="Return-period request processed. Review current bills and membership standing." xml:space="preserve">
+    <value>Return-period request processed. Review current bills and membership standing.</value>
+  </data>
+  <data name="Reverse receipt allocation" xml:space="preserve">
+    <value>Reverse receipt allocation</value>
+  </data>
+  <data name="Review adjustment" xml:space="preserve">
+    <value>Review adjustment</value>
+  </data>
+  <data name="Review admission decisions" xml:space="preserve">
+    <value>Review admission decisions</value>
+  </data>
+  <data name="Review application" xml:space="preserve">
+    <value>Review application</value>
+  </data>
+  <data name="Review bank transaction" xml:space="preserve">
+    <value>Review bank transaction</value>
+  </data>
+  <data name="Review before the erasure batch" xml:space="preserve">
+    <value>Review before the erasure batch</value>
+  </data>
+  <data name="Review disposition" xml:space="preserve">
+    <value>Review disposition</value>
+  </data>
+  <data name="Review email change" xml:space="preserve">
+    <value>Review email change</value>
+  </data>
+  <data name="Review means a send may have been accepted. Check the delivery ID and provider reference with the mail provider before taking further action. Do not blindly resend." xml:space="preserve">
+    <value>Review means a send may have been accepted. Check the delivery ID and provider reference with the mail provider before taking further action. Do not blindly resend.</value>
+  </data>
+  <data name="Review members, longest inactive first" xml:space="preserve">
+    <value>Review members, longest inactive first</value>
+  </data>
+  <data name="Review membership and payment queues, then check the operational warnings below. An empty queue means no known items; it does not establish that integrations are healthy." xml:space="preserve">
+    <value>Review membership and payment queues, then check the operational warnings below. An empty queue means no known items; it does not establish that integrations are healthy.</value>
+  </data>
+  <data name="Review membership return options" xml:space="preserve">
+    <value>Review membership return options</value>
+  </data>
+  <data name="Review membership standing, coverage and service renewals." xml:space="preserve">
+    <value>Review membership standing, coverage and service renewals.</value>
+  </data>
+  <data name="Review one-off request" xml:space="preserve">
+    <value>Review one-off request</value>
+  </data>
+  <data name="Review outstanding bills and transaction history." xml:space="preserve">
+    <value>Review outstanding bills and transaction history.</value>
+  </data>
+  <data name="Review proposed disposition" xml:space="preserve">
+    <value>Review proposed disposition</value>
+  </data>
+  <data name="Review proposed effect" xml:space="preserve">
+    <value>Review proposed effect</value>
+  </data>
+  <data name="Review reason" xml:space="preserve">
+    <value>Review reason</value>
+  </data>
+  <data name="Review service change" xml:space="preserve">
+    <value>Review service change</value>
+  </data>
+  <data name="Review transaction · {0}" xml:space="preserve">
+    <value>Review transaction · {0}</value>
+  </data>
+  <data name="Review transfer" xml:space="preserve">
+    <value>Review transfer</value>
+  </data>
+  <data name="Review unmatched bank transactions" xml:space="preserve">
+    <value>Review unmatched bank transactions</value>
+  </data>
+  <data name="Review your membership payment before grace ends" xml:space="preserve">
+    <value>Review your membership payment before grace ends</value>
+  </data>
+  <data name="Review your membership return options" xml:space="preserve">
+    <value>Review your membership return options</value>
+  </data>
+  <data name="Review your return-period bill" xml:space="preserve">
+    <value>Review your return-period bill</value>
+  </data>
+  <data name="Running balance EUR" xml:space="preserve">
+    <value>Running balance EUR</value>
+  </data>
+  <data name="Running statements are derived from the immutable journal." xml:space="preserve">
+    <value>Running statements are derived from the immutable journal.</value>
+  </data>
+  <data name="Save appearance" xml:space="preserve">
+    <value>Save appearance</value>
+  </data>
+  <data name="Save communication preferences" xml:space="preserve">
+    <value>Save communication preferences</value>
+  </data>
+  <data name="Save details" xml:space="preserve">
+    <value>Save details</value>
+  </data>
+  <data name="Save language" xml:space="preserve">
+    <value>Save language</value>
+  </data>
+  <data name="Save preference" xml:space="preserve">
+    <value>Save preference</value>
+  </data>
+  <data name="Save service definition" xml:space="preserve">
+    <value>Save service definition</value>
+  </data>
+  <data name="Schedule" xml:space="preserve">
+    <value>Schedule</value>
+  </data>
+  <data name="Scheduler diagnostics" xml:space="preserve">
+    <value>Scheduler diagnostics</value>
+  </data>
+  <data name="Scheduler diagnostics unavailable. Check the worker, database and operator logs." xml:space="preserve">
+    <value>Scheduler diagnostics unavailable. Check the worker, database and operator logs.</value>
+  </data>
+  <data name="Search members" xml:space="preserve">
+    <value>Search members</value>
+  </data>
+  <data name="Search name, email or member ID" xml:space="preserve">
+    <value>Search name, email or member ID</value>
+  </data>
+  <data name="Search returns up to 25 live members. Refine the search if needed. Pending-deletion accounts must be restored before assigning money." xml:space="preserve">
+    <value>Search returns up to 25 live members. Refine the search if needed. Pending-deletion accounts must be restored before assigning money.</value>
+  </data>
+  <data name="Select a completed purchase." xml:space="preserve">
+    <value>Select a completed purchase.</value>
+  </data>
+  <data name="Select a one-off invoice belonging to this account, without a group or deposit destination." xml:space="preserve">
+    <value>Select a one-off invoice belonging to this account, without a group or deposit destination.</value>
+  </data>
+  <data name="Select a posted receipt assigned to this account." xml:space="preserve">
+    <value>Select a posted receipt assigned to this account.</value>
+  </data>
+  <data name="Select an active fee." xml:space="preserve">
+    <value>Select an active fee.</value>
+  </data>
+  <data name="Select an applicable discount." xml:space="preserve">
+    <value>Select an applicable discount.</value>
+  </data>
+  <data name="Send reset link" xml:space="preserve">
+    <value>Send reset link</value>
+  </data>
+  <data name="Send verification to new address" xml:space="preserve">
+    <value>Send verification to new address</value>
+  </data>
+  <data name="Service" xml:space="preserve">
+    <value>Service</value>
+  </data>
+  <data name="Service change saved. Review coverage and current bills." xml:space="preserve">
+    <value>Service change saved. Review coverage and current bills.</value>
+  </data>
+  <data name="Service definition saved." xml:space="preserve">
+    <value>Service definition saved.</value>
+  </data>
+  <data name="Service is unavailable." xml:space="preserve">
+    <value>Service is unavailable.</value>
+  </data>
+  <data name="Services" xml:space="preserve">
+    <value>Services</value>
+  </data>
+  <data name="Set password" xml:space="preserve">
+    <value>Set password</value>
+  </data>
+  <data name="Settings" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="Showing {0}–{1} of {2} members." xml:space="preserve">
+    <value>Showing {0}–{1} of {2} members.</value>
+  </data>
+  <data name="Skip to content" xml:space="preserve">
+    <value>Skip to content</value>
+  </data>
+  <data name="Sort members" xml:space="preserve">
+    <value>Sort members</value>
+  </data>
+  <data name="Source" xml:space="preserve">
+    <value>Source</value>
+  </data>
+  <data name="Source bank account ID" xml:space="preserve">
+    <value>Source bank account ID</value>
+  </data>
+  <data name="Source facts are retained. Assignment can immediately fund valid purchases and change coverage. Availability and eligibility are checked again when confirmed." xml:space="preserve">
+    <value>Source facts are retained. Assignment can immediately fund valid purchases and change coverage. Availability and eligibility are checked again when confirmed.</value>
+  </data>
+  <data name="Source/provider" xml:space="preserve">
+    <value>Source/provider</value>
+  </data>
+  <data name="Stable code" xml:space="preserve">
+    <value>Stable code</value>
+  </data>
+  <data name="Stale" xml:space="preserve">
+    <value>Stale</value>
+  </data>
+  <data name="Stale — payment information may be incomplete" xml:space="preserve">
+    <value>Stale — payment information may be incomplete</value>
+  </data>
+  <data name="Starts on" xml:space="preserve">
+    <value>Starts on</value>
+  </data>
+  <data name="State" xml:space="preserve">
+    <value>State</value>
+  </data>
+  <data name="Status" xml:space="preserve">
+    <value>Status</value>
+  </data>
+  <data name="Stop renewal of {0}. Keep remaining paid/granted time; benefits are available through {1:d MMM yyyy}. No automatic refund of purchased time." xml:space="preserve">
+    <value>Stop renewal of {0}. Keep remaining paid/granted time; benefits are available through {1:d MMM yyyy}. No automatic refund of purchased time.</value>
+  </data>
+  <data name="Stop renewal of {0}. Keep remaining paid/granted time; cancel only unfinished requests for this service and return their unused funding to billing credit. No automatic refund of purchased time." xml:space="preserve">
+    <value>Stop renewal of {0}. Keep remaining paid/granted time; cancel only unfinished requests for this service and return their unused funding to billing credit. No automatic refund of purchased time.</value>
+  </data>
+  <data name="Stop renewal; keep remaining covered time" xml:space="preserve">
+    <value>Stop renewal; keep remaining covered time</value>
+  </data>
+  <data name="Submit application" xml:space="preserve">
+    <value>Submit application</value>
+  </data>
+  <data name="Subscribe" xml:space="preserve">
+    <value>Subscribe</value>
+  </data>
+  <data name="Subscribe to {0} with a {1}-month billing interval. Base monthly price: {2} EUR before discounts/proration. The bill will show the actual charge, including any free time, discount or prorated period. This starts recurring renewal until you stop it." xml:space="preserve">
+    <value>Subscribe to {0} with a {1}-month billing interval. Base monthly price: {2} EUR before discounts/proration. The bill will show the actual charge, including any free time, discount or prorated period. This starts recurring renewal until you stop it.</value>
+  </data>
+  <data name="Subscription is no longer current." xml:space="preserve">
+    <value>Subscription is no longer current.</value>
+  </data>
+  <data name="Subscription is unavailable." xml:space="preserve">
+    <value>Subscription is unavailable.</value>
+  </data>
+  <data name="Suomi" xml:space="preserve">
+    <value>Suomi</value>
+  </data>
+  <data name="Supply a reason (up to 1000 characters) and an operation key." xml:space="preserve">
+    <value>Supply a reason (up to 1000 characters) and an operation key.</value>
+  </data>
+  <data name="Supply a reason, up to 1000 characters." xml:space="preserve">
+    <value>Supply a reason, up to 1000 characters.</value>
+  </data>
+  <data name="Switch light/dark mode" xml:space="preserve">
+    <value>Switch light/dark mode</value>
+  </data>
+  <data name="Synchronization needs attention" xml:space="preserve">
+    <value>Synchronization needs attention</value>
+  </data>
+  <data name="System" xml:space="preserve">
+    <value>System</value>
+  </data>
+  <data name="System Console" xml:space="preserve">
+    <value>System Console</value>
+  </data>
+  <data name="System administration" xml:space="preserve">
+    <value>System administration</value>
+  </data>
+  <data name="System follows your device's light or dark preference." xml:space="preserve">
+    <value>System follows your device's light or dark preference.</value>
+  </data>
+  <data name="Tampere Hacklab" xml:space="preserve">
+    <value>Tampere Hacklab</value>
+  </data>
+  <data name="Terminate and begin deletion" xml:space="preserve">
+    <value>Terminate and begin deletion</value>
+  </data>
+  <data name="Terminate membership and remove account" xml:space="preserve">
+    <value>Terminate membership and remove account</value>
+  </data>
+  <data name="Termination immediately blocks login and starts erasure. Restoration cancels erasure only: it does not renew expired coverage, reverse separate removals, or repair payments. Do not put personal details in the audit reason." xml:space="preserve">
+    <value>Termination immediately blocks login and starts erasure. Restoration cancels erasure only: it does not renew expired coverage, reverse separate removals, or repair payments. Do not put personal details in the audit reason.</value>
+  </data>
+  <data name="That address is unavailable. Request a new change from your profile." xml:space="preserve">
+    <value>That address is unavailable. Request a new change from your profile.</value>
+  </data>
+  <data name="That email address is unavailable." xml:space="preserve">
+    <value>That email address is unavailable.</value>
+  </data>
+  <data name="The amount exceeds your available source balance." xml:space="preserve">
+    <value>The amount exceeds your available source balance.</value>
+  </data>
+  <data name="The email address is no longer available. Reload and review the existing account." xml:space="preserve">
+    <value>The email address is no longer available. Reload and review the existing account.</value>
+  </data>
+  <data name="The fee is retired." xml:space="preserve">
+    <value>The fee is retired.</value>
+  </data>
+  <data name="The new passwords do not match." xml:space="preserve">
+    <value>The new passwords do not match.</value>
+  </data>
+  <data name="The password confirmation does not match." xml:space="preserve">
+    <value>The password confirmation does not match.</value>
+  </data>
+  <data name="The receipt funded a completed purchase. Treasurer review is required; this command does not revoke purchased time or create debt." xml:space="preserve">
+    <value>The receipt funded a completed purchase. Treasurer review is required; this command does not revoke purchased time or create debt.</value>
+  </data>
+  <data name="The receipt's money is no longer available. Treasurer reconciliation is required; no negative balance or clawback was created." xml:space="preserve">
+    <value>The receipt's money is no longer available. Treasurer reconciliation is required; no negative balance or clawback was created.</value>
+  </data>
+  <data name="The remaining credit changed or is zero. Review the selection again." xml:space="preserve">
+    <value>The remaining credit changed or is zero. Review the selection again.</value>
+  </data>
+  <data name="The selected group belongs to another account." xml:space="preserve">
+    <value>The selected group belongs to another account.</value>
+  </data>
+  <data name="The selected service change will be rechecked before saving." xml:space="preserve">
+    <value>The selected service change will be rechecked before saving.</value>
+  </data>
+  <data name="The {0} field is required." xml:space="preserve">
+    <value>The {0} field is required.</value>
+  </data>
+  <data name="The {0} field must be at most {1} characters." xml:space="preserve">
+    <value>The {0} field must be at most {1} characters.</value>
+  </data>
+  <data name="The {0} field must be between {1} and {2}." xml:space="preserve">
+    <value>The {0} field must be between {1} and {2}.</value>
+  </data>
+  <data name="Theme" xml:space="preserve">
+    <value>Theme</value>
+  </data>
+  <data name="Theme: {0}" xml:space="preserve">
+    <value>Theme: {0}</value>
+  </data>
+  <data name="These bills need your attention. Each has its own payment reference. Unpaid requests expire; they are not debt." xml:space="preserve">
+    <value>These bills need your attention. Each has its own payment reference. Unpaid requests expire; they are not debt.</value>
+  </data>
+  <data name="These financial claims do not restore accounts or recognize returning applicants. Refunds require treasurer verification." xml:space="preserve">
+    <value>These financial claims do not restore accounts or recognize returning applicants. Refunds require treasurer verification.</value>
+  </data>
+  <data name="This account cannot purchase while unavailable or pending deletion." xml:space="preserve">
+    <value>This account cannot purchase while unavailable or pending deletion.</value>
+  </data>
+  <data name="This account has no membership record." xml:space="preserve">
+    <value>This account has no membership record.</value>
+  </data>
+  <data name="This account is not pending deletion." xml:space="preserve">
+    <value>This account is not pending deletion.</value>
+  </data>
+  <data name="This account is unavailable." xml:space="preserve">
+    <value>This account is unavailable.</value>
+  </data>
+  <data name="This action is not permitted for this account." xml:space="preserve">
+    <value>This action is not permitted for this account.</value>
+  </data>
+  <data name="This delivery key was already used for another action." xml:space="preserve">
+    <value>This delivery key was already used for another action.</value>
+  </data>
+  <data name="This is a development registry. Association-specific terms and privacy information must be supplied before public deployment. Do not submit real personal data." xml:space="preserve">
+    <value>This is a development registry. Association-specific terms and privacy information must be supplied before public deployment. Do not submit real personal data.</value>
+  </data>
+  <data name="This operation key was already used for another action." xml:space="preserve">
+    <value>This operation key was already used for another action.</value>
+  </data>
+  <data name="This operation key was already used with different inputs." xml:space="preserve">
+    <value>This operation key was already used with different inputs.</value>
+  </data>
+  <data name="This receipt is posted. Reverse an eligible unspent allocation before reassignment." xml:space="preserve">
+    <value>This receipt is posted. Reverse an eligible unspent allocation before reassignment.</value>
+  </data>
+  <data name="This rejection key was already used with another explanation." xml:space="preserve">
+    <value>This rejection key was already used with another explanation.</value>
+  </data>
+  <data name="This request key was already used for another action." xml:space="preserve">
+    <value>This request key was already used for another action.</value>
+  </data>
+  <data name="This request key was already used for different details." xml:space="preserve">
+    <value>This request key was already used for different details.</value>
+  </data>
+  <data name="This request key was already used." xml:space="preserve">
+    <value>This request key was already used.</value>
+  </data>
+  <data name="This subscription no longer authorizes purchases." xml:space="preserve">
+    <value>This subscription no longer authorizes purchases.</value>
+  </data>
+  <data name="This transaction has already been processed: {0}. Reload related balances before any further correction." xml:space="preserve">
+    <value>This transaction has already been processed: {0}. Reload related balances before any further correction.</value>
+  </data>
+  <data name="This verified application is no longer awaiting review." xml:space="preserve">
+    <value>This verified application is no longer awaiting review.</value>
+  </data>
+  <data name="Through" xml:space="preserve">
+    <value>Through</value>
+  </data>
+  <data name="Transaction" xml:space="preserve">
+    <value>Transaction</value>
+  </data>
+  <data name="Transaction balances" xml:space="preserve">
+    <value>Transaction balances</value>
+  </data>
+  <data name="Transaction disposition saved. Source facts were retained." xml:space="preserve">
+    <value>Transaction disposition saved. Source facts were retained.</value>
+  </data>
+  <data name="Transaction history" xml:space="preserve">
+    <value>Transaction history</value>
+  </data>
+  <data name="Transaction pages" xml:space="preserve">
+    <value>Transaction pages</value>
+  </data>
+  <data name="Transfer available funds" xml:space="preserve">
+    <value>Transfer available funds</value>
+  </data>
+  <data name="Transfer completed. Current available and allocated balances are shown below." xml:space="preserve">
+    <value>Transfer completed. Current available and allocated balances are shown below.</value>
+  </data>
+  <data name="Transfer requires a positive cent amount within the available balance." xml:space="preserve">
+    <value>Transfer requires a positive cent amount within the available balance.</value>
+  </data>
+  <data name="Transfer to billing credit" xml:space="preserve">
+    <value>Transfer to billing credit</value>
+  </data>
+  <data name="Transfer to purchase balance" xml:space="preserve">
+    <value>Transfer to purchase balance</value>
+  </data>
+  <data name="Unable to log in with these credentials." xml:space="preserve">
+    <value>Unable to log in with these credentials.</value>
+  </data>
+  <data name="Uncertain (Review)" xml:space="preserve">
+    <value>Uncertain (Review)</value>
+  </data>
+  <data name="Uncertain delivery requires reconciliation." xml:space="preserve">
+    <value>Uncertain delivery requires reconciliation.</value>
+  </data>
+  <data name="Uncertain — reconcile with provider" xml:space="preserve">
+    <value>Uncertain — reconcile with provider</value>
+  </data>
+  <data name="Under 18 — check consent outside the portal" xml:space="preserve">
+    <value>Under 18 — check consent outside the portal</value>
+  </data>
+  <data name="Unexplained difference" xml:space="preserve">
+    <value>Unexplained difference</value>
+  </data>
+  <data name="Unpaid requests expire; they are not debt. A paid membership line remains paid even if another item is unfinished." xml:space="preserve">
+    <value>Unpaid requests expire; they are not debt. A paid membership line remains paid even if another item is unfinished.</value>
+  </data>
+  <data name="Unresolved bank transactions" xml:space="preserve">
+    <value>Unresolved bank transactions</value>
+  </data>
+  <data name="Unused allocated funds returned to billing credit" xml:space="preserve">
+    <value>Unused allocated funds returned to billing credit</value>
+  </data>
+  <data name="Unused purchased service time is not automatically refunded or credited. Unspent available/allocated funds are handled separately; contact the treasurer about any remaining credit." xml:space="preserve">
+    <value>Unused purchased service time is not automatically refunded or credited. Unspent available/allocated funds are handled separately; contact the treasurer about any remaining credit.</value>
+  </data>
+  <data name="Upcoming" xml:space="preserve">
+    <value>Upcoming</value>
+  </data>
+  <data name="Use a nonnegative cent price." xml:space="preserve">
+    <value>Use a nonnegative cent price.</value>
+  </data>
+  <data name="Use a positive cent amount and a future deadline." xml:space="preserve">
+    <value>Use a positive cent amount and a future deadline.</value>
+  </data>
+  <data name="Use a positive cent amount within the available balance." xml:space="preserve">
+    <value>Use a positive cent amount within the available balance.</value>
+  </data>
+  <data name="Use device colour mode" xml:space="preserve">
+    <value>Use device colour mode</value>
+  </data>
+  <data name="Use the bank's stable transaction ID and actual booked date. Reimporting the same source must not change its facts. Outgoing transactions use a negative amount and are retained for review." xml:space="preserve">
+    <value>Use the bank's stable transaction ID and actual booked date. Reimporting the same source must not change its facts. Outgoing transactions use a negative amount and are retained for review.</value>
+  </data>
+  <data name="Use this bill's reference, not your purchase-deposit reference. Bank transfers appear after confirmation and processing; access may not update immediately." xml:space="preserve">
+    <value>Use this bill's reference, not your purchase-deposit reference. Bank transfers appear after confirmation and processing; access may not update immediately.</value>
+  </data>
+  <data name="Use this reference only for deliberate purchase deposits, not to pay a bill. Deposits become available after bank confirmation; they do not buy services or reserve storage automatically." xml:space="preserve">
+    <value>Use this reference only for deliberate purchase deposits, not to pay a bill. Deposits become available after bank confirmation; they do not buy services or reserve storage automatically.</value>
+  </data>
+  <data name="Used time is not automatically refundable; review future effective time only." xml:space="preserve">
+    <value>Used time is not automatically refundable; review future effective time only.</value>
+  </data>
+  <data name="Verification email queued. Your current address stays in use until verification succeeds." xml:space="preserve">
+    <value>Verification email queued. Your current address stays in use until verification succeeds.</value>
+  </data>
+  <data name="Verified applications" xml:space="preserve">
+    <value>Verified applications</value>
+  </data>
+  <data name="Verify application email" xml:space="preserve">
+    <value>Verify application email</value>
+  </data>
+  <data name="Verify my email address" xml:space="preserve">
+    <value>Verify my email address</value>
+  </data>
+  <data name="View all bills" xml:space="preserve">
+    <value>View all bills</value>
+  </data>
+  <data name="View bill #{0} and payment instructions" xml:space="preserve">
+    <value>View bill #{0} and payment instructions</value>
+  </data>
+  <data name="View bill and payment instructions" xml:space="preserve">
+    <value>View bill and payment instructions</value>
+  </data>
+  <data name="View filter only; never terminates membership or starts deletion." xml:space="preserve">
+    <value>View filter only; never terminates membership or starts deletion.</value>
+  </data>
+  <data name="View outstanding bills and payment instructions" xml:space="preserve">
+    <value>View outstanding bills and payment instructions</value>
+  </data>
+  <data name="View this service's fee prices" xml:space="preserve">
+    <value>View this service's fee prices</value>
+  </data>
+  <data name="Wait one minute before requesting another email change." xml:space="preserve">
+    <value>Wait one minute before requesting another email change.</value>
+  </data>
+  <data name="Welcome and password setup" xml:space="preserve">
+    <value>Welcome and password setup</value>
+  </data>
+  <data name="Whole membership months" xml:space="preserve">
+    <value>Whole membership months</value>
+  </data>
+  <data name="Withdraw discount" xml:space="preserve">
+    <value>Withdraw discount</value>
+  </data>
+  <data name="Withdraw this discount and reprice unfinished requests. Completed purchases are preserved." xml:space="preserve">
+    <value>Withdraw this discount and reprice unfinished requests. Completed purchases are preserved.</value>
+  </data>
+  <data name="Workspaces" xml:space="preserve">
+    <value>Workspaces</value>
+  </data>
+  <data name="You are still a member. Billing is paused; you do not owe fees for inactive months." xml:space="preserve">
+    <value>You are still a member. Billing is paused; you do not owe fees for inactive months.</value>
+  </data>
+  <data name="You are still a member. Membership billing is paused. Already-purchased service time keeps expiring normally." xml:space="preserve">
+    <value>You are still a member. Membership billing is paused. Already-purchased service time keeps expiring normally.</value>
+  </data>
+  <data name="You cannot view this bill." xml:space="preserve">
+    <value>You cannot view this bill.</value>
+  </data>
+  <data name="Your account does not have permission to view this page." xml:space="preserve">
+    <value>Your account does not have permission to view this page.</value>
+  </data>
+  <data name="Your existing email remains your login address until you confirm this change." xml:space="preserve">
+    <value>Your existing email remains your login address until you confirm this change.</value>
+  </data>
+  <data name="Your membership" xml:space="preserve">
+    <value>Your membership</value>
+  </data>
+  <data name="Your membership, payments and association services in one place." xml:space="preserve">
+    <value>Your membership, payments and association services in one place.</value>
+  </data>
+  <data name="before applying." xml:space="preserve">
+    <value>before applying.</value>
+  </data>
+  <data name="discount #{0}" xml:space="preserve">
+    <value>discount #{0}</value>
+  </data>
+  <data name="from {0}." xml:space="preserve">
+    <value>from {0}.</value>
+  </data>
+  <data name="line #{0}" xml:space="preserve">
+    <value>line #{0}</value>
+  </data>
+  <data name="lot #{0} ({1} original, {2} remaining)" xml:space="preserve">
+    <value>lot #{0} ({1} original, {2} remaining)</value>
+  </data>
+  <data name="membership terms and privacy information" xml:space="preserve">
+    <value>membership terms and privacy information</value>
+  </data>
+  <data name="rather than paying expired bills." xml:space="preserve">
+    <value>rather than paying expired bills.</value>
+  </data>
+  <data name="reverses #{0}" xml:space="preserve">
+    <value>reverses #{0}</value>
+  </data>
+  <data name="unavailable" xml:space="preserve">
+    <value>unavailable</value>
+  </data>
+  <data name="{0:0.##}% discount" xml:space="preserve">
+    <value>{0:0.##}% discount</value>
+  </data>
+  <data name="{0:0.00} EUR/month replacement price" xml:space="preserve">
+    <value>{0:0.00} EUR/month replacement price</value>
+  </data>
+  <data name="{0:0.00} {1} → {2}" xml:space="preserve">
+    <value>{0:0.00} {1} → {2}</value>
+  </data>
+  <data name="{0:d MMM yyyy} through {1:d MMM yyyy}" xml:space="preserve">
+    <value>{0:d MMM yyyy} through {1:d MMM yyyy}</value>
+  </data>
+  <data name="{0} (currently {1} months)" xml:space="preserve">
+    <value>{0} (currently {1} months)</value>
+  </data>
+  <data name="{0} / {1} / {2} EUR" xml:space="preserve">
+    <value>{0} / {1} / {2} EUR</value>
+  </data>
+  <data name="{0} EUR" xml:space="preserve">
+    <value>{0} EUR</value>
+  </data>
+  <data name="{0} messages need attention. Oldest first, up to {1} per page. Times are UTC." xml:space="preserve">
+    <value>{0} messages need attention. Oldest first, up to {1} per page. Times are UTC.</value>
+  </data>
+  <data name="{0} outstanding {1} payment." xml:space="preserve">
+    <value>{0} outstanding {1} payment.</value>
+  </data>
+  <data name="{0} pages" xml:space="preserve">
+    <value>{0} pages</value>
+  </data>
+  <data name="{0} prices" xml:space="preserve">
+    <value>{0} prices</value>
+  </data>
+  <data name="{0} · Born {1} (age {2})" xml:space="preserve">
+    <value>{0} · Born {1} (age {2})</value>
+  </data>
+  <data name="{0} · Joined {1}" xml:space="preserve">
+    <value>{0} · Joined {1}</value>
+  </data>
+  <data name="{0} · Member #{1} · {2}" xml:space="preserve">
+    <value>{0} · Member #{1} · {2}</value>
+  </data>
+  <data name="{0} · account #{1} · {2} · result #{3} · {4}" xml:space="preserve">
+    <value>{0} · account #{1} · {2} · result #{3} · {4}</value>
+  </data>
+  <data name="{0} · bill #{1} · {2:0.00} EUR remaining · pay by {3:d MMM yyyy}" xml:space="preserve">
+    <value>{0} · bill #{1} · {2:0.00} EUR remaining · pay by {3:d MMM yyyy}</value>
+  </data>
+  <data name="{0} · {1} attempts" xml:space="preserve">
+    <value>{0} · {1} attempts</value>
+  </data>
+  <data name="{0} · {1} {2} · {3} · {4} · source {5}" xml:space="preserve">
+    <value>{0} · {1} {2} · {3} · {4} · source {5}</value>
+  </data>
+  <data name="{0} · {1} · last success: {2} · last attempt: {3}" xml:space="preserve">
+    <value>{0} · {1} · last success: {2} · last attempt: {3}</value>
+  </data>
+  <data name="{0} · {1} · {2} EUR · bill #{3}" xml:space="preserve">
+    <value>{0} · {1} · {2} EUR · bill #{3}</value>
+  </data>
+  <data name="{0} · {1} · {2} EUR · {3} months" xml:space="preserve">
+    <value>{0} · {1} · {2} EUR · {3} months</value>
+  </data>
+  <data name="{0} — {1} — actor #{2} — {3}" xml:space="preserve">
+    <value>{0} — {1} — actor #{2} — {3}</value>
+  </data>
+  <data name="{0} — {1} — {2} — attempts {3} — {4} — provider {5}" xml:space="preserve">
+    <value>{0} — {1} — {2} — attempts {3} — {4} — provider {5}</value>
+  </data>
+  <data name="{0}-month group · {1} · reference {2}" xml:space="preserve">
+    <value>{0}-month group · {1} · reference {2}</value>
+  </data>
+  <data name="· Pay by {0}" xml:space="preserve">
+    <value>· Pay by {0}</value>
+  </data>
+  <data name="· showing a page" xml:space="preserve">
+    <value>· showing a page</value>
+  </data>
+  <data name="· showing a page; use Next to see more" xml:space="preserve">
+    <value>· showing a page; use Next to see more</value>
+  </data>
+  <data name="· {0} · {1} · billing {2} EUR · purchase {3} EUR" xml:space="preserve">
+    <value>· {0} · {1} · billing {2} EUR · purchase {3} EUR</value>
+  </data>
+</root>

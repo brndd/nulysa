@@ -12,41 +12,41 @@
 
 @if (UserId is null)
 {
-    <PageTitle>Bill details</PageTitle>
-    <h1>Bill details</h1>
-    <p><a href="/billing">Back to payments</a> · <a href="/services">Membership and services</a></p>
+    <PageTitle>@T("Bill details")</PageTitle>
+    <h1>@T("Bill details")</h1>
+    <p><a href="/billing">@T("Back to payments")</a> · <a href="/services">@T("Membership and services")</a></p>
 }
 else if (subject is not null)
 {
-    <MemberWorkspace Member="subject" Section="MemberSection.Billing" ReturnUrl="@ReturnUrl" Title="@($"Bill #{InvoiceId}")" />
-    <p><a href="@BillingReturn">@ReturnLabel</a></p>
+    <MemberWorkspace Member="subject" Section="MemberSection.Billing" ReturnUrl="@ReturnUrl" Title="@T("Bill #{0}", InvoiceId)" />
+    <p><a href="@BillingReturn">@T(ReturnLabel)</a></p>
 }
-else { <AdminPageHeader Title="Bill details" /> }
-@if (error is not null) { <p role="alert">@error</p> }
+else { <AdminPageHeader Title="@T("Bill details")" /> }
+@if (error is not null) { <p role="alert">@ValidationText.Translate(error)</p> }
 @if (invoice is not null)
 {
-    <h2>Invoice #@invoice.Invoice.Id</h2>
-    <p>@(invoice.Invoice.ClosedAt is null ? "Open payment request" : "Closed payment request")</p>
+    <h2>@T("Invoice #{0}", invoice.Invoice.Id)</h2>
+    <p>@T(invoice.Invoice.ClosedAt is null ? "Open payment request" : "Closed payment request")</p>
     <InvoiceFunding Invoice="invoice" />
     @if (invoice.Invoice.ClosedAt is null && invoice.Remaining > 0)
     {
         <section class="payment-instructions" aria-labelledby="payment-heading">
-            <h2 id="payment-heading">Pay by bank transfer</h2>
-            <dl><dt>Recipient</dt><dd>@Configuration["Association:Name"]</dd>
-                <dt>IBAN</dt><dd class="payment-reference">@Options.Value.Iban</dd>
-                <dt>Reference</dt><dd class="payment-reference">@invoice.Reference</dd>
-                <dt>Remaining amount</dt><dd>@invoice.Remaining.ToString("0.00") EUR</dd>
-                @if (invoice.Invoice.DueOn is { } due) { <dt>Pay by</dt><dd>@due.ToString("d MMM yyyy")</dd> }
+            <h2 id="payment-heading">@T("Pay by bank transfer")</h2>
+            <dl><dt>@T("Recipient")</dt><dd>@Configuration["Association:Name"]</dd>
+                <dt>@T("IBAN")</dt><dd class="payment-reference">@Options.Value.Iban</dd>
+                <dt>@T("Reference")</dt><dd class="payment-reference">@invoice.Reference</dd>
+                <dt>@T("Remaining amount")</dt><dd>@T("{0} EUR", invoice.Remaining.ToString("0.00"))</dd>
+                @if (invoice.Invoice.DueOn is { } due) { <dt>@T("Pay by")</dt><dd>@due.ToString("d MMM yyyy")</dd> }
             </dl>
-            <p>Use this bill's reference, not your purchase-deposit reference. Bank transfers appear after confirmation and processing; access may not update immediately.</p>
-            <p>Unpaid requests expire; they are not debt. A paid membership line remains paid even if another item is unfinished.</p>
+            <p>@T("Use this bill's reference, not your purchase-deposit reference. Bank transfers appear after confirmation and processing; access may not update immediately.")</p>
+            <p>@T("Unpaid requests expire; they are not debt. A paid membership line remains paid even if another item is unfinished.")</p>
         </section>
     }
-    else { <p>No payment is requested for this bill.</p> }
-    <p><a href="@($"/billing/invoices/{InvoiceId}/pdf")">Download current PDF</a></p>
+    else { <p>@T("No payment is requested for this bill.")</p> }
+    <p><a href="@($"/billing/invoices/{InvoiceId}/pdf")">@T("Download current PDF")</a></p>
     @if (UserId is { } memberId && invoice.Lines.Any(row => row.Line.State == LineState.Open))
     {
-        <p><a href="@(Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(RegistryNavigation.ActionUrl(memberId, "cancel", ReturnUrl, "/" + Navigation.ToBaseRelativePath(Navigation.Uri)), "invoice", InvoiceId.ToString()))">Cancel unfinished bill</a></p>
+        <p><a href="@(Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(RegistryNavigation.ActionUrl(memberId, "cancel", ReturnUrl, "/" + Navigation.ToBaseRelativePath(Navigation.Uri)), "invoice", InvoiceId.ToString()))">@T("Cancel unfinished bill")</a></p>
     }
 }
 

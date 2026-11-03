@@ -7,25 +7,25 @@
 @inject IConfiguration Configuration
 @inject ILogger<SystemConsole> Logger
 
-<PageTitle>System Console — @Configuration["Association:Name"]</PageTitle>
-<h2>Scheduler diagnostics</h2>
-<p>Read-only snapshot. Reload to refresh. All timestamps are UTC.</p>
+<PageTitle>@T("System Console") — @Configuration["Association:Name"]</PageTitle>
+<h2>@T("Scheduler diagnostics")</h2>
+<p>@T("Read-only snapshot. Reload to refresh. All timestamps are UTC.")</p>
 @if (unavailable)
 {
-    <p role="alert">Scheduler diagnostics unavailable. Check the worker, database and operator logs.</p>
+    <p role="alert">@T("Scheduler diagnostics unavailable. Check the worker, database and operator logs.")</p>
 }
 else if (report is not null)
 {
-    <p role="status">@(report.Work.Healthy ? "Healthy" : "Attention required")</p>
+    <p role="status">@T(report.Work.Healthy ? "Healthy" : "Attention required")</p>
     <dl>
-        <dt>Pending one-shot jobs</dt><dd>@report.Work.PendingWork</dd>
-        <dt>Final failures</dt><dd>@report.Work.FinalFailures</dd>
-        <dt>Oldest pending work age (seconds)</dt><dd>@(report.Work.OldestWorkAgeSeconds?.ToString("F0") ?? "None")</dd>
+        <dt>@T("Pending one-shot jobs")</dt><dd>@report.Work.PendingWork</dd>
+        <dt>@T("Final failures")</dt><dd>@report.Work.FinalFailures</dd>
+        <dt>@T("Oldest pending work age (seconds)")</dt><dd>@(report.Work.OldestWorkAgeSeconds?.ToString("F0") ?? T("None"))</dd>
     </dl>
     <ul>@foreach (var issue in report.Work.Issues) { <li>@issue</li> }</ul>
-    <table>
-        <caption>Maintenance schedules</caption>
-        <thead><tr><th scope="col">Schedule</th><th scope="col">State</th><th scope="col">Next execution</th><th scope="col">Last success</th></tr></thead>
+    <table tabindex="0">
+        <caption>@T("Maintenance schedules")</caption>
+        <thead><tr><th scope="col">@T("Schedule")</th><th scope="col">@T("State")</th><th scope="col">@T("Next execution")</th><th scope="col">@T("Last success")</th></tr></thead>
         <tbody>
             @foreach (var schedule in report.Schedules)
             {
@@ -33,15 +33,15 @@ else if (report is not null)
             }
         </tbody>
     </table>
-    <h3>Latest final failure observations (up to 50)</h3>
-    <p>Diagnostic observations, not business history. A later successful occurrence can clear them.</p>
+    <h3>@T("Latest final failure observations (up to 50)")</h3>
+    <p>@T("Diagnostic observations, not business history. A later successful occurrence can clear them.")</p>
     <ul>@foreach (var failure in report.Failures) { <li>@failure.Job — @Timestamp(failure.LastFailedAt)</li> }</ul>
-    <h3>Latest essential mail deliveries (up to 50)</h3>
-    <p>Provider acceptance is not inbox delivery. Review/failed sends require investigation, not arbitrary job replay. Recipient addresses and token-bearing bodies are not retained here.</p>
-    <ul>@foreach (var delivery in report.Deliveries) { <li>@delivery.Id — @delivery.Kind — @delivery.State — attempts @delivery.Attempts — @Timestamp(delivery.CreatedAt) — provider @(delivery.ProviderId ?? "unknown")</li> }</ul>
-    <h3>Billing diagnostics</h3>
-    <p>Open invoices: @report.Billing.OpenInvoices · receipts requiring review: @report.Billing.ReviewReceipts</p>
-    <ul>@foreach (var operation in report.Billing.RecentOperations) { <li>@operation.Id · account #@operation.BillingAccountId · @operation.Kind · result #@operation.ResultId · @Timestamp(operation.OccurredAt)</li> }</ul>
+    <h3>@T("Latest essential mail deliveries (up to 50)")</h3>
+    <p>@T("Provider acceptance is not inbox delivery. Review/failed sends require investigation, not arbitrary job replay. Recipient addresses and token-bearing bodies are not retained here.")</p>
+    <ul>@foreach (var delivery in report.Deliveries) { <li>@T("{0} — {1} — {2} — attempts {3} — {4} — provider {5}", delivery.Id, delivery.Kind, delivery.State, delivery.Attempts, Timestamp(delivery.CreatedAt), (delivery.ProviderId ?? "unknown"))</li> }</ul>
+    <h3>@T("Billing diagnostics")</h3>
+    <p>@T("Open invoices: {0} · receipts requiring review: {1}", report.Billing.OpenInvoices, report.Billing.ReviewReceipts)</p>
+    <ul>@foreach (var operation in report.Billing.RecentOperations) { <li>@T("{0} · account #{1} · {2} · result #{3} · {4}", operation.Id, operation.BillingAccountId, operation.Kind, operation.ResultId, Timestamp(operation.OccurredAt))</li> }</ul>
 }
 
 @code {
@@ -59,5 +59,5 @@ else if (report is not null)
         }
     }
 
-    private static string Timestamp(DateTimeOffset? value) => value?.UtcDateTime.ToString("u") ?? "None";
+    private static string Timestamp(DateTimeOffset? value) => value?.UtcDateTime.ToString("u") ?? T("None");
 }

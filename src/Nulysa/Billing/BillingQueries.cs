@@ -34,12 +34,13 @@ public sealed record BillingView(long AccountId, long? UserId, string DepositRef
     List<MoneyMovement> Movements, List<Coverage> Coverage, List<Discount> Discounts, List<BillingOperation> History, List<Forecast> Forecasts,
     List<ServiceDefinition> Services)
 {
+    public int? PreviousBillCount { get; init; }
     public Dictionary<long, string> FeeNames { get; init; } = [];
     public List<BalanceStatement> Statements { get; init; } = [];
     public BalanceStatement Statement(BalanceKind balance) => Statements.Single(x => x.Balance == balance);
 }
 
-public sealed class BillingQueries(AppDbContext db, AssociationClock clock, IOptions<BillingOptions> options)
+public sealed partial class BillingQueries(AppDbContext db, AssociationClock clock, IOptions<BillingOptions> options)
 {
     public async Task<DateOnly> MembershipGrantEndExclusive(ClaimsPrincipal actor, long accountId, int months, CancellationToken ct = default)
     {
@@ -76,7 +77,17 @@ public sealed class BillingQueries(AppDbContext db, AssociationClock clock, IOpt
         else
             await Authority.RequireAdministrator(db, actor, ct);
 
-        return View(await BillingFacts.Load(db, account.Id, ct, options.Value.MembershipRenewalGraceDays), invoice);
+        var lines = await db.InvoiceLines.AsNoTracking().Where(line => line.InvoiceId == invoice.Id).OrderBy(line => line.Id).ToListAsync(ct);
+        var plus = Kinds(BalanceKind.Held, 1);
+        var minus = Kinds(BalanceKind.Held, -1);
+        var holds = await db.MoneyMovements.AsNoTracking().Where(movement => movement.BillingAccountId == account.Id && movement.InvoiceLineId != null &&
+                db.InvoiceLines.Any(line => line.Id == movement.InvoiceLineId && line.InvoiceId == invoice.Id))
+            .GroupBy(movement => movement.InvoiceLineId!.Value)
+            .Select(group => new { Id = group.Key, Amount = group.Sum(movement => plus.Contains(movement.Kind) ? movement.Amount : minus.Contains(movement.Kind) ? -movement.Amount : 0) })
+            .ToDictionaryAsync(row => row.Id, row => row.Amount, ct);
+        var reference = invoice.OneOffReference ?? await db.BillingGroups.Where(group => group.Id == invoice.BillingGroupId).Select(group => group.PaymentReference).SingleAsync(ct);
+        return new(invoice, reference, lines.Select(line => new LineView(line, holds.GetValueOrDefault(line.Id),
+            line.State == LineState.Open ? line.Amount - holds.GetValueOrDefault(line.Id) : 0)).ToList());
     }
 
     public async Task<BillingView?> Member(ClaimsPrincipal actor, long userId, int skip = 0, int take = 0, CancellationToken ct = default, bool newestFirst = false)
@@ -95,6 +106,14 @@ public sealed class BillingQueries(AppDbContext db, AssociationClock clock, IOpt
             await Authority.RequireAdministrator(db, actor, ct);
 
         var facts = await BillingFacts.Load(db, accountId, ct, options.Value.MembershipRenewalGraceDays);
+        return await ReadView(facts, skip, take, ct, newestFirst);
+    }
+
+    private async Task<BillingView> ReadView(BillingFacts facts, int skip, int take, CancellationToken ct, bool newestFirst,
+        bool portal = false, bool history = true, int? previousBillCount = null)
+    {
+        var account = facts.Account;
+        var accountId = account.Id;
         var invoices = facts.Invoices
             .OrderByDescending(x => x.IssuedAt)
             .ThenByDescending(x => x.Id)
@@ -132,7 +151,7 @@ public sealed class BillingQueries(AppDbContext db, AssociationClock clock, IOpt
             .Where(x => x.EndedAt is null)
             .Select(x => new SubscriptionView(x, facts.Services.Single(s => s.Id == x.ServiceDefinitionId).Name, facts.Service(x, clock.Today)))
             .ToList();
-        var operations = await db.BillingOperations.AsNoTracking()
+        var operations = portal ? [] : await db.BillingOperations.AsNoTracking()
             .Where(x => x.BillingAccountId == accountId)
             .OrderByDescending(x => x.OccurredAt)
             .Take(100)
@@ -141,8 +160,9 @@ public sealed class BillingQueries(AppDbContext db, AssociationClock clock, IOpt
             facts.Items.Where(x => x.EndedAt is null).ToList(), facts.Groups, subscriptions,
             facts.Movements.OrderByDescending(x => x.Id).Take(100).ToList(), facts.Coverage, facts.Discounts, operations, forecasts, facts.Services)
         {
+            PreviousBillCount = previousBillCount,
             FeeNames = facts.Fees.ToDictionary(fee => fee.Id, fee => fee.Name),
-            Statements = await StatementsFor(facts, null, null, skip, take, ct, newestFirst)
+            Statements = !history ? [] : portal ? await PortalStatements(accountId, skip, take, ct) : await StatementsFor(facts, null, null, skip, take, ct, newestFirst)
         };
     }
 

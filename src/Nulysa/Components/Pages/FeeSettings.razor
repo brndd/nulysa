@@ -13,33 +13,33 @@
 
 <AdminPageHeader Title="@Title" Trail="@Trail" />
 @if (Id is null) { <AdminSectionTabs Destination="fees" /> }
-@if (notice is not null) { <p role="status" class="success-notice">@notice</p> }
-@if (error is not null) { <p role="alert">@error</p> }
+@if (notice is not null) { <p role="status" class="success-notice">@T(notice)</p> }
+@if (error is not null) { <p role="alert">@ValidationText.Translate(error)</p> }
 @if (Id is null)
 {
-    <p>Configure the membership price before approving applicants. Prices are EUR per month. Issued lines keep their quoted prices.</p>
-    <table><caption>Fees and current prices</caption><thead><tr><th>Fee</th><th>Category</th><th>Current monthly price EUR</th><th>State</th></tr></thead><tbody>
+    <p>@T("Configure the membership price before approving applicants. Prices are EUR per month. Issued lines keep their quoted prices.")</p>
+    <table tabindex="0"><caption>@T("Fees and current prices")</caption><thead><tr><th scope="col">@T("Fee")</th><th scope="col">@T("Category")</th><th scope="col">@T("Current monthly price EUR")</th><th scope="col">@T("State")</th></tr></thead><tbody>
     @foreach (var fee in fees)
     {
         var current = prices.Where(price => price.FeeDefinitionId == fee.Id && price.EffectiveOn <= Clock.Today).OrderByDescending(price => price.EffectiveOn).FirstOrDefault();
-        <tr><td><a href="@($"/admin/settings/fees/{fee.Id}")">@fee.Name</a></td><td>@fee.Category</td><td>@(current?.MonthlyAmount.ToString("0.00") ?? "Not configured")</td><td>@(fee.Retired ? "Retired" : "Active")</td></tr>
+        <tr><td><a href="@($"/admin/settings/fees/{fee.Id}")">@fee.Name</a></td><td>@fee.Category</td><td>@(current?.MonthlyAmount.ToString("0.00") ?? T("Not configured"))</td><td>@(fee.Retired ? T("Retired") : T("Active"))</td></tr>
     }
     </tbody></table>
 }
 else if (selected is not null)
 {
     <div class="detail-workspace">
-    @if (selected.ServiceDefinitionId is { } serviceId) { <p><a href="@($"/admin/settings/services/{serviceId}")">Edit service definition</a></p> }
-    <table><caption>Price history for @selected.Name</caption><thead><tr><th>Effective from</th><th>Monthly price EUR</th></tr></thead><tbody>
+    @if (selected.ServiceDefinitionId is { } serviceId) { <p><a href="@($"/admin/settings/services/{serviceId}")">@T("Edit service definition")</a></p> }
+    <table tabindex="0"><caption>@T("Price history for {0}", selected.Name)</caption><thead><tr><th scope="col">@T("Effective from")</th><th scope="col">@T("Monthly price EUR")</th></tr></thead><tbody>
     @foreach (var price in prices.Where(price => price.FeeDefinitionId == Id).OrderByDescending(price => price.EffectiveOn)) { <tr><td>@price.EffectiveOn</td><td>@price.MonthlyAmount.ToString("0.00")</td></tr> }
     </tbody></table>
-    <h2>Add a dated price</h2>
-    <EditForm Model="Price" method="post" FormName="price" OnValidSubmit="SavePrice"><DataAnnotationsValidator /><ValidationSummary />
-        <label for="price-date">Effective from</label><InputDate id="price-date" @bind-Value="Price!.EffectiveOn" />
-        <label for="price">Monthly EUR</label><InputNumber id="price" @bind-Value="Price.Amount" step="0.01" />
-        <button>Add price</button>
+    <h2>@T("Add a dated price")</h2>
+    <EditForm Model="Price" method="post" FormName="price" OnValidSubmit="SavePrice"><DataAnnotationsValidator /><FormErrors />
+        <label for="price-date">@T("Effective from")</label><InputDate id="price-date" @bind-Value="Price!.EffectiveOn" />
+        <label for="price">@T("Monthly EUR")</label><InputMoney id="price" @bind-Value="Price.Amount" />
+        <button>@T("Add price")</button>
     </EditForm>
-    <p><a href="/admin/settings/fees">Back to fees and prices</a></p>
+    <p><a href="/admin/settings/fees">@T("Back to fees and prices")</a></p>
     </div>
 }
 
@@ -47,7 +47,7 @@ else if (selected is not null)
     public sealed class PriceInput
     {
         public DateOnly EffectiveOn { get; set; }
-        [Range(typeof(decimal), "0", "999999999")] public decimal Amount { get; set; }
+        [MoneyRange("0", "999999999")] public MoneyAmount Amount { get; set; }
     }
     [Parameter] public long? Id { get; set; }
     [SupplyParameterFromForm(FormName = "price")] public PriceInput? Price { get; set; }
@@ -58,8 +58,8 @@ else if (selected is not null)
     private FeeDefinition? selected;
     private string? error;
     private string? notice;
-    private string Title => Id is null ? "Fees and prices" : selected is null ? "Fee prices" : selected.Name + " prices";
-    private IReadOnlyList<BreadcrumbItem> Trail => Id is null ? [] : [new("Fees and prices", "/admin/settings/fees"), new(Title)];
+    private string Title => Id is null ? T("Fees and prices") : selected is null ? T("Fee prices") : T("{0} prices", selected.Name);
+    private IReadOnlyList<BreadcrumbItem> Trail => Id is null ? [] : [new(T("Fees and prices"), "/admin/settings/fees"), new(Title)];
 
     protected override async Task OnInitializedAsync()
     {

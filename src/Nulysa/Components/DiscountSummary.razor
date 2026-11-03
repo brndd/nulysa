@@ -5,22 +5,22 @@
 @if (Discounts.Count > 0)
 {
     <section class="discount-summary" aria-labelledby="discounts-heading">
-        <h2 id="discounts-heading">Active and upcoming discounts</h2>
+        <h2 id="discounts-heading">@T("Active and upcoming discounts")</h2>
         <ul>
             @foreach (var discount in Discounts)
             {
-                <li><strong>@View.FeeNames.GetValueOrDefault(discount.FeeDefinitionId, "Membership or service fee"):
-                    @(discount.Kind == DiscountKind.Percentage ? $"{discount.Value:0.##}% discount" : $"{discount.Value:0.00} EUR/month replacement price")</strong>
+                <li><strong>@View.FeeNames.GetValueOrDefault(discount.FeeDefinitionId, T("Membership or service fee")):
+                    @T(discount.Kind == DiscountKind.Percentage ? "{0:0.##}% discount" : "{0:0.00} EUR/month replacement price", discount.Value)</strong>
                     <span>@BillingDateText.Period(discount.StartsOn, discount.EndExclusive)</span>
-                    @if (discount.StartsOn > Clock.Today) { <span>Upcoming</span> }
+                    @if (discount.StartsOn > Clock.Today) { <span>@T("Upcoming")</span> }
                     @foreach (var bill in AppliedBills(discount.Id))
                     {
-                        <a href="@($"/billing/invoices/{bill.Invoice.Id}")">Applied to outstanding bill #@bill.Invoice.Id</a>
+                        <a href="@($"/billing/invoices/{bill.Invoice.Id}")">@T("Applied to outstanding bill #{0}", bill.Invoice.Id)</a>
                     }
                 </li>
             }
         </ul>
-        <small>Applies only within these dates. Issued bills show the actual discounted charge.</small>
+        <small>@T("Applies only within these dates. Issued bills show the actual discounted charge.")</small>
     </section>
 }
 

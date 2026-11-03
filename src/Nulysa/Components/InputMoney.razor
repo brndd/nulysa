@@ -1,0 +1,13 @@
+@inherits InputBase<MoneyAmount>
+<input @attributes="AdditionalAttributes" type="text" inputmode="decimal" name="@NameAttributeValue" class="@CssClass" value="@CurrentValueAsString" @onchange="OnChange" />
+
+@code {
+    private void OnChange(ChangeEventArgs args) => CurrentValueAsString = args.Value?.ToString();
+    protected override string FormatValueAsString(MoneyAmount value) => value.ToString();
+    protected override bool TryParseValueFromString(string? value, out MoneyAmount result, [System.Diagnostics.CodeAnalysis.NotNullWhen(false)] out string? validationErrorMessage)
+    {
+        var valid = MoneyAmount.TryParse(value, null, out result);
+        validationErrorMessage = valid ? null : T("Enter an amount using the selected language's decimal separator, without thousands separators.");
+        return valid;
+    }
+}

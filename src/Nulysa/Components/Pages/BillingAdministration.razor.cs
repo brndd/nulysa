@@ -3,6 +3,8 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Components;
 using Nulysa.Billing;
 using Nulysa.Integrations;
+using Nulysa.Localization;
+using static Nulysa.Localization.UiText;
 
 namespace Nulysa.Components.Pages;
 
@@ -13,7 +15,7 @@ public partial class BillingAdministration
         public Guid Key { get; set; } = Guid.NewGuid();
         [Required, StringLength(300)] public string Description { get; set; } = "";
         [Required, StringLength(80)] public string Category { get; set; } = "";
-        public decimal Amount { get; set; }
+        public MoneyAmount Amount { get; set; }
         public DateOnly DueOn { get; set; }
         public bool Confirmed { get; set; }
     }
@@ -23,7 +25,7 @@ public partial class BillingAdministration
 
         public long FeeId { get; set; } = 1;
         public DiscountKind Kind { get; set; }
-        public decimal Value { get; set; }
+        public MoneyAmount Value { get; set; }
         public DateOnly Start { get; set; }
         public DateOnly Through { get; set; }
         public long DiscountId { get; set; }
@@ -66,10 +68,10 @@ public partial class BillingAdministration
         ["Adjustment.Purchase"] = Adjustment.Purchase.ToString().ToLowerInvariant(),
         ["Adjustment.Reason"] = Adjustment.Reason
     };
-    private static string Number(decimal value) => value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+    private static string Number(decimal value) => value.ToString(System.Globalization.CultureInfo.CurrentCulture);
     private bool AvailableTask => Actions.ContainsKey(TaskName) && (view?.UserId is not null || TaskName is "refund" or "unassign");
     private string TaskName => RequestedTask ?? "";
-    private string Title => TaskName.Length > 0 ? Actions.GetValueOrDefault(TaskName, "Financial action") : UserId is not null ? "Financial actions" : $"Retained balance #{AccountId}";
+    private string Title => TaskName.Length > 0 ? T(Actions.GetValueOrDefault(TaskName, "Financial action")) : UserId is not null ? T("Financial actions") : T("Retained balance #{0}", AccountId);
     private string DirectoryUrl => UserId is { } id ? RegistryNavigation.MemberUrl(id, ReturnUrl, MemberSection.Actions) : $"/admin/payments/retained-balances/{AccountId}";
     private string CancelUrl => UserId is { } id ? RegistryNavigation.BackTo(id, BackTo, ReturnUrl) : DirectoryUrl;
     private string ActionUrl(string task) => UserId is { } id ? RegistryNavigation.ActionUrl(id, task, ReturnUrl, BackTo) : DirectoryUrl + "/" + task;
@@ -87,13 +89,13 @@ public partial class BillingAdministration
     private static readonly Dictionary<string, string> Actions = new() { ["discount"] = "Add discount", ["withdraw"] = "Withdraw discount", ["credit"] = "Apply discount to already paid time", ["grant"] = "Grant membership months", ["one-off"] = "Issue one-off request", ["cancel"] = "Cancel unfinished bill", ["refund"] = "Record completed refund", ["unassign"] = "Reverse receipt allocation" };
     private string Explanation => TaskName switch
     {
-        "discount" => "Changes future pricing and may complete already funded requests. Completed purchases keep their original facts.",
-        "withdraw" => "Withdraw this discount and reprice unfinished requests. Completed purchases are preserved.",
-        "credit" => "Calculate the remaining credit for a completed purchase's unused future discounted time. Credit can immediately fund valid recurring bills.",
-        "grant" => "Extend current paid or granted membership coverage by whole months, releasing holds for newly covered days.",
-        "cancel" => "Cancel unfinished lines and release their held funds. Completed purchases remain unchanged; cancellation may affect standing.",
-        "refund" => "Record money already sent through the bank. This form does not send money. Only available funds can be refunded.",
-        _ => "Return an eligible unspent receipt to payment review for reassignment. Source facts remain unchanged; purchased coverage cannot be clawed back."
+        "discount" => T("Changes future pricing and may complete already funded requests. Completed purchases keep their original facts."),
+        "withdraw" => T("Withdraw this discount and reprice unfinished requests. Completed purchases are preserved."),
+        "credit" => T("Calculate the remaining credit for a completed purchase's unused future discounted time. Credit can immediately fund valid recurring bills."),
+        "grant" => T("Extend current paid or granted membership coverage by whole months, releasing holds for newly covered days."),
+        "cancel" => T("Cancel unfinished lines and release their held funds. Completed purchases remain unchanged; cancellation may affect standing."),
+        "refund" => T("Record money already sent through the bank. This form does not send money. Only available funds can be refunded."),
+        _ => T("Return an eligible unspent receipt to payment review for reassignment. Source facts remain unchanged; purchased coverage cannot be clawed back.")
     };
     private string DiscountLabel(Discount discount) => $"{view!.FeeNames.GetValueOrDefault(discount.FeeDefinitionId)} · {discount.Kind} {discount.Value:0.##} · {BillingDateText.Period(discount.StartsOn, discount.EndExclusive)} · #{discount.Id}";
     protected override async Task OnInitializedAsync()
@@ -164,7 +166,7 @@ public partial class BillingAdministration
                     && (a.Kind != DiscountKind.Percentage || a.Value <= 100);
                 if (!isAvailableFee || !areValidDates || !isValidValue)
                     throw new ValidationException("Choose a fee, future dates and a valid discount value.");
-                effect += $" {fees.Single(fee => fee.Id == a.FeeId).Name}: {a.Kind} {a.Value}, {a.Start:d MMM yyyy} through {a.Through:d MMM yyyy}.";
+                effect += T(" {0}: {1} {2}, {3:d MMM yyyy} through {4:d MMM yyyy}.", fees.Single(fee => fee.Id == a.FeeId).Name, T(a.Kind.ToString()), a.Value, a.Start, a.Through);
                 break;
             case "withdraw":
             case "credit":
@@ -176,7 +178,7 @@ public partial class BillingAdministration
                     if (credit <= 0 || (a.Confirmed && credit != a.Value))
                         throw new ValidationException("The remaining credit changed or is zero. Review the selection again.");
                     a.Value = credit;
-                    effect += $" Credit {credit:0.00} EUR for purchase #{a.LineId}.";
+                    effect += T(" Credit {0:0.00} EUR for purchase #{1}.", credit, a.LineId);
                 }
                 break;
             case "grant":
@@ -184,17 +186,17 @@ public partial class BillingAdministration
                 if (a.Confirmed && a.Through != end.AddDays(-1))
                     throw new ValidationException("Coverage changed. Review the grant again.");
                 a.Through = end.AddDays(-1);
-                effect += $" {a.Months} months; covered through {a.Through:d MMM yyyy}.";
+                effect += T(" {0} months; covered through {1:d MMM yyyy}.", a.Months, a.Through);
                 break;
             case "cancel":
                 var bill = view!.Invoices.SingleOrDefault(invoice => invoice.Invoice.Id == a.InvoiceId && invoice.Lines.Any(row => row.Line.State == LineState.Open)) ?? throw new ValidationException("Choose a bill with unfinished lines in this account.");
-                effect += $" Bill #{bill.Invoice.Id}, {bill.Remaining:0.00} EUR remaining; {bill.Held:0.00} EUR held will be released.";
+                effect += T(" Bill #{0}, {1:0.00} EUR remaining; {2:0.00} EUR held will be released.", bill.Invoice.Id, bill.Remaining, bill.Held);
                 break;
             case "refund":
                 var available = a.Purchase ? view!.Balances.PurchaseBalance : view!.Balances.BillingCredit;
                 if (a.Value <= 0 || Pricing.Round(a.Value) != a.Value || a.Value > available)
                     throw new ValidationException("Use a positive cent amount within the available balance.");
-                effect += $" {a.Value:0.00} EUR from {(a.Purchase ? "purchase balance" : "billing credit")}, currently {available:0.00} EUR available.";
+                effect += T(a.Purchase ? " {0:0.00} EUR from purchase balance, currently {1:0.00} EUR available." : " {0:0.00} EUR from billing credit, currently {1:0.00} EUR available.", a.Value, available);
                 break;
             case "unassign":
                 var receipt = receipts.SingleOrDefault(receipt => receipt.Id == a.ReceiptId) ?? throw new ValidationException("Choose a posted receipt in this account.");

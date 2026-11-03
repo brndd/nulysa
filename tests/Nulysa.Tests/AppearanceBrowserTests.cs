@@ -13,6 +13,7 @@ public sealed class AppearanceBrowserTests : OidcTest
         using var playwright = await Playwright.CreateAsync();
         await using var browser = await playwright.Chromium.LaunchAsync(new() { Headless = true });
         await using var context = await browser.NewContextAsync(new() { ViewportSize = new() { Width = 375, Height = 812 }, ColorScheme = ColorScheme.Dark });
+        await context.AddCookiesAsync([new Cookie { Name = "Nulysa.Language", Value = "en", Url = Settings["Oidc:Issuer"]! }]);
         var page = await context.NewPageAsync();
         var errors = new List<string>();
         page.PageError += (_, error) => errors.Add(error);

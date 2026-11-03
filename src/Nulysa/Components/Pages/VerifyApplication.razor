@@ -6,14 +6,14 @@
 @inject MembershipCommands Commands
 @inject IConfiguration Configuration
 
-<PageTitle>Verify application email — @Configuration["Association:Name"]</PageTitle>
-<h1>Verify application email</h1>
-@if (verified) { <p role="status">Email verified. Your application is now awaiting administrator review. Verification alone does not grant login access.</p> }
+<PageTitle>@T("Verify application email") — @Configuration["Association:Name"]</PageTitle>
+<h1>@T("Verify application email")</h1>
+@if (verified) { <p role="status">@T("Email verified. Your application is now awaiting administrator review. Verification alone does not grant login access.")</p> }
 else
 {
-    @if (error is not null) { <p role="alert">@error</p> }
+    @if (error is not null) { <p role="alert">@ValidationText.Translate(error)</p> }
     <EditForm Model="this" method="post" FormName="verify" OnSubmit="Verify">
-        <button type="submit">Verify my email address</button>
+        <button type="submit">@T("Verify my email address")</button>
     </EditForm>
 }
 

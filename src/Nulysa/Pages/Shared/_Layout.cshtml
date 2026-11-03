@@ -2,7 +2,7 @@
 @inject Microsoft.Extensions.Options.IOptions<Nulysa.Components.AppearanceOptions> AppearanceOptions
 @{ var appearance = Nulysa.Components.Appearance.Read(Context, AppearanceOptions.Value); }
 <!doctype html>
-<html lang="en" data-theme="@appearance.Theme" data-mode="@appearance.Mode">
+<html lang="@System.Globalization.CultureInfo.CurrentUICulture.Name" data-theme="@appearance.Theme" data-mode="@appearance.Mode">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -10,9 +10,10 @@
     <component type="typeof(Nulysa.Components.AppearanceAssets)" render-mode="Static" />
 </head>
 <body>
-    <a class="skip-link" href="#main-content">Skip to content</a>
-    <header class="site-header"><a class="association-name" href="/">@Configuration["Association:Name"]</a><a href="/Appearance">Appearance</a></header>
+    <a class="skip-link" href="#main-content">@T("Skip to content")</a>
+    <header class="site-header"><a class="association-name" href="/">@Configuration["Association:Name"]</a>
+        <component type="typeof(Nulysa.Components.HeaderPreferences)" render-mode="Static" param-Context="Context" /></header>
     <main id="main-content" class="public-content" tabindex="-1">@RenderBody()</main>
-    <footer class="site-footer"><small>Powered by Nulysa</small></footer>
+    <footer class="site-footer"><small>@T("Powered by Nulysa")</small></footer>
 </body>
 </html>

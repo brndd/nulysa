@@ -53,7 +53,10 @@ internal sealed class BillingFacts
         };
     }
 
-    public Balances Balances => new(
+    public Balances? ReadBalances { get; init; }
+    public Dictionary<long, decimal>? ReadHolds { get; init; }
+
+    public Balances Balances => ReadBalances ?? new(
         Movements.Sum(x => BillingBalanceDelta(x.Kind) * x.Amount),
         Movements.Sum(x => PurchaseBalanceDelta(x.Kind) * x.Amount),
         Lines.Sum(Held));
@@ -79,7 +82,7 @@ internal sealed class BillingFacts
         _ => 0
     };
 
-    public decimal Held(InvoiceLine line) => Movements
+    public decimal Held(InvoiceLine line) => ReadHolds?.GetValueOrDefault(line.Id) ?? Movements
         .Where(x => x.InvoiceLineId == line.Id)
         .Sum(x => x.Kind switch
         {

@@ -6,26 +6,26 @@
 @inject MembershipCommands Commands
 @inject IConfiguration Configuration
 
-<PageTitle>Apply for membership — @Configuration["Association:Name"]</PageTitle>
-<h1>Apply for membership</h1>
+<PageTitle>@T("Apply for membership") — @Configuration["Association:Name"]</PageTitle>
+<h1>@T("Apply for membership")</h1>
 @if (sent)
 {
-    <p role="status">If this address is eligible, a verification email has been queued. Check your email before administrator review. You cannot log in until approval.</p>
+    <p role="status">@T("If this address is eligible, a verification email has been queued. Check your email before administrator review. You cannot log in until approval.")</p>
 }
 else
 {
-    @if (error is not null) { <p role="alert">@error</p> }
+    @if (error is not null) { <p role="alert">@ValidationText.Translate(error)</p> }
     <EditForm Model="Input" method="post" FormName="application" OnValidSubmit="Submit">
-        <DataAnnotationsValidator /><ValidationSummary />
+        <DataAnnotationsValidator /><FormErrors />
         <input type="hidden" name="RequestId" value="@RequestId" />
         <Nulysa.Components.ProfileFields Input="Input!.Profile" Prefix="Input.Profile" />
-        <p><label for="application-email">Email</label> <InputText id="application-email" @bind-Value="Input.Email" type="email" required maxlength="256" autocomplete="email" /></p>
-        <p><label for="application-message">Message to administrators</label> <InputTextArea id="application-message" @bind-Value="Input.Message" required maxlength="4000" /></p>
-        <p><InputCheckbox id="terms" @bind-Value="Input.AcceptTerms" /> <label for="terms">I accept the association's <a href="/membership-terms">membership terms</a>.</label></p>
-        <button type="submit">Submit application</button>
+        <p><label for="application-email">@T("Email")</label> <InputText id="application-email" @bind-Value="Input.Email" type="email" required maxlength="256" autocomplete="email" /></p>
+        <p><label for="application-message">@T("Message to administrators")</label> <InputTextArea id="application-message" @bind-Value="Input.Message" required maxlength="4000" /></p>
+        <p><InputCheckbox id="terms" @bind-Value="Input.AcceptTerms" /> <label for="terms">@T("I accept the association's membership terms.")</label> <a href="/membership-terms">@T("Read membership terms")</a></p>
+        <button type="submit">@T("Submit application")</button>
     </EditForm>
 }
-<p><a href="/apply/resend">Resend verification email</a> · <a href="/Account/Login">Log in</a></p>
+<p><a href="/apply/resend">@T("Resend verification email")</a> · <a href="/Account/Login">@T("Log in")</a></p>
 
 @code {
     [SupplyParameterFromForm(FormName = "application")] public ApplicationInput? Input { get; set; }

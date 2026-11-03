@@ -1,10 +1,10 @@
 @page "/Account/AccessDenied"
 @attribute [AllowAnonymous]
 
-<PageTitle>Access denied</PageTitle>
-<h1>Access denied</h1>
-<p>Your account does not have permission to view this page.</p>
-<a href="/">Return to the member portal</a>
+<PageTitle>@T("Access denied")</PageTitle>
+<h1>@T("Access denied")</h1>
+<p>@T("Your account does not have permission to view this page.")</p>
+<a href="/">@T("Return to the member portal")</a>
 
 @code {
     [CascadingParameter] private HttpContext HttpContext { get; set; } = null!;

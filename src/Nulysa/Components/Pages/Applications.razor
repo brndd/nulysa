@@ -7,12 +7,12 @@
 @inject IConfiguration Configuration
 @inject UiFeedback Feedback
 
-<AdminPageHeader Title="Application review" />
+<AdminPageHeader Title="@T("Application review")" />
 <AdminSectionTabs Destination="applications" />
-<p>Only email-verified applications awaiting a decision appear here (up to 100).</p>
-<p class="field-help">Approval establishes membership and login before payment and creates the initial membership bill.</p>
-@if (notice is not null) { <p role="status" class="success-notice">@notice</p> }
-@if (applications.Count == 0) { <p>No verified applications are awaiting a decision.</p> }
+<p>@T("Only email-verified applications awaiting a decision appear here (up to 100).")</p>
+<p class="field-help">@T("Approval establishes membership and login before payment and creates the initial membership bill.")</p>
+@if (notice is not null) { <p role="status" class="success-notice">@T(notice)</p> }
+@if (applications.Count == 0) { <p>@T("No verified applications are awaiting a decision.")</p> }
 <div class="application-list detail-workspace">
     @foreach (var application in applications) { <ApplicationReviewCard Application="application" @key="application.Id" /> }
 </div>

@@ -2,12 +2,12 @@
 @inject IConfiguration Configuration
 @inject NavigationManager Navigation
 
-<a class="skip-link" href="@(Navigation.Uri.Split('#')[0] + "#main-content")">Skip to content</a>
+<a class="skip-link" href="@(Navigation.Uri.Split('#')[0] + "#main-content")">@T("Skip to content")</a>
 <div class="navigation-container">
 <header class="site-header">
     <AuthorizeView>
         <Authorized>
-            <button type="button" class="navigation-toggle secondary-action" hidden aria-label="Menu" aria-expanded="false" aria-controls="portal-navigation">
+            <button type="button" class="navigation-toggle secondary-action" hidden aria-label="@T("Menu")" aria-expanded="false" aria-controls="portal-navigation">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false">
                     <path d="M3 6h18M3 12h18M3 18h18" />
                 </svg>
@@ -15,8 +15,8 @@
         </Authorized>
     </AuthorizeView>
     <a class="association-name" href="/">@Configuration["Association:Name"]</a>
-    <span class="workspace-label">@Workspace</span>
-    <a href="/Appearance">Appearance</a>
+    <span class="workspace-label">@T(Workspace)</span>
+    <HeaderPreferences Context="HttpContext" />
 </header>
 <AuthorizeView>
     <Authorized>
@@ -24,16 +24,16 @@
                 <aside id="portal-navigation" class="sidebar">
                     @if (Workspace == "Administration")
                     {
-                        <nav aria-label="Board administration">
-                            <span class="nav-heading">Administration</span>
-                            <a href="@AdminNavigation.Home.Href" class="@SelectedClass(AdminNavigation.Home)" aria-current="@Current(AdminNavigation.Home)">@AdminNavigation.Home.Label</a>
+                        <nav aria-label="@T("Board administration")">
+                            <span class="nav-heading">@T("Administration")</span>
+                            <a href="@AdminNavigation.Home.Href" class="@SelectedClass(AdminNavigation.Home)" aria-current="@Current(AdminNavigation.Home)">@T(AdminNavigation.Home.Label)</a>
                             @foreach (var section in AdminNavigation.Sections)
                             {
                                 <div class="navigation-section" role="group" aria-labelledby="@($"admin-{section.Key}-heading")">
-                                    <span id="@($"admin-{section.Key}-heading")" class="nav-section-heading">@(section.Label)</span>
+                                    <span id="@($"admin-{section.Key}-heading")" class="nav-section-heading">@T(section.Label)</span>
                                     @foreach (var page in section.Pages)
                                     {
-                                        <a href="@(page.Href)" class="@SelectedClass(page)" aria-current="@Current(page)">@(page.Label)</a>
+                                        <a href="@(page.Href)" class="@SelectedClass(page)" aria-current="@Current(page)">@T(page.Label)</a>
                                     }
                                 </div>
                             }
@@ -41,36 +41,36 @@
                     }
                     else if (Workspace == "System Console")
                     {
-                        <nav aria-label="System administration"><NavLink href="/system-console">System Console</NavLink></nav>
+                        <nav aria-label="@T("System administration")"><NavLink href="/system-console">@T("System Console")</NavLink></nav>
                     }
                     else
                     {
-                        <nav aria-label="Member self-service">
-                            <span class="nav-heading">Member portal</span>
-                            <NavLink href="/" Match="NavLinkMatch.All">Overview</NavLink>
+                        <nav aria-label="@T("Member self-service")">
+                            <span class="nav-heading">@T("Member portal")</span>
+                            <NavLink href="/" Match="NavLinkMatch.All">@T("Overview")</NavLink>
                             <div class="navigation-section" role="group" aria-labelledby="membership-nav-heading">
-                                <span id="membership-nav-heading" class="nav-section-heading">Membership &amp; payments</span>
-                                <NavLink href="/services">Account overview</NavLink>
-                                <NavLink href="/billing">Billing details</NavLink>
+                                <span id="membership-nav-heading" class="nav-section-heading">@T("Membership & payments")</span>
+                                <NavLink href="/services">@T("Account overview")</NavLink>
+                                <NavLink href="/billing">@T("Billing details")</NavLink>
                             </div>
                             <div class="navigation-section" role="group" aria-labelledby="account-nav-heading">
-                                <span id="account-nav-heading" class="nav-section-heading">My account</span>
-                                <NavLink href="/profile">Settings</NavLink>
+                                <span id="account-nav-heading" class="nav-section-heading">@T("My account")</span>
+                                <NavLink href="/profile">@T("Settings")</NavLink>
                             </div>
                         </nav>
                     }
-                    <nav class="workspace-navigation" aria-label="Workspaces">
-                        @if (Workspace != "Member portal") { <a href="/">Member portal</a> }
+                    <nav class="workspace-navigation" aria-label="@T("Workspaces")">
+                        @if (Workspace != "Member portal") { <a href="/">@T("Member portal")</a> }
                         <AuthorizeView Policy="Administrator" Context="board">
-                            <Authorized>@if (Workspace != "Administration") { <a href="/admin">Administration</a> }</Authorized>
+                            <Authorized>@if (Workspace != "Administration") { <a href="/admin">@T("Administration")</a> }</Authorized>
                         </AuthorizeView>
                         <AuthorizeView Policy="Superuser" Context="sysop">
-                            <Authorized>@if (Workspace != "System Console") { <a href="/system-console">System Console</a> }</Authorized>
+                            <Authorized>@if (Workspace != "System Console") { <a href="/system-console">@T("System Console")</a> }</Authorized>
                         </AuthorizeView>
                     </nav>
                     <form method="post" action="/Account/Logout" data-enhance="false" class="logout-form">
                         <AntiforgeryToken />
-                        <button type="submit" class="secondary-action">Log out</button>
+                        <button type="submit" class="secondary-action">@T("Log out")</button>
                     </form>
                 </aside>
             <main id="main-content" class="page-content" tabindex="-1">@Body</main>
@@ -79,9 +79,10 @@
     <NotAuthorized><main id="main-content" class="public-content" tabindex="-1">@Body</main></NotAuthorized>
 </AuthorizeView>
 </div>
-<footer class="site-footer"><small>Powered by Nulysa</small></footer>
+<footer class="site-footer"><small>@T("Powered by Nulysa")</small></footer>
 
 @code {
+    [CascadingParameter] private HttpContext HttpContext { get; set; } = null!;
     private string AdminPath => "/" + Navigation.ToBaseRelativePath(Navigation.Uri).Split('?', '#')[0].TrimEnd('/');
     private string? SelectedClass(AdminDestination page) => AdminNavigation.Resolve(AdminPath)?.Key == page.Key ? "active" : null;
     private string? Current(AdminDestination page) => SelectedClass(page) is null ? null : AdminPath.Equals(page.Href, StringComparison.OrdinalIgnoreCase) ? "page" : "location";

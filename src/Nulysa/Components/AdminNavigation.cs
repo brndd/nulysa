@@ -1,7 +1,13 @@
 namespace Nulysa.Components;
 
-public sealed record AdminDestination(string Key, string Label, string Href);
-public sealed record AdminSection(string Key, string Label, IReadOnlyList<AdminDestination> Pages);
+public sealed record AdminDestination(string Key, string LabelKey, string Href)
+{
+    public string Label => Nulysa.Localization.UiText.T(LabelKey);
+}
+public sealed record AdminSection(string Key, string LabelKey, IReadOnlyList<AdminDestination> Pages)
+{
+    public string Label => Nulysa.Localization.UiText.T(LabelKey);
+}
 public sealed record BreadcrumbItem(string Label, string? Href = null);
 
 public static class AdminNavigation

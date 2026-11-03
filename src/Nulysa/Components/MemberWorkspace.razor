@@ -2,14 +2,14 @@
 
 <AdminPageHeader Title="@Heading" Context="@Member.Name" Trail="@Trail" />
 <div class="member-subject">
-    <strong class="subject-name">@Member.Name <span>Member #@Member.Id</span></strong>
-    <span>@Member.Email · Joined @Member.JoinedOn.ToString("d MMM yyyy")</span>
-    @if (Member.PendingDeletionAt is not null) { <strong class="member-account-warning">Pending deletion; login and services blocked.</strong> }
+    <strong class="subject-name">@Member.Name <span>@T("Member #{0}", Member.Id)</span></strong>
+    <span>@T("{0} · Joined {1}", Member.Email, Member.JoinedOn.ToString("d MMM yyyy"))</span>
+    @if (Member.PendingDeletionAt is not null) { <strong class="member-account-warning">@T("Pending deletion; login and services blocked.")</strong> }
 </div>
-<nav class="section-navigation" aria-label="Member workspace">
+<nav class="section-navigation" aria-label="@T("Member workspace")">
     @foreach (var page in RegistryNavigation.Sections)
     {
-        <a href="@RegistryNavigation.MemberUrl(Member.Id, ReturnUrl, page.Section)" aria-current="@(Section == page.Section ? Title is null ? "page" : "location" : null)">@(page.Label)</a>
+        <a href="@RegistryNavigation.MemberUrl(Member.Id, ReturnUrl, page.Section)" aria-current="@(Section == page.Section ? Title is null ? "page" : "location" : null)">@T(page.Label)</a>
     }
 </nav>
 
@@ -18,19 +18,19 @@
     [Parameter] public string? ReturnUrl { get; set; }
     [Parameter] public MemberSection Section { get; set; }
     [Parameter] public string? Title { get; set; }
-    private string Heading => Title ?? RegistryNavigation.Sections.Single(page => page.Section == Section).Label;
+    private string Heading => Title ?? T(RegistryNavigation.Sections.Single(page => page.Section == Section).Label);
     private IReadOnlyList<BreadcrumbItem> Trail
     {
         get
         {
-            List<BreadcrumbItem> items = [new("Member registry", RegistryNavigation.ReturnUrl(ReturnUrl))];
+            List<BreadcrumbItem> items = [new(T("Member registry"), RegistryNavigation.ReturnUrl(ReturnUrl))];
             if (Section == MemberSection.Overview && Title is null)
                 items.Add(new(Member.Name));
             else
             {
                 items.Add(new(Member.Name, RegistryNavigation.MemberUrl(Member.Id, ReturnUrl)));
                 if (Title is not null)
-                    items.Add(new(RegistryNavigation.Sections.Single(page => page.Section == Section).Label, RegistryNavigation.MemberUrl(Member.Id, ReturnUrl, Section)));
+                    items.Add(new(T(RegistryNavigation.Sections.Single(page => page.Section == Section).Label), RegistryNavigation.MemberUrl(Member.Id, ReturnUrl, Section)));
                 items.Add(new(Heading));
             }
             return items;

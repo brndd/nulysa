@@ -1,0 +1,18 @@
+@page
+@model Nulysa.Pages.LanguageModel
+@{ ViewData["Title"] = T("Language"); }
+<h1>@T("Language")</h1>
+<p>@T("Choose the language used on this browser. Automatic uses your account's preferred language, then your browser language, then the association default.")</p>
+@if (Model.Saved) { <p role="status">@T("Language saved.")</p> }
+<form method="post" data-enhance="false">
+    <div asp-validation-summary="All" role="alert"></div>
+    <input type="hidden" asp-for="ReturnUrl" />
+    <p><label asp-for="Language">@T("Portal language")</label>
+        <select asp-for="Language"><option value="automatic">@T("Automatic")</option>
+            @foreach (var language in Nulysa.Localization.UiLanguages.Supported)
+            { <option value="@language.Code" lang="@language.Code">@language.Name</option> }
+        </select>
+    </p>
+    <button type="submit">@T("Save language")</button>
+</form>
+<p><a href="@Model.SafeReturnUrl">@T("Return to portal")</a></p>

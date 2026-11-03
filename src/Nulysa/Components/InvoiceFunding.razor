@@ -1,16 +1,16 @@
 @using Nulysa.Billing
 
-<table tabindex="0" aria-label="Invoice funding details">
-    <caption>Invoice #@Invoice.Invoice.Id funding · periods include both displayed dates</caption>
-    <thead><tr><th scope="col">Purchase / period</th><th scope="col">Status</th><th scope="col">Charge EUR</th><th scope="col">Allocated EUR</th><th scope="col">Remaining EUR</th></tr></thead>
+<table tabindex="0" aria-label="@T("Invoice funding details")">
+    <caption>@T("Invoice #{0} funding · periods include both displayed dates", Invoice.Invoice.Id)</caption>
+    <thead><tr><th scope="col">@T("Purchase / period")</th><th scope="col">@T("Status")</th><th scope="col">@T("Charge EUR")</th><th scope="col">@T("Allocated EUR")</th><th scope="col">@T("Remaining EUR")</th></tr></thead>
     <tbody>
     @foreach (var row in Invoice.Lines)
     {
-        <tr><td>@row.Line.Description<br />@BillingDateText.PurchasePeriod(row.Line)</td><td>@Status(row)</td><td>@row.Line.Amount.ToString("0.00")</td><td>@row.Held.ToString("0.00")</td><td>@row.Remaining.ToString("0.00")</td></tr>
+        <tr><td>@row.Line.Description<br />@BillingDateText.PurchasePeriod(row.Line)</td><td>@T(Status(row))</td><td>@row.Line.Amount.ToString("0.00")</td><td>@row.Held.ToString("0.00")</td><td>@row.Remaining.ToString("0.00")</td></tr>
     }
     </tbody>
 </table>
-<p>Completed: @Invoice.Paid.ToString("0.00") EUR · Allocated: @Invoice.Held.ToString("0.00") EUR · Remaining: <strong>@Invoice.Remaining.ToString("0.00") EUR</strong></p>
+<p>@T("Completed: {0} EUR · Allocated: {1} EUR · Remaining:", Invoice.Paid.ToString("0.00"), Invoice.Held.ToString("0.00")) <strong>@T("{0} EUR", Invoice.Remaining.ToString("0.00"))</strong></p>
 
 @code {
     [Parameter, EditorRequired] public InvoiceView Invoice { get; set; } = null!;

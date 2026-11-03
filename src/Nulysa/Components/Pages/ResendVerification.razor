@@ -6,14 +6,14 @@
 @inject MembershipCommands Commands
 @inject IConfiguration Configuration
 
-<PageTitle>Resend verification email — @Configuration["Association:Name"]</PageTitle>
-<h1>Resend verification email</h1>
-<p>Links expire with the unverified application (24 hours by default). Resending does not extend retention. After expiry, submit a fresh application.</p>
-@if (sent) { <p role="status">If an eligible application exists, a new email has been queued. Requests are limited to once every minute.</p> }
+<PageTitle>@T("Resend verification email") — @Configuration["Association:Name"]</PageTitle>
+<h1>@T("Resend verification email")</h1>
+<p>@T("Links expire with the unverified application (24 hours by default). Resending does not extend retention. After expiry, submit a fresh application.")</p>
+@if (sent) { <p role="status">@T("If an eligible application exists, a new email has been queued. Requests are limited to once every minute.")</p> }
 <EditForm Model="Input" method="post" FormName="resend" OnValidSubmit="Submit">
-    <DataAnnotationsValidator /><ValidationSummary />
-    <p><label for="resend-email">Email</label> <InputText id="resend-email" @bind-Value="Input!.Email" type="email" required /></p>
-    <button type="submit">Resend verification</button>
+    <DataAnnotationsValidator /><FormErrors />
+    <p><label for="resend-email">@T("Email")</label> <InputText id="resend-email" @bind-Value="Input!.Email" type="email" required /></p>
+    <button type="submit">@T("Resend verification")</button>
 </EditForm>
 
 @code {

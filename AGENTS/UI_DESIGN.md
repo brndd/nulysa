@@ -24,8 +24,9 @@ invoice-email settings, action confirmations and success feedback. **UI1's share
 foundation and UI2's member experience are delivered for the current feature set.**
 UI3 board administration is delivered for the current feature set: the attention
 dashboard, registry/member workspace, inline application review and contextual
-financial workflows are implemented. The remaining UI4
-validation/localisation work follows. Section 13 is the current UI work docket; later
+financial workflows are implemented. UI4 now adds Finnish/English resources and language
+selection, culture-aware forms, bounded member financial reads and expanded automated
+accessibility/responsive evidence. Supplied branding and manual handoff checks remain. Section 13 is the current UI work docket; later
 feature descriptions elsewhere are not unfinished UI2 requirements.
 
 ## 1. Goals and boundaries
@@ -83,7 +84,7 @@ authorization. Neither workspace nor appearance selection grants authority.
 | Storage — S5 | Rentals, group availability, queue entries, offers and checkout/renewal. |
 
 The account section has one **Settings** entry at `/profile`, containing personal
-details, communication preferences and account/privacy actions, plus **Log out**. **Appearance** is always available in the top bar, outside account settings.
+details, communication preferences and account/privacy actions, plus **Log out**. **Theme** is a top-bar dropdown, with an adjacent sun/moon colour-mode switch and a compact flag language dropdown, outside account settings.
 Sidebar destinations are grouped into sections, with matching page tabs for sibling
 pages so navigation remains available when the mobile sidebar is closed. Account/membership settings provide resignation and
 personal-data/privacy requests; resignation is not a homepage primary action.
@@ -552,9 +553,10 @@ Deliver two themes, **each with light and dark variants**:
   not a dark page with a white form.
 
 The deployment selects the association-default theme; never infer it from the
-association name. Appearance offers **Association default**, **Default** and
+association name. The Theme dropdown offers **Association default**, **Default** and
 **Tampere Hacklab**, plus explicitly configured local themes. Mode offers
-**System / Light / Dark** independently. Initial preference: Association default
+**Light / Dark** through the adjacent sun/moon switch; **Use device colour mode**
+in the Theme dropdown restores System mode independently. Initial preference: Association default
 with System mode. This is a small local choice, not a marketplace or database
 plugin system.
 
@@ -672,8 +674,9 @@ Deletion timing reflects eligibility plus batch cadence, not an exact promised
 instant.
 
 Test long Finnish labels/messages in navigation, controls and confirmations. Avoid
-English-length assumptions, flags for language choice and untranslatable string
-fragments.
+English-length assumptions and untranslatable string fragments. The compact language
+dropdown uses Finnish/UK flags for Finnish/English, with full language names for
+screen readers and tooltips; a globe restores Automatic.
 
 ## 12. Frontend implementation approach
 
@@ -738,7 +741,7 @@ S3–S6 or change the single full-replacement cutover plan.
 | UI1: foundation | Delivered for current pages | Shared responsive shells, top-bar mobile menu, both themes/modes, browser preferences and local stylesheet contract are implemented. Carry their patterns forward; no additional theme framework is needed. |
 | UI2: member tasks | Delivered for S1–S2 features | Homepage standing/attention, services, unified Payments, bill details, balances/transfers, independently paged histories, profile/invoice preferences and resignation are implemented. Remaining cross-cutting validation belongs to UI4, not another member-page split. |
 | UI3: board tasks | Delivered for S1–S2 features | Attention dashboard, registry/member workspace, application review, contextual bank dispositions and named financial adjustments are implemented. Further cross-cutting checks belong to UI4. |
-| UI4: validation/handoff | Partially covered; not complete | Existing fast/browser tests and theme configuration documentation are in place. Broader accessibility, responsive/visual and localisation work remains below. |
+| UI4: validation/handoff | Implemented for current pages; manual handoff remains | Finnish/English resources, explicit language/fallback selection, localised money forms, focused/announced errors, bounded member billing reads and the automated four-theme responsive/contrast matrix are implemented. Supplied logos, manual assistive-technology/real zoom checks and translation review remain explicit handoff items. |
 | S3–S5 UI | Future feature work | Communications, access/training and storage interfaces ship with their domain slices, not as prerequisites for completing the current member UI. |
 
 ### UI3, in bounded board-facing deliverables
@@ -776,33 +779,41 @@ These are presentation/workflow deliverables over already implemented features,
 not a replacement billing engine or an expansion of board permissions. Test each
 increment's positive paths, denial paths, validation failures and mobile operation.
 
-### UI4: cross-cutting work still to finish
+### UI4: implementation and handoff
 
-- **Localisation:** resource-based UI strings, explicit UI-language/fallback
-  selection, correct document language and Finnish/English money/date input/output.
-  The UI is currently English. Agree any additional initial languages, such as
-  Swedish, rather than hard-code a permanent two-language limit.
-- **Accessibility:** systematic keyboard, focus/error announcement, screen-reader,
-  zoom/reflow and contrast checks across both themes and both modes. Existing
-  targeted tests are not a WCAG 2.2 AA compliance claim. Verify the new board
-  workflows as well as member pages; retain visible control focus without restoring
-  decorative outlines on automatically focused headings.
-- **Responsive/visual review:** cover 320/375/768-pixel and desktop layouts, long
-  Finnish labels, table overflow, empty/failed/denied states and restrained danger/
-  attention styling. Some mobile/browser checks already exist; the complete matrix
-  has not been certified.
-- **Read-query efficiency:** the account overview and billing/history pages load
-  account facts before UI pagination; profile email settings still use a small
-  projection. Review bounded projections/query-level paging for long-lived accounts
-  without changing running balances or duplicating financial rules. This is a
-  targeted read-path follow-up, not a new data-access architecture.
-- **Branding and handoff:** finish configured logo treatment once association assets
-  are supplied, verify their light/dark legibility, and keep the shipped CSS-token/
-  stylesheet example current. Expand tokens only when actual components need them.
-  A theme editor, marketplace or extra preference infrastructure is not pending work.
-- **Acceptance evidence:** extend critical browser journeys as board workflows land,
-  and run the repository's agreed correctness/acceptance gates before claiming the
-  complete UI delivery verified. Do not infer deployment readiness from UI tests.
+- **Localisation — implemented:** shared Finnish/English resources, `/Language` on
+  public/account and portal shells, matching document/UI/formatting cultures, and
+  Finnish comma/English point amount entry. Explicit browser choice wins, then the
+  member's preferred communication language, browser language and configured fallback.
+  Other initial languages still require a translation decision; the UI catalogue can
+  grow independently of communication templates. User-entered names, reasons and
+  retained financial source descriptions are preserved. Obtain native-language review
+  of the translated workflows before public use.
+- **Accessibility — automated coverage extended:** keyboard menu/dialog dismissal
+  and focus restoration, focused/announced server validation errors, named form controls,
+  focusable labelled tables, reduced-motion styles, and semantic-token contrast in
+  both themes/modes. These are targeted checks, not a WCAG 2.2 AA compliance claim.
+  Manual screen-reader and actual browser zoom checks remain in the handoff checklist.
+- **Responsive/visual review — automated matrix implemented:** representative member
+  and board pages at 320/375/768/1440 CSS pixels in all four theme/mode combinations,
+  long Finnish text/association identity, contained table overflow, empty states and
+  200% text enlargement. Existing journeys retain denied/failed states and contextual
+  financial confirmation checks. Representative screenshots can be captured with
+  `NULYSA_UI_EVIDENCE`; see [verification details](../docs/ui.md#ui4-handoff).
+- **Read-query efficiency — implemented for member views:** account overview omits
+  historical statements/operations; bill history and transaction pages are bounded
+  in SQL independently of outstanding bills. Balances aggregate the whole journal;
+  historical running balances use effective-date/ID order before newest-first display.
+  Single-bill reads fetch that bill and its funding aggregates. Standing/pricing still
+  use the existing evaluators. Board correction/retained-account views retain the
+  existing aggregate; broader administrative profiling is future work.
+- **Branding — awaiting supplied assets:** the text association identity and documented
+  CSS-token/stylesheet contract remain current. Add and check supplied logos in both
+  modes when available; no invented association logo or theme editor was added.
+- **Acceptance evidence:** fast locale/financial equivalence tests and expanded browser
+  journeys accompany the change. Record the actual gate results and remaining manual
+  checks in [the handoff](../docs/ui.md#ui4-handoff). UI validation does not establish
+  deployment readiness or complete the provider/privacy/cutover gates.
 
 ### Later: feature-specific UI, not current UI debt
 

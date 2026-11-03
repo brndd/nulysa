@@ -10,55 +10,55 @@
 @inject NavigationManager Navigation
 @inject UiFeedback Feedback
 
-<AdminPageHeader Title="Review bank transaction" Trail="@(new BreadcrumbItem[] { new("Payment review", "/admin/payments"), new("Review bank transaction") })" />
+<AdminPageHeader Title="@T("Review bank transaction")" Trail="@(new BreadcrumbItem[] { new(T("Payment review"), "/admin/payments"), new(T("Review bank transaction")) })" />
 <div class="detail-workspace">
 @if (receipt is not null)
 {
     <div class="member-subject"><h2>@receipt.Amount.ToString("0.00") @receipt.Currency · @receipt.ReceivedOn</h2>
-        <p>@receipt.Counterparty · @receipt.Message</p><p>Reference: @receipt.Reference</p><p><strong>@receipt.ReviewReason</strong></p>
-        <details><summary>Original source facts</summary><p>Receipt #@receipt.Id · @receipt.Source / @receipt.SourceAccount / @receipt.ExternalId · imported @receipt.ImportedAt.ToString("u")</p></details>
+        <p>@receipt.Counterparty · @receipt.Message</p><p>@T("Reference: {0}", receipt.Reference)</p><p><strong>@receipt.ReviewReason</strong></p>
+        <details><summary>@T("Original source facts")</summary><p>@T("Receipt #{0} · {1} / {2} / {3} · imported {4}", receipt.Id, receipt.Source, receipt.SourceAccount, receipt.ExternalId, receipt.ImportedAt.ToString("u"))</p></details>
     </div>
-    @if (error is not null) { <p role="alert">@error</p> }
-    @if (receipt.State is not (ReceiptState.New or ReceiptState.Review)) { <p>This transaction has already been processed: @receipt.State. Reload related balances before any further correction.</p> }
+    @if (error is not null) { <p role="alert">@ValidationText.Translate(error)</p> }
+    @if (receipt.State is not (ReceiptState.New or ReceiptState.Review)) { <p>@T("This transaction has already been processed: {0}. Reload related balances before any further correction.", receipt.State)</p> }
     else
     {
         <form method="get" class="filter-panel">
-            <label for="purpose">Disposition / purpose</label><select id="purpose" name="purpose">
-                <option value="">Choose a purpose</option>
-                @foreach (var purpose in Purposes) { <option value="@purpose.Key" selected="@(Purpose == purpose.Key)">@purpose.Value</option> }
+            <label for="purpose">@T("Disposition / purpose")</label><select id="purpose" name="purpose">
+                <option value="">@T("Choose a purpose")</option>
+                @foreach (var purpose in Purposes) { <option value="@purpose.Key" selected="@(Purpose == purpose.Key)">@T(purpose.Value)</option> }
             </select>
-            <label for="member-search">Find member by name, email or member number</label><input id="member-search" name="q" value="@Search" maxlength="200" />
+            <label for="member-search">@T("Find member by name, email or member number")</label><input id="member-search" name="q" value="@Search" maxlength="200" />
             @if (MemberAccount is not null) { <input type="hidden" name="account" value="@MemberAccount" /> }
-            <button>Choose purpose / search</button>
+            <button>@T("Choose purpose / search")</button>
         </form>
-        @if (member is not null) { <p><strong>@member.Name · Member #@member.UserId · @member.Email</strong> <a href="@($"/admin/payments/{ReceiptId}?purpose={Purpose}")">Choose a different member</a></p> }
+        @if (member is not null) { <p><strong>@T("{0} · Member #{1} · {2}", member.Name, member.UserId, member.Email)</strong> <a href="@($"/admin/payments/{ReceiptId}?purpose={Purpose}")">@T("Choose a different member")</a></p> }
         else if (Purpose != "ignore")
         {
-            <p>Search returns up to 25 live members. Refine the search if needed. Pending-deletion accounts must be restored before assigning money.</p>
+            <p>@T("Search returns up to 25 live members. Refine the search if needed. Pending-deletion accounts must be restored before assigning money.")</p>
             <ul>@foreach (var candidate in members) { <li><a href="@($"/admin/payments/{ReceiptId}?purpose={Purpose}&account={candidate.AccountId}")">@candidate.Name · #@candidate.UserId · @candidate.Email</a></li> }</ul>
         }
         @if (Purposes.ContainsKey(Purpose) && (Purpose == "ignore" || member is not null))
         {
             <EditForm Model="Input" method="post" FormName="review-receipt" OnValidSubmit="Submit">
-                <DataAnnotationsValidator /><ValidationSummary />
+                <DataAnnotationsValidator /><FormErrors />
                 <input type="hidden" name="Input.Key" value="@Input!.Key" />
                 <fieldset disabled="@reviewing">
                 @if (Purpose is "group" or "invoice")
                 {
-                    <label for="destination">@(Purpose == "group" ? "Recurring billing group" : "One-off bill")</label>
-                    <InputSelect id="destination" @bind-Value="Input.Target"><option value="0">Choose a destination</option>
+                    <label for="destination">@T(Purpose == "group" ? "Recurring billing group" : "One-off bill")</label>
+                    <InputSelect id="destination" @bind-Value="Input.Target"><option value="0">@T("Choose a destination")</option>
                         @foreach (var choice in destinations) { <option value="@choice.Key">@choice.Value</option> }
                     </InputSelect>
                 }
-                <label for="review-reason">Reason</label><InputTextArea id="review-reason" @bind-Value="Input.Reason" required maxlength="1000" />
+                <label for="review-reason">@T("Reason")</label><InputTextArea id="review-reason" @bind-Value="Input.Reason" required maxlength="1000" />
                 </fieldset>
                 @if (reviewing) { <input type="hidden" name="Input.Target" value="@Input.Target" /><input type="hidden" name="Input.Reason" value="@Input.Reason" /> }
                 @if (reviewing)
                 {
-                    <div class="status-panel"><h2>Review proposed disposition</h2><p>@effect</p><p>Reason: @Input.Reason</p><p>Source facts are retained. Assignment can immediately fund valid purchases and change coverage. Availability and eligibility are checked again when confirmed.</p></div>
-                    <button name="Input.Confirmed" value="true">Confirm disposition</button>
+                    <div class="status-panel"><h2>@T("Review proposed disposition")</h2><p>@effect</p><p>@T("Reason: {0}", Input.Reason)</p><p>@T("Source facts are retained. Assignment can immediately fund valid purchases and change coverage. Availability and eligibility are checked again when confirmed.")</p></div>
+                    <button name="Input.Confirmed" value="true">@T("Confirm disposition")</button>
                 }
-                else { <button name="Input.Confirmed" value="false">Review disposition</button> }
+                else { <button name="Input.Confirmed" value="false">@T("Review disposition")</button> }
             </EditForm>
         }
     }

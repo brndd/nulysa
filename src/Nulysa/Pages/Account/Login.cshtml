@@ -1,12 +1,12 @@
 @page
 @model Nulysa.Pages.Account.LoginModel
-@{ ViewData["Title"] = "Log in"; }
-<h1>Log in</h1>
+@{ ViewData["Title"] = T("Log in"); }
+<h1>@T("Log in")</h1>
 <form method="post">
     <div asp-validation-summary="All" role="alert"></div>
     <input type="hidden" asp-for="ReturnUrl" />
-    <p><label asp-for="Email"></label> <input asp-for="Email" autocomplete="username" required /></p>
-    <p><label asp-for="Password"></label> <input asp-for="Password" autocomplete="current-password" required /></p>
-    <button type="submit">Log in</button>
+    <p><label asp-for="Email">@T("Email")</label> <input asp-for="Email" autocomplete="username" required /></p>
+    <p><label asp-for="Password">@T("Password")</label> <input asp-for="Password" autocomplete="current-password" required /></p>
+    <button type="submit">@T("Log in")</button>
 </form>
-<p><a href="/Account/ForgotPassword">Forgot password?</a> · <a href="/apply">Apply for membership</a></p>
+<p><a href="/Account/ForgotPassword">@T("Forgot password?")</a> · <a href="/apply">@T("Apply for membership")</a></p>

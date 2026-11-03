@@ -19,10 +19,10 @@
 
 @if (Id is null)
 {
-    <PageTitle>Member details — @Configuration["Association:Name"]</PageTitle>
-    <h1>Member details</h1>
+    <PageTitle>@T("Member details") — @Configuration["Association:Name"]</PageTitle>
+    <h1>@T("Member details")</h1>
 }
-else if (details is null) { <AdminPageHeader Title="Details" /> }
+else if (details is null) { <AdminPageHeader Title="@T("Details")" /> }
 <div class="detail-workspace">
 @if (details is not null)
 {
@@ -32,105 +32,105 @@ else if (details is null) { <AdminPageHeader Title="Details" /> }
     }
     else
     {
-    <p>Member #@details.Id · Joined @details.JoinedOn · Login email: @details.Email</p>
-    <p><a href="/billing">Payment standing, invoices, coverage and services</a></p>
+    <p>@T("Member #{0} · Joined {1} · Login email: {2}", details.Id, details.JoinedOn, details.Email)</p>
+    <p><a href="/billing">@T("Payment standing, invoices, coverage and services")</a></p>
     }
-    @if (error is not null && !IsLifecyclePost) { <p role="alert">@error</p> }
-    @if (notice is not null) { <p role="status" class="success-notice">@notice</p> }
+    @if (error is not null && !IsLifecyclePost) { <p role="alert">@ValidationText.Translate(error)</p> }
+    @if (notice is not null) { <p role="status" class="success-notice">@T(notice)</p> }
     @if (details.PendingDeletionAt is null)
     {
-        <nav class="on-this-page" aria-label="On this page"><span>On this page:</span>
-            <a href="@(PageUrl + "#personal")">Personal details</a><a href="@(PageUrl + "#email")">Email</a><a href="@(PageUrl + "#communications")">Communication preferences</a>
-            @if (Id is null) { <a href="@(PageUrl + "#account")">Account and privacy</a> }
-            else { <a href="@(PageUrl + "#lifecycle")">Account removal and restoration</a><a href="@(PageUrl + "#history")">Membership history</a> }
+        <nav class="on-this-page" aria-label="@T("On this page")"><span>@T("On this page:")</span>
+            <a href="@(PageUrl + "#personal")">@T("Personal details")</a><a href="@(PageUrl + "#email")">@T("Email")</a><a href="@(PageUrl + "#communications")">@T("Communication preferences")</a>
+            @if (Id is null) { <a href="@(PageUrl + "#account")">@T("Account and privacy")</a> }
+            else { <a href="@(PageUrl + "#lifecycle")">@T("Account removal and restoration")</a><a href="@(PageUrl + "#history")">@T("Membership history")</a> }
         </nav>
         <section id="personal" aria-labelledby="personal-heading">
-        <h2 id="personal-heading">Personal details</h2>
+        <h2 id="personal-heading">@T("Personal details")</h2>
         <EditForm Model="Input" method="post" FormName="profile" OnSubmit="Save">
-            <DataAnnotationsValidator /><ValidationSummary />
+            <DataAnnotationsValidator /><FormErrors />
             <div class="profile-fields-grid"><Nulysa.Components.ProfileFields Input="Input!" Prefix="Input" /></div>
-            <button type="submit">Save details</button>
+            <button type="submit">@T("Save details")</button>
         </EditForm>
         </section>
         <section id="email" aria-labelledby="email-heading">
-        <h2 id="email-heading">Change login email</h2>
-        <p>Current email: <strong>@details.Email</strong></p>
-        @if (details.PendingEmail is not null) { <p>Awaiting verification: @details.PendingEmail</p> }
+        <h2 id="email-heading">@T("Change login email")</h2>
+        <p>@T("Current email:") <strong>@details.Email</strong></p>
+        @if (details.PendingEmail is not null) { <p>@T("Awaiting verification: {0}", details.PendingEmail)</p> }
         <EditForm Model="EmailInput" method="post" FormName="email" OnValidSubmit="ChangeEmail">
-            <DataAnnotationsValidator /><ValidationSummary />
+            <DataAnnotationsValidator /><FormErrors />
             <input type="hidden" name="EmailInput.Operation" value="@EmailInput!.Operation" />
-            <p><label for="new-email">New email</label> <InputText id="new-email" @bind-Value="EmailInput.Email" type="email" required maxlength="256" /></p>
-            <button type="submit">Send verification to new address</button>
+            <p><label for="new-email">@T("New email")</label> <InputText id="new-email" @bind-Value="EmailInput.Email" type="email" required maxlength="256" /></p>
+            <button type="submit">@T("Send verification to new address")</button>
         </EditForm>
         </section>
         <section id="communications" aria-labelledby="communications-heading">
-            <h2 id="communications-heading">Communication preferences</h2>
-            <p>Required security, membership, grace and deletion notices cannot be disabled. Bills remain available in the portal even if you turn off invoice emails.</p>
+            <h2 id="communications-heading">@T("Communication preferences")</h2>
+            <p>@T("Required security, membership, grace and deletion notices cannot be disabled. Bills remain available in the portal even if you turn off invoice emails.")</p>
             @if (emailSettings is not null)
             {
                 <EditForm Model="EmailPreference" method="post" FormName="profile-invoice-preference" OnValidSubmit="SavePreference" data-preference-form data-saved="@emailSettings.Enabled.ToString().ToLowerInvariant()">
-                    <DataAnnotationsValidator /><ValidationSummary />
+                    <DataAnnotationsValidator /><FormErrors />
                     <input type="hidden" name="EmailPreference.Key" value="@EmailPreference!.Key" />
-                    <div class="checkbox-field"><InputCheckbox id="email-invoices" @bind-Value="EmailPreference.Enabled" /><label for="email-invoices">Email invoice PDFs</label></div>
-                    <button>Save communication preferences</button>
+                    <div class="checkbox-field"><InputCheckbox id="email-invoices" @bind-Value="EmailPreference.Enabled" /><label for="email-invoices">@T("Email invoice PDFs")</label></div>
+                    <button>@T("Save communication preferences")</button>
                 </EditForm>
             }
-            else { <p>No billing email preference is available for this account.</p> }
+            else { <p>@T("No billing email preference is available for this account.")</p> }
         </section>
         @if (Id is null)
         {
             <section id="account" aria-labelledby="account-heading">
-                <h2 id="account-heading">Account and privacy</h2>
-                <h3>Change password</h3>
-                @if (passwordError is not null) { <p role="alert">@passwordError</p> }
+                <h2 id="account-heading">@T("Account and privacy")</h2>
+                <h3>@T("Change password")</h3>
+                @if (passwordError is not null) { <p role="alert">@ValidationText.Translate(passwordError)</p> }
                 <form method="post" action="/Account/ChangePassword" data-enhance="false" class="password-change-form">
                     <AntiforgeryToken />
                     <input type="hidden" name="Operation" value="@Guid.NewGuid()" />
-                    <p><label for="current-password">Current password</label><input id="current-password" name="CurrentPassword" type="password" autocomplete="current-password" required maxlength="256" /></p>
-                    <p><label for="new-password">New password</label><input id="new-password" name="NewPassword" type="password" autocomplete="new-password" required maxlength="256" /></p>
-                    <p><label for="confirm-password">Confirm new password</label><input id="confirm-password" name="ConfirmPassword" type="password" autocomplete="new-password" required maxlength="256" /></p>
-                    <button type="submit">Change password</button>
+                    <p><label for="current-password">@T("Current password")</label><input id="current-password" name="CurrentPassword" type="password" autocomplete="current-password" required maxlength="256" /></p>
+                    <p><label for="new-password">@T("New password")</label><input id="new-password" name="NewPassword" type="password" autocomplete="new-password" required maxlength="256" /></p>
+                    <p><label for="confirm-password">@T("Confirm new password")</label><input id="confirm-password" name="ConfirmPassword" type="password" autocomplete="new-password" required maxlength="256" /></p>
+                    <button type="submit">@T("Change password")</button>
                 </form>
-                <p>For personal-data access, correction or erasure requests, contact the association's administrators.
+                <p>@T("For personal-data access, correction or erasure requests, contact the association's administrators.")
                     @if (!string.IsNullOrWhiteSpace(Options.Value.ContactEmail)) { <a href="@($"mailto:{Options.Value.ContactEmail}")">@Options.Value.ContactEmail</a> }
                 </p>
-                <div class="danger-panel"><h3>End your membership</h3><p>Resignation immediately blocks login and services and starts account deletion, even if you have paid for future time.</p>
-                    <a href="/resign">Resign and request account deletion</a>
+                <div class="danger-panel"><h3>@T("End your membership")</h3><p>@T("Resignation immediately blocks login and services and starts account deletion, even if you have paid for future time.")</p>
+                    <a href="/resign">@T("Resign and request account deletion")</a>
                 </div>
             </section>
         }
     }
     else
     {
-        <p><strong>Pending deletion. Login and services are blocked. Eligible for a fortnightly deletion batch from @details.DeletionEligibleAt?.ToString("u") (UTC).</strong></p>
+        <p><strong>@T("Pending deletion. Login and services are blocked. Eligible for a fortnightly deletion batch from {0} (UTC).", details.DeletionEligibleAt?.ToString("u"))</strong></p>
     }
     @if (Id is not null)
     {
         <section id="lifecycle" aria-labelledby="lifecycle-heading">
-            <h2 id="lifecycle-heading">Account removal and restoration</h2>
-            <ActionDialog Id="lifecycle-dialog" Label="@(details.PendingDeletionAt is null ? "Remove account" : "Restore account")" Title="@(details.PendingDeletionAt is null ? "Terminate membership and remove account" : "Cancel pending deletion")" Open="@IsLifecyclePost" TriggerClass="@(details.PendingDeletionAt is null ? "danger-action" : null)">
-            @if (error is not null) { <p role="alert">@error</p> }
-            <p>Termination immediately blocks login and starts erasure. Restoration cancels erasure only: it does not renew expired coverage, reverse separate removals, or repair payments. Do not put personal details in the audit reason.</p>
+            <h2 id="lifecycle-heading">@T("Account removal and restoration")</h2>
+            <ActionDialog Id="lifecycle-dialog" Label="@T(details.PendingDeletionAt is null ? "Remove account" : "Restore account")" Title="@T(details.PendingDeletionAt is null ? "Terminate membership and remove account" : "Cancel pending deletion")" Open="@IsLifecyclePost" TriggerClass="@(details.PendingDeletionAt is null ? "danger-action" : null)">
+            @if (error is not null) { <p role="alert">@ValidationText.Translate(error)</p> }
+            <p>@T("Termination immediately blocks login and starts erasure. Restoration cancels erasure only: it does not renew expired coverage, reverse separate removals, or repair payments. Do not put personal details in the audit reason.")</p>
             <EditForm Model="Lifecycle" method="post" FormName="lifecycle" OnValidSubmit="ChangeLifecycle">
-                <DataAnnotationsValidator /><ValidationSummary />
+                <DataAnnotationsValidator /><FormErrors />
                 <input type="hidden" name="Lifecycle.Operation" value="@Lifecycle!.Operation" />
                 <input type="hidden" name="Lifecycle.Action" value="@Lifecycle.Action" />
-                <p><label for="lifecycle-reason">@(Lifecycle.Action == "restore" ? "Reason / verified restoration request" : "Reason (optional)")</label><InputTextArea id="lifecycle-reason" @bind-Value="Lifecycle.Reason" maxlength="1000" /></p>
+                <p><label for="lifecycle-reason">@T(Lifecycle.Action == "restore" ? "Reason / verified restoration request" : "Reason (optional)")</label><InputTextArea id="lifecycle-reason" @bind-Value="Lifecycle.Reason" maxlength="1000" /></p>
                 <input type="hidden" name="Lifecycle.Confirmed" value="true" />
-                <button type="submit" class="@(Lifecycle.Action == "restore" ? "secondary-action" : "danger-action")">@(Lifecycle.Action == "restore" ? "Cancel pending deletion" : "Terminate and begin deletion")</button>
+                <button type="submit" class="@T(Lifecycle.Action == "restore" ? "secondary-action" : "danger-action")">@T(Lifecycle.Action == "restore" ? "Cancel pending deletion" : "Terminate and begin deletion")</button>
             </EditForm>
             </ActionDialog>
         </section>
         <section id="history" aria-labelledby="history-heading">
-            <h2 id="history-heading">Membership history</h2>
-            @if (details.Approval is { } approval) { <p>Approved @approval.ApprovedAt.ToString("u") by administrator #@approval.AdministratorId.</p> }
-            <ul>@foreach (var entry in details.History) { <li>@entry.OccurredAt.ToString("u") — @entry.Action — actor #@entry.ActorId — @entry.Reason</li> }</ul>
+            <h2 id="history-heading">@T("Membership history")</h2>
+            @if (details.Approval is { } approval) { <p>@T("Approved {0} by administrator #{1}.", approval.ApprovedAt.ToString("u"), approval.AdministratorId)</p> }
+            <ul>@foreach (var entry in details.History) { <li>@T("{0} — {1} — actor #{2} — {3}", entry.OccurredAt.ToString("u"), entry.Action, entry.ActorId, entry.Reason)</li> }</ul>
         </section>
     }
 }
 else
 {
-    <p>No membership record is available for this account.</p>
+    <p>@T("No membership record is available for this account.")</p>
 }
 
 </div>

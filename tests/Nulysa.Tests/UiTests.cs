@@ -122,6 +122,7 @@ public sealed class InteractiveUiTests : OidcTest
         using var playwright = await Playwright.CreateAsync();
         await using var browser = await playwright.Chromium.LaunchAsync(new() { Headless = true });
         var page = await browser.NewPageAsync();
+        await page.Context.AddCookiesAsync([new Microsoft.Playwright.Cookie { Name = "Nulysa.Language", Value = "en", Url = Settings["Oidc:Issuer"]! }]);
         await page.AddInitScriptAsync("""
             window.testSockets = [];
             window.WebSocket = class extends WebSocket {

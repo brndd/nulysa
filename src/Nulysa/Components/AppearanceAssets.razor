@@ -1,9 +1,9 @@
 @inject Microsoft.Extensions.Options.IOptions<AppearanceOptions> Options
 
 <link rel="stylesheet" href="/vendor/bootstrap/bootstrap.min.css" />
-<link rel="stylesheet" href="/styles/site.css?v=3" />
+<link rel="stylesheet" href="/styles/site.css?v=5" />
 @if (Options.Value.Stylesheet is { } stylesheet)
 {
     <link rel="stylesheet" href="@stylesheet" />
 }
-<script src="/scripts/appearance.js?v=3"></script>
+<script src="/scripts/appearance.js?v=5"></script>

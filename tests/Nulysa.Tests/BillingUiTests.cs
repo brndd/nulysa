@@ -36,6 +36,7 @@ public sealed class BillingBrowserTests : MembershipTest
         using var playwright = await Playwright.CreateAsync();
         await using var browser = await playwright.Chromium.LaunchAsync(new() { Headless = true });
         var page = await browser.NewPageAsync();
+        await page.Context.AddCookiesAsync([new Microsoft.Playwright.Cookie { Name = "Nulysa.Language", Value = "en", Url = Settings["Oidc:Issuer"]! }]);
         var root = Settings["Oidc:Issuer"]!;
         await page.GotoAsync(root + "Account/Login");
         await page.GetByLabel("Email", new() { Exact = true }).FillAsync(Email);
@@ -90,6 +91,7 @@ public sealed class BillingBrowserTests : MembershipTest
         var page = await member.NewPageAsync();
         var admin = await administrator.NewPageAsync();
         var invoiceTables = page.Locator("table").Filter(new() { Has = page.Locator("caption").Filter(new() { HasText = "Invoice #" }) });
+        await page.Context.AddCookiesAsync([new Microsoft.Playwright.Cookie { Name = "Nulysa.Language", Value = "en", Url = Settings["Oidc:Issuer"]! }]);
         var root = Settings["Oidc:Issuer"]!;
         async Task LoginPage(IPage target, string email)
         {

@@ -7,75 +7,75 @@
 @inject IConfiguration Configuration
 @inject Nulysa.Components.UiFeedback Feedback
 
-<AdminPageHeader Title="Member registry" />
+<AdminPageHeader Title="@T("Member registry")" />
 <AdminSectionTabs Destination="registry" />
-<p class="page-intro">Find a member to maintain their details, review membership and services, or manage payments. Standing uses current membership coverage and grace; unpaid optional services do not make membership inactive.</p>
-@if (notice is not null) { <p role="status" class="success-notice">@notice</p> }
+<p class="page-intro">@T("Find a member to maintain their details, review membership and services, or manage payments. Standing uses current membership coverage and grace; unpaid optional services do not make membership inactive.")</p>
+@if (notice is not null) { <p role="status" class="success-notice">@T(notice)</p> }
 <form method="get" action="/admin/members" class="filter-panel">
     <div class="filter-fields">
-        <div><label for="member-search">Search name, email or member ID</label><input id="member-search" name="q" value="@Search" maxlength="200" /></div>
-        <div><label for="member-state">Membership lifecycle</label>
+        <div><label for="member-search">@T("Search name, email or member ID")</label><input id="member-search" name="q" value="@Search" maxlength="200" /></div>
+        <div><label for="member-state">@T("Membership lifecycle")</label>
             <select id="member-state" name="state" value="@State">
-                <option value="all" selected="@(State == "all")">All members</option>
-                <option value="active" selected="@(State == "active")">Active (including grace)</option>
-                <option value="inactive" selected="@(State == "inactive")">Inactive members</option>
-                <option value="pending-deletion" selected="@(State == "pending-deletion")">Pending deletion</option>
+                <option value="all" selected="@(State == "all")">@T("All members")</option>
+                <option value="active" selected="@(State == "active")">@T("Active (including grace)")</option>
+                <option value="inactive" selected="@(State == "inactive")">@T("Inactive members")</option>
+                <option value="pending-deletion" selected="@(State == "pending-deletion")">@T("Pending deletion")</option>
             </select>
         </div>
-        <div><label for="inactive-days">Minimum days inactive</label><input id="inactive-days" name="inactiveDays" type="number" min="0" max="36500" value="@InactiveDays" aria-describedby="inactive-help" /></div>
-        <div><label for="member-sort">Sort members</label>
+        <div><label for="inactive-days">@T("Minimum days inactive")</label><input id="inactive-days" name="inactiveDays" type="number" min="0" max="36500" value="@InactiveDays" aria-describedby="inactive-help" /></div>
+        <div><label for="member-sort">@T("Sort members")</label>
             <select id="member-sort" name="sort" value="@Sort">
-                <option value="attention" selected="@(Sort == "attention")">Pending deletion, then longest inactive</option>
-                <option value="name" selected="@(Sort == "name")">Name</option>
-                <option value="newest" selected="@(Sort == "newest")">Most recently joined</option>
+                <option value="attention" selected="@(Sort == "attention")">@T("Pending deletion, then longest inactive")</option>
+                <option value="name" selected="@(Sort == "name")">@T("Name")</option>
+                <option value="newest" selected="@(Sort == "newest")">@T("Most recently joined")</option>
             </select>
         </div>
-        <div><label for="page-size">Members per page</label>
+        <div><label for="page-size">@T("Members per page")</label>
             <select id="page-size" name="pageSize" value="@PageSize">
                 @foreach (var size in new[] { 25, 50, 100 }) { <option value="@size" selected="@(PageSize == size)">@size</option> }
             </select>
         </div>
     </div>
-    <p id="inactive-help" class="field-help">Minimum days applies to the Inactive members filter. Use 0 for all inactive members, including those without a known inactivity date. This filter never terminates membership or starts deletion.</p>
-    <div class="filter-actions"><button type="submit">Search members</button><a href="/admin/members">Clear filters</a></div>
+    <p id="inactive-help" class="field-help">@T("Minimum days applies to the Inactive members filter. Use 0 for all inactive members, including those without a known inactivity date. This filter never terminates membership or starts deletion.")</p>
+    <div class="filter-actions"><button type="submit">@T("Search members")</button><a href="/admin/members">@T("Clear filters")</a></div>
 </form>
 @if (result is not null)
 {
     @if (result.Total == 0)
     {
-        <p class="status-panel">No members match these filters. Try a broader search or clear the filters.</p>
+        <p class="status-panel">@T("No members match these filters. Try a broader search or clear the filters.")</p>
     }
     else
     {
-        <p id="registry-results">Showing @((result.Page - 1) * result.PageSize + 1)–@Math.Min(result.Page * result.PageSize, result.Total) of @result.Total members.</p>
+        <p id="registry-results">@T("Showing {0}–{1} of {2} members.", ((result.Page - 1) * result.PageSize + 1), Math.Min(result.Page * result.PageSize, result.Total), result.Total)</p>
         <div class="registry-list" aria-describedby="registry-results">
             @foreach (var member in result.Entries)
             {
                 <article class="registry-member">
                     <div>
-                        <h2><a href="@RegistryNavigation.MemberUrl(member.Id, ListUrl(result.Page))">@member.Name <span>Member #@member.Id</span></a></h2>
+                        <h2><a href="@RegistryNavigation.MemberUrl(member.Id, ListUrl(result.Page))">@member.Name <span>@T("Member #{0}", member.Id)</span></a></h2>
                         <p>@member.Email</p>
-                        <p class="field-help">Joined @member.JoinedOn.ToString("d MMM yyyy")</p>
+                        <p class="field-help">@T("Joined {0}", member.JoinedOn.ToString("d MMM yyyy"))</p>
                     </div>
                     <div class="registry-standing">
                         @if (member.PendingDeletionAt is not null)
                         {
-                            <strong>Pending deletion</strong><p>Login and services blocked.</p>
+                            <strong>@T("Pending deletion")</strong><p>@T("Login and services blocked.")</p>
                         }
                         else
                         {
-                            <strong>@member.Standing!.Description</strong>
-                            @if (member.Standing.InactiveSince is { } since) { <p>Inactive since @since.ToString("d MMM yyyy")</p> }
+                            <strong>@T(member.Standing!.Description)</strong>
+                            @if (member.Standing.InactiveSince is { } since) { <p>@T("Inactive since {0}", since.ToString("d MMM yyyy"))</p> }
                             @if (member.Standing.ActiveUntilExclusive is not null) { <p><StandingThroughDate Standing="member.Standing" /></p> }
                         }
                     </div>
                 </article>
             }
         </div>
-        <nav class="section-pagination" aria-label="Registry pages">
-            @if (result.Page > 1) { <a href="@ListUrl(result.Page - 1)">Previous members</a> }
-            <span>Page @result.Page of @result.PageCount</span>
-            @if (result.Page < result.PageCount) { <a href="@ListUrl(result.Page + 1)">Next members</a> }
+        <nav class="section-pagination" aria-label="@T("Registry pages")">
+            @if (result.Page > 1) { <a href="@ListUrl(result.Page - 1)">@T("Previous members")</a> }
+            <span>@T("Page {0} of {1}", result.Page, result.PageCount)</span>
+            @if (result.Page < result.PageCount) { <a href="@ListUrl(result.Page + 1)">@T("Next members")</a> }
         </nav>
     }
 }

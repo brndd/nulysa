@@ -3,6 +3,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Components;
 using Nulysa.Billing;
 using Nulysa.Integrations;
+using static Nulysa.Localization.UiText;
 
 namespace Nulysa.Components.Pages;
 
@@ -49,9 +50,9 @@ public partial class ReceiptReview
         {
             var view = await Queries.Account(actor, member.AccountId);
             destinations = Purpose == "group"
-                ? view.Groups.ToDictionary(group => group.Id, group => $"{group.IntervalMonths}-month group · {string.Join(", ", view.Items.Where(item => item.BillingGroupId == group.Id).Select(item => view.FeeNames[item.FeeDefinitionId]))} · reference {group.PaymentReference}")
+                ? view.Groups.ToDictionary(group => group.Id, group => T("{0}-month group · {1} · reference {2}", group.IntervalMonths, string.Join(", ", view.Items.Where(item => item.BillingGroupId == group.Id).Select(item => view.FeeNames[item.FeeDefinitionId])), group.PaymentReference))
                 : view.Invoices.Where(invoice => invoice.Invoice.BillingGroupId is null && invoice.Invoice.ClosedAt is null && invoice.Remaining > 0)
-                    .ToDictionary(invoice => invoice.Invoice.Id, invoice => $"{string.Join(", ", invoice.Lines.Select(row => row.Line.Description))} · bill #{invoice.Invoice.Id} · {invoice.Remaining:0.00} EUR remaining · pay by {invoice.Invoice.DueOn:d MMM yyyy}");
+                    .ToDictionary(invoice => invoice.Invoice.Id, invoice => T("{0} · bill #{1} · {2:0.00} EUR remaining · pay by {3:d MMM yyyy}", string.Join(", ", invoice.Lines.Select(row => row.Line.Description)), invoice.Invoice.Id, invoice.Remaining, invoice.Invoice.DueOn));
         }
     }
     private async Task Submit()
@@ -64,7 +65,7 @@ public partial class ReceiptReview
                 throw new ValidationException("Choose a member and payment purpose.");
             if (Purpose is "group" or "invoice" && !destinations.ContainsKey(Input!.Target))
                 throw new ValidationException("Choose an available destination belonging to this member.");
-            effect = $"{receipt!.Amount:0.00} {receipt.Currency} → {Purposes[Purpose]}" + (member is null ? ". No member funds will be allocated." : $" for {member.Name} (#{member.UserId}).") + (destinations.TryGetValue(Input!.Target, out var destination) ? " " + destination : "");
+            effect = T("{0:0.00} {1} → {2}", receipt!.Amount, receipt.Currency, T(Purposes[Purpose])) + (member is null ? T(". No member funds will be allocated.") : T(" for {0} (#{1}).", member.Name, member.UserId)) + (destinations.TryGetValue(Input!.Target, out var destination) ? " " + destination : "");
             if (!Input.Confirmed)
             {
                 reviewing = true;

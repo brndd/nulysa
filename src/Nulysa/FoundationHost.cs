@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -17,6 +18,7 @@ using Nulysa.Components;
 using Nulysa.Data;
 using Nulysa.Development;
 using Nulysa.Integrations;
+using Nulysa.Localization;
 using Nulysa.Membership;
 using Nulysa.Operations;
 using Quartz;
@@ -49,10 +51,11 @@ public static class FoundationHost
             app.UseHttpsRedirection();
         }
         app.UseAuthentication();
+        app.UseRequestLocalization();
         app.Use(async (context, next) =>
         {
             context.Response.Headers["Referrer-Policy"] = "no-referrer";
-            if (context.User.Identity?.IsAuthenticated == true || context.Request.Path.StartsWithSegments("/Account") || context.Request.Path.StartsWithSegments("/apply") || context.Request.Path.StartsWithSegments("/Appearance"))
+            if (context.User.Identity?.IsAuthenticated == true || context.Request.Path.StartsWithSegments("/Account") || context.Request.Path.StartsWithSegments("/apply") || context.Request.Path.StartsWithSegments("/Appearance") || context.Request.Path.StartsWithSegments("/Language"))
             {
                 // Antiforgery warns unless both directives are present; keep this the canonical pair.
                 context.Response.Headers.CacheControl = "no-cache, no-store";
@@ -190,7 +193,7 @@ public static class FoundationHost
         {
             options.User.RequireUniqueEmail = true;
             options.SignIn.RequireConfirmedEmail = true;
-        }).AddEntityFrameworkStores<AppDbContext>().AddDefaultTokenProviders();
+        }).AddEntityFrameworkStores<AppDbContext>().AddDefaultTokenProviders().AddErrorDescriber<LocalizedIdentityErrors>();
         builder.Services.ConfigureApplicationCookie(options =>
         {
             options.LoginPath = "/Account/Login";
@@ -219,7 +222,17 @@ public static class FoundationHost
             builder.Services.AddScoped<IAuthorizationHandler, AdministratorAuthorizationHandler>();
             builder.Services.AddScoped<IAuthorizationHandler, SuperuserAuthorizationHandler>();
             builder.Services.AddScoped<SchedulerDiagnostics>();
-            builder.Services.AddRazorPages();
+            builder.Services.AddLocalization();
+            builder.Services.Configure<RequestLocalizationOptions>(options =>
+            {
+                var fallback = UiLanguages.Find(config["Ui:DefaultLanguage"]) ?? UiLanguages.Find(config["Membership:DefaultLanguage"]) ?? UiLanguages.Supported[0];
+                options.DefaultRequestCulture = new(fallback.Culture, fallback.Code);
+                options.SupportedCultures = UiLanguages.Supported.Select(language => new System.Globalization.CultureInfo(language.Culture)).ToList();
+                options.SupportedUICultures = UiLanguages.Supported.Select(language => new System.Globalization.CultureInfo(language.Code)).ToList();
+                options.ApplyCurrentCultureToResponseHeaders = true;
+                options.RequestCultureProviders = [new BrowserCultureProvider(), new MemberCultureProvider(), new HeaderCultureProvider()];
+            });
+            builder.Services.AddRazorPages(options => options.Conventions.ConfigureFilter(new LocalizePageErrors()));
             builder.Services.AddScoped<UiFeedback>();
             builder.Services.AddRazorComponents().AddInteractiveServerComponents();
             builder.Services.AddCascadingAuthenticationState();

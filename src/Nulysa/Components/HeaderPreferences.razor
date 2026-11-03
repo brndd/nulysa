@@ -1,0 +1,66 @@
+@inject Microsoft.Extensions.Options.IOptions<AppearanceOptions> Options
+
+<div class="header-preferences" role="group" aria-label="@T("Display preferences")">
+    <details class="header-dropdown theme-dropdown">
+        <summary title="@T("Theme: {0}", ThemeName)"><span class="preference-label">@T("Theme")<span class="dropdown-chevron" aria-hidden="true"></span></span></summary>
+        <div class="preference-dropdown-panel">
+            <form method="post" action="/Appearance?handler=Theme" data-enhance="false">
+                <AntiforgeryToken />
+                <input type="hidden" name="ReturnUrl" value="@ReturnUrl" />
+                @foreach (var choice in Themes)
+                {
+                    <button type="submit" name="Theme" value="@choice.Value" aria-pressed="@((selectedTheme == choice.Value).ToString().ToLowerInvariant())">@T(choice.Label)</button>
+                }
+            </form>
+            <form method="post" action="/Appearance?handler=Mode" data-enhance="false" class="system-mode-form">
+                <AntiforgeryToken />
+                <input type="hidden" name="ReturnUrl" value="@ReturnUrl" />
+                <button type="submit" name="Mode" value="system" aria-pressed="@((appearance.Mode == "system").ToString().ToLowerInvariant())">@T("Use device colour mode")</button>
+            </form>
+        </div>
+    </details>
+    <form method="post" action="/Appearance?handler=Mode" data-enhance="false" class="colour-mode-form">
+        <AntiforgeryToken />
+        <input type="hidden" name="ReturnUrl" value="@ReturnUrl" />
+        <button type="submit" class="colour-mode-switch" role="switch" aria-label="@T("Dark mode")" aria-checked="@((appearance.Mode == "dark").ToString().ToLowerInvariant())" title="@T("Switch light/dark mode")" name="Mode" value="@(appearance.Mode == "dark" ? "light" : "dark")" data-mode-switch hidden>
+            <span class="mode-switch-thumb" aria-hidden="true"></span><ColourModeIcon /><ColourModeIcon Dark="true" />
+        </button>
+        <div class="colour-mode-fallback" role="group" aria-label="@T("Switch light/dark mode")">
+            <button type="submit" name="Mode" value="light" aria-label="@T("Light")" title="@T("Light")" aria-pressed="@((appearance.Mode == "light").ToString().ToLowerInvariant())"><ColourModeIcon /></button>
+            <button type="submit" name="Mode" value="dark" aria-label="@T("Dark")" title="@T("Dark")" aria-pressed="@((appearance.Mode == "dark").ToString().ToLowerInvariant())"><ColourModeIcon Dark="true" /></button>
+        </div>
+    </form>
+    <details class="header-dropdown language-dropdown">
+        <summary aria-label="@T("Language")" title="@T("Language: {0}", CurrentLanguageName)"><span class="preference-label"><LanguageFlag Code="@UiLanguages.Current" /><span class="dropdown-chevron" aria-hidden="true"></span></span></summary>
+        <div class="preference-dropdown-panel">
+            <form method="post" action="/Language?handler=Select" data-enhance="false">
+                <AntiforgeryToken />
+                <input type="hidden" name="ReturnUrl" value="@ReturnUrl" />
+                @foreach (var language in UiLanguages.Supported)
+                {
+                    <button type="submit" name="Language" value="@language.Code" aria-label="@language.Name" title="@language.Name" lang="@language.Code" aria-pressed="@((selectedLanguage == language.Code).ToString().ToLowerInvariant())"><LanguageFlag Code="@language.Code" /></button>
+                }
+                <button type="submit" name="Language" value="automatic" aria-label="@T("Automatic")" title="@T("Automatic")" aria-pressed="@((selectedLanguage == "automatic").ToString().ToLowerInvariant())"><LanguageFlag /></button>
+            </form>
+        </div>
+    </details>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public HttpContext Context { get; set; } = null!;
+    private Appearance appearance = new("default", "system");
+    private string selectedTheme = "association";
+    private string selectedLanguage = "automatic";
+    private string ReturnUrl => Context.Request.PathBase + Context.Request.Path + Context.Request.QueryString;
+    private string ThemeName => T(Themes.Single(theme => theme.Value == selectedTheme).Label);
+    private string CurrentLanguageName => UiLanguages.Find(UiLanguages.Current)?.Name ?? UiLanguages.Current;
+    private static readonly (string Value, string Label)[] Themes = [("association", "Association default"), ("default", "Default"), ("tampere-hacklab", "Tampere Hacklab")];
+
+    protected override void OnInitialized()
+    {
+        appearance = Appearance.Read(Context, Options.Value);
+        var theme = Context.Request.Cookies[Appearance.ThemeCookie];
+        selectedTheme = Appearance.IsTheme(theme) ? theme! : "association";
+        selectedLanguage = UiLanguages.Find(Context.Request.Cookies[UiLanguages.Cookie])?.Code ?? "automatic";
+    }
+}

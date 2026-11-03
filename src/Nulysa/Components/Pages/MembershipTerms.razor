@@ -2,13 +2,13 @@
 @attribute [AllowAnonymous]
 @inject IConfiguration Configuration
 
-<PageTitle>Membership terms — @Configuration["Association:Name"]</PageTitle>
-<h1>Membership terms</h1>
+<PageTitle>@T("Membership terms") — @Configuration["Association:Name"]</PageTitle>
+<h1>@T("Membership terms")</h1>
 @if (Configuration["Association:TermsUrl"] is { Length: > 0 } url)
 {
-    <p>Read the association's <a href="@url">membership terms and privacy information</a> before applying.</p>
+    <p>@T("Read the association's membership terms and privacy information before applying.") <a href="@url">@T("Open membership terms and privacy information")</a></p>
 }
 else
 {
-    <p>This is a development registry. Association-specific terms and privacy information must be supplied before public deployment. Do not submit real personal data.</p>
+    <p>@T("This is a development registry. Association-specific terms and privacy information must be supplied before public deployment. Do not submit real personal data.")</p>
 }

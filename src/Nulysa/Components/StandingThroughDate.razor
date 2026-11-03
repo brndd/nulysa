@@ -2,11 +2,9 @@
 
 @if (Standing.ActiveUntilExclusive is { } endExclusive)
 {
-    <span>@Label @endExclusive.AddDays(-1).ToString("d MMM yyyy")</span>
+    <span>@T(Standing.State is StandingState.Covered or StandingState.CoveredWithRenewalStopped ? "Covered through {0:d MMM yyyy}" : "Benefits available through {0:d MMM yyyy}", endExclusive.AddDays(-1))</span>
 }
 
 @code {
     [Parameter, EditorRequired] public Standing Standing { get; set; } = null!;
-    private string Label => Standing.State is StandingState.Covered or StandingState.CoveredWithRenewalStopped
-        ? "Covered through" : "Benefits available through";
 }

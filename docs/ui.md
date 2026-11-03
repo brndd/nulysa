@@ -48,7 +48,10 @@ and remaining deliverables are in [the UI design](../AGENTS/UI_DESIGN.md).
 - Shared styling for Blazor pages and HTTP-based login/password/account pages.
 - Default (teal/neutral) and Tampere Hacklab (black/yellow with supporting neutrals)
   themes, each supporting Light, Dark and System mode.
-- `/Appearance`, available before login too. Choices persist in validated,
+- A shared **Theme** dropdown, adjacent sun/moon light/dark switch and compact flag
+  language dropdown, available before login too. **Use device colour mode** restores
+  System, and a globe restores Automatic language selection. `/Appearance` and
+  `/Language` remain standalone preference forms. Choices persist in validated,
   HTTP-only browser cookies for one year, not in member records. Association
   default follows deployment configuration; an explicit theme overrides it.
 - Local Bootstrap 5.3.8 CSS and its MIT licence; no runtime CDN/font dependency or
@@ -63,7 +66,7 @@ and remaining deliverables are in [the UI design](../AGENTS/UI_DESIGN.md).
 - Member navigation has a general Overview and sections for Membership & payments
   and My account. Settings is a single sidebar entry for personal/communication settings. Account
   overview and Billing details have reciprocal tabs on both pages, including mobile.
-  Appearance remains in the header and is absent from profile/account settings.
+  Theme and language controls remain in the header and are absent from profile/account settings.
 - `/billing` shows outstanding bills first, then separately paged bill and transaction
   histories. Current balances and transfers live on the overview. Previous bills
   are collapsed initially; each history defaults to ten rows and keeps independent
@@ -218,15 +221,16 @@ preserved search state, no-script navigation/forms and absence of a persistent c
 These checks do not constitute a full accessibility audit.
 
 UI2's member experience is delivered for the currently implemented membership and
-billing features. The shared billing pages still use the existing account aggregate;
-their UI pagination is not a claim of query-level financial pagination or a complete
-performance rewrite. The front page and profile email settings use smaller projections.
+billing features. Member account/bill/history pages now use dedicated read projections
+with SQL history pagination and journal aggregates; domain commands and board correction
+views retain the existing financial evaluator/aggregate. The front page and profile
+email settings also use smaller projections.
 UI3's board workflows are implemented for the current S1–S2 features. Payment review
 opens `/admin/payments/{receiptId}`, shows immutable source facts and uses explicit
 purpose/member/destination selection, followed by review and confirmation. Member
 search returns at most 25 live members; the unresolved queue shows its oldest 100
-items. Posted-receipt selection shows the latest 100; refinements to broader financial
-history query efficiency remain UI4 work.
+items. Posted-receipt selection shows the latest 100. Broader board financial-history
+profiling can follow actual account sizes; it does not change the member read path.
 
 `/admin/members/{id}/actions/{action}` offers named discount, withdrawal, future-credit,
 whole-month grant, cancellation, completed-refund, receipt-reversal and one-off actions.
@@ -236,9 +240,8 @@ shares its end-date calculation with preview. Final commands revalidate current 
 Payment review, manual import, accounting/exports and retained balances use distinct
 pages. Retained account statements/history are supporting disclosures. Neither recording a
 refund nor previewing a disposition initiates an external payment.
-UI4 completes broader accessibility/localisation/visual validation; basic tests here
-are not a WCAG compliance claim. Existing pages still use English, and complex
-administration/history can receive further refinements during that validation.
+UI4 implements localisation and the automated accessibility/responsive matrix described
+below. Manual checks remain explicit; these tests are not a WCAG compliance claim.
 Communications, access/training and interactive storage remain their later slices.
 
 The primary responsive modes meet at 768 CSS pixels: sidebar and two balance columns
@@ -254,3 +257,138 @@ policy, refreshes the current cookie, and commits the password with a durable re
 safe duplicate submissions without storing passwords in delivery records. Notification
 mail is not controlled by invoice-email preferences and contains no passwords/tokens.
 Failed validation returns to Settings with empty password fields and a one-use error.
+
+
+## Language and financial input
+
+The initial UI languages are Finnish and English. The shared header, including
+public and account pages, contains a flag dropdown: Finnish/UK flags select
+Finnish/English, and a globe selects Automatic. The flag controls have full language
+names as accessible labels and tooltips. `/Language` also remains available as a
+standalone form. All choices use antiforgery-protected HTTP forms and return to the
+current local page, preserving its query string. The one-year `Nulysa.Language` cookie is browser-specific,
+HttpOnly, SameSite=Lax and Secure on HTTPS. It does not update account data or authority.
+Select **Automatic** (the globe in the dropdown) to clear it. Invalid cookie values are ignored.
+
+Selection order is explicit browser choice, authenticated member's preferred language,
+browser `Accept-Language` quality order, then `Ui:DefaultLanguage`,
+`Membership:DefaultLanguage`, or English. Header variants such as `fi`, `fi-FI` and
+`en-US` resolve to matched UI/formatting pairs (`fi`/`fi-FI`, `en`/`en-GB`). The document
+`lang` and response `Content-Language` reflect the selected UI language. Changing a
+member's preferred language takes effect on the next request when Automatic is used.
+A browser choice continues across navigation, login and logout.
+
+For example, `Ui__DefaultLanguage=fi` selects Finnish for visitors whose browser has
+no supported language. The initial languages are a catalogue in
+`Localization/UiLanguages.cs`, not a two-language framework limit. To add a UI language,
+add its culture/native name to that catalogue and a `UiStrings.<code>.resx` translation.
+The English base resource is the per-message fallback. Communication-language support
+and invoice/mail templates are a separate domain configuration; adding a UI translation
+does not silently claim translated mail. Stored names, service/fee names, administrator
+reasons and source financial descriptions remain as recorded.
+
+`UiStrings.resx` and `UiStrings.fi.resx` contain presentation phrases, using whole
+messages and format arguments where ordering can vary. Both Razor Pages and static
+Blazor pages use them. Validation summaries translate framework field errors and
+Identity password-policy messages, announce errors and receive focus on failed HTTP
+submission. English-copy regression journeys explicitly select English; locale journeys
+exercise automatic/member/browser selection separately.
+
+Money fields use text inputs with `inputmode=decimal`. Finnish accepts `1,25`; English
+accepts `1.25`. Grouped, exponential and wrong-separator values are rejected rather
+than reinterpreted as a different amount. Review/confirmation hidden values use the
+same culture. Domain commands still validate positive/cent amounts, available funds
+and current authority. Native date controls continue to submit ISO dates; visible
+periods use the selected culture and inclusive last-day wording without changing
+stored exclusive boundaries. The browser controls its native date-picker chrome.
+
+## Member financial read paths
+
+`BillingQueries.Portal` loads current membership/service facts and the requested bill
+page, aggregates available/allocated balances from the full journal in SQL, and omits
+historical operations/statements from the account overview. Transaction pages fetch
+at most one page plus a continuation row per balance. Earlier effective-date/ID deltas
+supply each page's opening balance; running balances are calculated in chronological
+order before display is reversed. Page-specific supporting receipts/lines/operations
+retain the authorised traceability links. Outstanding bills remain outside historical
+pagination. A single-bill page loads only that bill, its reference and funding aggregates.
+
+Standing, grace, discount and forecast calculations use the existing evaluator and
+signed journal deltas. `PortalBillingQueryTests` compare the member projection with the
+original financial view, including backdated/same-date events, independent pages,
+retained outstanding bills and single-bill funding. No database schema, command,
+authorisation rule or financial policy was changed. Price/configuration lists and
+current outstanding requests are not artificially truncated; board financial corrections
+and retained financial accounts still use the original aggregate.
+
+## UI4 handoff
+
+`UiValidationBrowserTests` checks member and board pages at 320, 375, 768 and 1440 CSS
+pixels in Default/Tampere Hacklab × light/dark: long Finnish text, one page heading,
+no page-wide overflow, named board form controls, semantic text/action/focus/control
+contrast and no persistent circuit. It also checks 200% text enlargement, keyboard
+menu/dialog use, focus restoration, reduced-motion preference and server-error focus.
+Existing journeys cover empty, denied, failed and successful workflows, payment
+previews, no-script forms and appearance preferences. `LocalizationTests` adds a real
+Finnish comma transfer through HTTP review/confirmation, invalid input without writes,
+antiforgery, safe return URLs and language/permission isolation. Unit tests check
+resource format arguments, browser-region matching and strict numeric parsing.
+
+Capture representative screenshots when running the matrix:
+
+```sh
+NULYSA_UI_EVIDENCE=/tmp/nulysa-ui4-evidence dotnet test --settings tests.full.runsettings --filter 'FullyQualifiedName~UiValidationBrowserTests'
+```
+
+Acceptance run on 2026-11-02: the full Release suite passed **262 tests** (4m46s),
+including the expanded browser matrix and long-history financial equivalence case.
+The subsequently added Finnish board price/ISO-date regression passed separately.
+The Release build, `dotnet format --verify-no-changes --no-restore`, the three Python
+development-tool tests and the isolated production-container web/worker smoke check
+also passed. Representative desktop/mobile screenshots were inspected in all four
+built-in theme/mode combinations. Manual checks below remain outstanding.
+
+The screenshots are local review artifacts, not image-diff baselines. The built-in
+palette passes the tested token pairs; association CSS overrides require their own
+review. The CSS contract above has not changed. No association logo assets have been
+supplied, so the association's text identity remains the shipped treatment.
+
+Before calling the handoff manually verified:
+
+- Review the Finnish translations, especially financial confirmations and membership
+  lifecycle messages, with a native-speaking association volunteer.
+- Use a screen reader (for example NVDA/Firefox and VoiceOver/Safari) through login,
+  navigation, a form error, application rejection, a transfer and a financial preview.
+  Check announcement order, labels, table relationships and restored focus.
+- Check actual browser zoom at 200% and 400%, plus mobile keyboard/landscape operation.
+  Automated text enlargement and 320-CSS-pixel reflow are evidence, not a substitute
+  for these browser/assistive-technology combinations.
+- Supply the association logo, then verify its alternative text and light/dark
+  legibility. Recheck any operator stylesheet against the same contrast/focus pairs.
+
+UI4's implemented checks do not certify WCAG compliance or public deployment readiness.
+The remaining manual/asset-dependent items are handoff requirements, not hidden tests
+or new S3–S5 feature scope.
+
+
+### Compact header controls
+
+The header's Theme dropdown submits only the theme preference; the adjacent sun/moon
+switch submits only the colour mode. Neither resets the other choice. The switch's
+checked state follows the effective OS preference while System is selected; activating
+it sets an explicit light/dark preference. **Use device colour mode** in the Theme
+menu returns to System. Native icon buttons for Light/Dark remain available without
+JavaScript. Country flags are local inline SVGs rather than platform-dependent emoji.
+
+Native disclosure menus work with keyboard Tab/Enter. The small local script also
+closes the other dropdown, dismisses on outside click/Escape, and restores focus to
+the triggering summary on Escape. These controls do not start an interactive circuit.
+`HeaderPreferencesTests` cover independent cookie updates, allowlists, antiforgery and
+safe return URLs. Browser tests exercise both shells, OS preference changes, keyboard
+navigation, narrow layouts, enhanced navigation and the no-script forms.
+
+Header polish verification (2026-11-02): 41 targeted fast appearance/localisation/
+request tests and five browser tests passed, including the four-theme responsive
+matrix. Keyboard dismissal/focus restoration, independent choices, OS mode changes,
+enhanced-navigation switch state and no-JavaScript controls are covered. Desktop
+and 320-pixel screenshots were inspected; formatting and diff checks passed.

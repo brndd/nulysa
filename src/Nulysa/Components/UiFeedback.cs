@@ -9,7 +9,7 @@ public sealed class UiFeedback(ITempDataDictionaryFactory factory)
         var data = factory.GetTempData(context);
         var notice = data["UiNotice"] as string;
         data.Save();
-        return notice;
+        return notice is null ? null : Nulysa.Localization.UiText.T(notice);
     }
 
     public void Save(HttpContext context, string notice)
@@ -24,7 +24,7 @@ public sealed class UiFeedback(ITempDataDictionaryFactory factory)
         var data = factory.GetTempData(context);
         var error = data["UiError"] as string;
         data.Save();
-        return error;
+        return error is null ? null : Nulysa.Localization.UiText.T(error);
     }
 
     public void SaveError(HttpContext context, string error)

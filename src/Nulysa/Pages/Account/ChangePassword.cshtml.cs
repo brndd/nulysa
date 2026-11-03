@@ -23,7 +23,7 @@ public sealed class ChangePasswordModel(AccountCommands commands, SignInManager<
     {
         if (!ModelState.IsValid)
         {
-            feedback.SaveError(HttpContext, string.Join(" ", ModelState.Values.SelectMany(value => value.Errors).Select(error => error.ErrorMessage)));
+            feedback.SaveError(HttpContext, string.Join(" ", ModelState.Values.SelectMany(value => value.Errors).Select(error => Nulysa.Localization.ValidationText.Translate(error.ErrorMessage))));
             return LocalRedirect("/profile#account");
         }
 

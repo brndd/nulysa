@@ -1,12 +1,12 @@
 @using Nulysa.Membership
 
-<p><label for="profile-name">Name</label> <InputText id="profile-name" name="@(Prefix + ".Name")" @bind-Value="Input.Name" required maxlength="200" autocomplete="name" /></p>
-<p><label for="profile-municipality">Municipality</label> <InputText id="profile-municipality" name="@(Prefix + ".Municipality")" @bind-Value="Input.Municipality" required maxlength="200" /></p>
-<p><label for="profile-birth">Date of birth</label> <InputDate id="profile-birth" name="@(Prefix + ".DateOfBirth")" @bind-Value="Input.DateOfBirth" required /></p>
-<p><label for="profile-language">Preferred language</label> <InputSelect id="profile-language" name="@(Prefix + ".Language")" @bind-Value="Input.Language"><option value="en">English</option><option value="fi">Suomi</option></InputSelect></p>
-<p><label for="profile-phone">Phone number (optional)</label> <InputText id="profile-phone" name="@(Prefix + ".PhoneNumber")" @bind-Value="Input.PhoneNumber" maxlength="50" autocomplete="tel" /></p>
-<p><label for="profile-nickname">Nickname (optional)</label> <InputText id="profile-nickname" name="@(Prefix + ".Nickname")" @bind-Value="Input.Nickname" maxlength="100" /></p>
-<p><label for="profile-matrix">Matrix ID (optional)</label> <InputText id="profile-matrix" name="@(Prefix + ".MatrixId")" @bind-Value="Input.MatrixId" maxlength="200" /></p>
+<p><label for="profile-name">@T("Name")</label> <InputText id="profile-name" name="@(Prefix + ".Name")" @bind-Value="Input.Name" required maxlength="200" autocomplete="name" /></p>
+<p><label for="profile-municipality">@T("Municipality")</label> <InputText id="profile-municipality" name="@(Prefix + ".Municipality")" @bind-Value="Input.Municipality" required maxlength="200" /></p>
+<p><label for="profile-birth">@T("Date of birth")</label> <InputDate id="profile-birth" name="@(Prefix + ".DateOfBirth")" @bind-Value="Input.DateOfBirth" required /></p>
+<p><label for="profile-language">@T("Preferred language")</label> <InputSelect id="profile-language" name="@(Prefix + ".Language")" @bind-Value="Input.Language"><option value="en">@T("English")</option><option value="fi">@T("Suomi")</option></InputSelect></p>
+<p><label for="profile-phone">@T("Phone number (optional)")</label> <InputText id="profile-phone" name="@(Prefix + ".PhoneNumber")" @bind-Value="Input.PhoneNumber" maxlength="50" autocomplete="tel" /></p>
+<p><label for="profile-nickname">@T("Nickname (optional)")</label> <InputText id="profile-nickname" name="@(Prefix + ".Nickname")" @bind-Value="Input.Nickname" maxlength="100" /></p>
+<p><label for="profile-matrix">@T("Matrix ID (optional)")</label> <InputText id="profile-matrix" name="@(Prefix + ".MatrixId")" @bind-Value="Input.MatrixId" maxlength="200" /></p>
 
 @code {
     [Parameter, EditorRequired] public ProfileInput Input { get; set; } = null!;

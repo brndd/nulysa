@@ -34,13 +34,13 @@ public sealed class BillingDateWordingTests : MembershipTest
         await Run(commands, sp => sp.GetRequiredService<BillingCommands>().SetPrice(board, fee.Id, new(2026, 6, 1), 30));
         await Run(commands, sp => sp.GetRequiredService<BillingCommands>().Subscribe(Actor(id), initial.AccountId, service, 1, false, Guid.NewGuid()));
         await using var web = await StartProvider();
-        using var client = Client();
+        using var client = Client(language: null);
         await Login(client, Email);
 
-        Assert.Contains("Covered through 30 Jun 2026", Text(await client.GetStringAsync("/")));
+        Assert.Contains(language == "en" ? "Covered through 30 Jun 2026" : "Voimassa asti 30 kesä 2026", Text(await client.GetStringAsync("/")));
         var services = Text(await client.GetStringAsync("/services"));
-        Assert.Contains("Covered through 30 Jun 2026", services);
-        Assert.Contains("Covered through 14 Jun 2026", services);
+        Assert.Contains(language == "en" ? "Covered through 30 Jun 2026" : "Voimassa asti 30 kesä 2026", services);
+        Assert.Contains(language == "en" ? "Covered through 14 Jun 2026" : "Voimassa asti 14 kesä 2026", services);
 
         Clock.Now = new(2026, 6, 20, 10, 0, 0, TimeSpan.Zero);
         await Run(commands, sp => sp.GetRequiredService<BillingCommands>().Scan(initial.AccountId));
@@ -51,9 +51,9 @@ public sealed class BillingDateWordingTests : MembershipTest
         await Login(client, Email);
 
         Assert.Equal(new DateOnly(2026, 7, 9), renewed.Membership.ActiveUntilExclusive);
-        Assert.Contains("Benefits available through 8 Jul 2026", Text(await client.GetStringAsync("/services")));
-        Assert.Contains("Pay by 1 Jul 2026", Text(await client.GetStringAsync("/billing")));
-        Assert.Contains("Pay by 1 Jul 2026", Text(await client.GetStringAsync($"/billing/invoices/{invoice.Invoice.Id}")));
+        Assert.Contains(language == "en" ? "Benefits available through 8 Jul 2026" : "Edut käytettävissä asti 8 heinä 2026", Text(await client.GetStringAsync("/services")));
+        Assert.Contains(language == "en" ? "Pay by 1 Jul 2026" : "Maksa viimeistään 1 heinä 2026", Text(await client.GetStringAsync("/billing")));
+        Assert.Contains(language == "en" ? "Pay by 1 Jul 2026" : "Maksa viimeistään 1 heinä 2026", Text(await client.GetStringAsync($"/billing/invoices/{invoice.Invoice.Id}")));
 
         var delivery = await db.Deliveries.SingleAsync(delivery => delivery.UserId == id && delivery.Kind == MailKind.MembershipGrace);
         await Run(commands, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(delivery.Id));

@@ -1,0 +1,15 @@
+@implements IDisposable
+
+@if (EditContext.GetValidationMessages().Any())
+{
+    <div class="validation-summary-errors" role="alert" tabindex="-1" aria-label="@T("Check the form")">
+        <ul>@foreach (var message in EditContext.GetValidationMessages()) { <li>@ValidationText.Translate(message)</li> }</ul>
+    </div>
+}
+
+@code {
+    [CascadingParameter] public EditContext EditContext { get; set; } = null!;
+    protected override void OnInitialized() => EditContext.OnValidationStateChanged += OnChanged;
+    private void OnChanged(object? sender, ValidationStateChangedEventArgs args) => StateHasChanged();
+    public void Dispose() => EditContext.OnValidationStateChanged -= OnChanged;
+}

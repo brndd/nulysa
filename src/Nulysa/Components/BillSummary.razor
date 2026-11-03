@@ -2,15 +2,15 @@
 
 <article class="bill-summary">
     <div>
-        <h3>Invoice #@Invoice.Invoice.Id — @(Invoice.Invoice.ClosedAt is null ? "Open" : "Closed")</h3>
+        <h3>@T("Invoice #{0} — {1}", Invoice.Invoice.Id, (Invoice.Invoice.ClosedAt is null ? "Open" : "Closed"))</h3>
         <p>@string.Join(" · ", Invoice.Lines.Where(line => line.Line.State is LineState.Open or LineState.Fulfilled).Select(line => line.Line.Description).Distinct())</p>
-        @if (Invoice.Invoice.ClosedAt is null && Invoice.Invoice.DueOn is { } due) { <p>Pay by @due.ToString("d MMM yyyy")</p> }
-        @if (Invoice.Lines.Any(line => line.Line.State == LineState.Fulfilled && line.Line.Benefit == Benefit.Membership)) { <p>Membership on this bill is covered, even if other items remain unfinished.</p> }
+        @if (Invoice.Invoice.ClosedAt is null && Invoice.Invoice.DueOn is { } due) { <p>@T("Pay by {0}", due.ToString("d MMM yyyy"))</p> }
+        @if (Invoice.Lines.Any(line => line.Line.State == LineState.Fulfilled && line.Line.Benefit == Benefit.Membership)) { <p>@T("Membership on this bill is covered, even if other items remain unfinished.")</p> }
     </div>
     <div class="bill-summary-actions">
-        <p>Remaining: <strong>@Invoice.Remaining.ToString("0.00") EUR</strong></p>
-        <a href="@(DetailsUrl ?? $"/billing/invoices/{Invoice.Invoice.Id}")">View bill and payment instructions</a>
-        <a href="@($"/billing/invoices/{Invoice.Invoice.Id}/pdf")">Download current PDF</a>
+        <p>@T("Remaining:") <strong>@T("{0} EUR", Invoice.Remaining.ToString("0.00"))</strong></p>
+        <a href="@(DetailsUrl ?? $"/billing/invoices/{Invoice.Invoice.Id}")">@T("View bill and payment instructions")</a>
+        <a href="@($"/billing/invoices/{Invoice.Invoice.Id}/pdf")">@T("Download current PDF")</a>
     </div>
 </article>
 
