@@ -3,6 +3,8 @@
 **/TestResults/
 .local/
 .env
+/scripts/dev.env
+*.pem
 *.user
 playwright-report/
 

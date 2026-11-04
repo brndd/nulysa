@@ -48,6 +48,13 @@ same development settings. No manual exports or second terminal are needed.
 keeps PostgreSQL and its data. Restart the command after changing application code.
 Use `CONTAINER_ENGINE=podman bash scripts/dev.sh` for native Podman.
 
+The launcher also loads optional settings from the gitignored `scripts/dev.env`.
+Use local Bash assignments such as `NAME=value` or
+`NAME='value with spaces'`. They override inherited values for the same names.
+The launcher then sets its fixed local database and host settings. Restart it
+after editing the file. See the [Enable Banking sandbox setup](docs/billing.md#enable-banking-sandbox)
+for testing bank imports.
+
 To run a maintenance command with the same setup:
 
 ```sh

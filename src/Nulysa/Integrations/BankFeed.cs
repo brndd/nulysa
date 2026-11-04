@@ -18,11 +18,23 @@ namespace Nulysa.Integrations;
 public sealed class BankOptions
 {
     public bool Enabled { get; set; }
+    public BankProvider Provider { get; set; }
     public string SecretId { get; set; } = "";
     public string SecretKey { get; set; } = "";
     public string[] Accounts { get; set; } = [];
+    public EnableBankingOptions EnableBanking { get; set; } = new();
     public int StaleHours { get; set; } = 26;
+
+    internal bool IsValid() => StaleHours is >= 24 and <= 168 && (!Enabled || Provider switch
+    {
+        BankProvider.GoCardless => SecretId.Length > 0 && SecretKey.Length > 0 &&
+            Accounts.Length > 0 && Accounts.All(account => Guid.TryParse(account, out _)),
+        BankProvider.EnableBanking => EnableBanking.IsValid(),
+        _ => false
+    });
 }
+
+public enum BankProvider { GoCardless, EnableBanking }
 
 public sealed class BankSyncState
 {
@@ -83,19 +95,47 @@ public sealed class BankFeed(HttpClient http, IOptions<BankOptions> options, ISe
 
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(ct);
         deadline.CancelAfter(TimeSpan.FromMinutes(2));
-        var accounts = options.Value.Accounts;
-        var started = clock.GetUtcNow();
+        var settings = options.Value;
+        var enableBanking = settings.Provider == BankProvider.EnableBanking;
+        if (enableBanking)
+            await db.BankConsentAttempts.Where(x => x.ExpiresAt <= clock.GetUtcNow()).ExecuteDeleteAsync(deadline.Token);
+        var connections = enableBanking ? await db.BankConnections.AsNoTracking().ToDictionaryAsync(x => x.Id.ToString(), deadline.Token) : [];
+        var accounts = enableBanking ? connections.Keys.AsEnumerable() : settings.Accounts;
+        if (enableBanking && connections.Count == 0)
+            return;
+        string token;
         try
         {
-            using var tokenResponse = await http.PostAsJsonAsync("token/new/", new { secret_id = options.Value.SecretId, secret_key = options.Value.SecretKey }, deadline.Token);
-            tokenResponse.EnsureSuccessStatusCode();
-            using var tokenJson = await JsonDocument.ParseAsync(await tokenResponse.Content.ReadAsStreamAsync(deadline.Token), cancellationToken: deadline.Token);
-            var token = tokenJson.RootElement.GetProperty("access").GetString();
+            token = enableBanking
+                ? await EnableBankingTransactions.Sign(settings.EnableBanking, clock, deadline.Token)
+                : await GoCardlessToken(settings, deadline.Token);
+        }
+        catch (Exception) when (!ct.IsCancellationRequested)
+        {
             foreach (var account in accounts)
             {
-                try
+                await Update(account, false, "Authentication or feed failed", ct);
+                await Alert(account, ct);
+            }
+            throw SyncFailed();
+        }
+
+        var failed = false;
+        foreach (var account in accounts)
+        {
+            try
+            {
+                await Update(account, false, "Synchronizing", ct);
+                if (enableBanking)
                 {
-                    await Update(account, false, "Synchronizing", ct);
+                    var connection = connections[account];
+                    if (connection.ValidUntil <= clock.GetUtcNow() || connection.ApplicationId != settings.EnableBanking.ApplicationId)
+                        throw new BankAuthorizationException();
+                    await foreach (var page in EnableBankingTransactions.Fetch(http, connection, token, deadline.Token))
+                        await Import(page, deadline.Token);
+                }
+                else
+                {
                     using var request = new HttpRequestMessage(HttpMethod.Get, $"accounts/{Uri.EscapeDataString(account)}/transactions/");
                     request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
                     using var response = await http.SendAsync(request, deadline.Token);
@@ -103,32 +143,38 @@ public sealed class BankFeed(HttpClient http, IOptions<BankOptions> options, ISe
                         throw new BankAuthorizationException();
                     response.EnsureSuccessStatusCode();
                     using var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(deadline.Token), cancellationToken: deadline.Token);
-                    foreach (var input in GoCardlessTransactions.Parse(account, json.RootElement))
-                    {
-                        await using var scope = scopes.CreateAsyncScope();
-                        await scope.ServiceProvider.GetRequiredService<BillingCommands>().Import(input, deadline.Token);
-                    }
-
-                    await Update(account, true, "Current", ct);
+                    await Import(GoCardlessTransactions.Parse(account, json.RootElement), deadline.Token);
                 }
-                catch (Exception error) when (!ct.IsCancellationRequested)
-                {
-                    await Update(account, false, error is BankAuthorizationException ? "Authorization renewal required" : "Import failed", ct);
-                    await Alert(account, ct);
-                    throw;
-                }
+                await Update(account, true, "Current", ct);
             }
-        }
-        catch (Exception) when (!ct.IsCancellationRequested)
-        {
-            foreach (var account in accounts)
+            catch (Exception error) when (!ct.IsCancellationRequested)
             {
-                var state = await db.BankSyncStates.AsNoTracking().SingleOrDefaultAsync(x => x.Account == account, ct);
-                if (state is null || state.LastAttempt < started || state.Status == "Synchronizing")
-                    await Update(account, false, "Authentication or feed failed", ct);
+                failed = true;
+                await Update(account, false, error is BankAuthorizationException ? "Authorization renewal required" : "Import failed", ct);
                 await Alert(account, ct);
             }
-            throw new InvalidOperationException("Bank synchronization failed; inspect bank status and renew provider authorization if required.");
+        }
+        if (failed)
+            throw SyncFailed();
+    }
+
+    private static InvalidOperationException SyncFailed() =>
+        new("Bank synchronization failed; inspect bank status and renew provider authorization if required.");
+
+    private async Task<string> GoCardlessToken(BankOptions settings, CancellationToken ct)
+    {
+        using var response = await http.PostAsJsonAsync("token/new/", new { secret_id = settings.SecretId, secret_key = settings.SecretKey }, ct);
+        response.EnsureSuccessStatusCode();
+        using var json = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
+        return json.RootElement.GetProperty("access").GetString() ?? throw new InvalidOperationException("Bank token is missing.");
+    }
+
+    private async Task Import(IEnumerable<ReceiptInput> inputs, CancellationToken ct)
+    {
+        foreach (var input in inputs)
+        {
+            await using var scope = scopes.CreateAsyncScope();
+            await scope.ServiceProvider.GetRequiredService<BillingCommands>().Import(input, ct);
         }
     }
 
@@ -146,19 +192,26 @@ public sealed class BankFeed(HttpClient http, IOptions<BankOptions> options, ISe
     {
         if (!options.Value.Enabled)
             return;
-        foreach (var account in options.Value.Accounts)
+        var settings = options.Value;
+        var connections = settings.Provider == BankProvider.EnableBanking
+            ? await db.BankConnections.AsNoTracking().ToDictionaryAsync(x => x.Id.ToString(), ct) : [];
+        var accounts = settings.Provider == BankProvider.EnableBanking ? connections.Keys.AsEnumerable() : settings.Accounts;
+        foreach (var account in accounts)
         {
             var state = await db.BankSyncStates.AsNoTracking().SingleOrDefaultAsync(x => x.Account == account, ct);
-            if (state?.LastSuccess is null || state.LastSuccess < clock.GetUtcNow().AddHours(-options.Value.StaleHours))
+            var now = clock.GetUtcNow();
+            var reminder = connections.TryGetValue(account, out var connection) && !connection.ExpiryReminderSent &&
+                connection.ValidUntil <= now.AddDays(14) ? connection : null;
+            if (state?.LastSuccess is null || state.LastSuccess < now.AddHours(-settings.StaleHours) || reminder is not null)
             {
                 if (state is null)
                     await Update(account, false, "Never synchronized", ct);
-                await Alert(account, ct);
+                await Alert(account, ct, reminder);
             }
         }
     }
 
-    private async Task Alert(string account, CancellationToken ct)
+    private async Task Alert(string account, CancellationToken ct, BankConnection? reminder = null)
     {
         var scheduler = await schedulers.GetScheduler(ct);
         await using var tx = await db.Database.BeginTransactionAsync(ct);
@@ -173,6 +226,10 @@ public sealed class BankFeed(HttpClient http, IOptions<BankOptions> options, ISe
                                     join user in db.Users on assignment.UserId equals user.Id
                                     where role.NormalizedName == "ADMINISTRATOR" && user.Admitted && user.EmailConfirmed && user.PendingDeletionAt == null
                                     select user.Id).ToListAsync(ct);
+        if (administrators.Count > 0 && reminder is not null &&
+            await db.BankConnections.Where(x => x.Id == reminder.Id && x.SessionId == reminder.SessionId && !x.ExpiryReminderSent)
+                .ExecuteUpdateAsync(x => x.SetProperty(a => a.ExpiryReminderSent, true), ct) != 1)
+            return;
         foreach (var id in administrators)
             await mail.Add(scheduler, Guid.NewGuid(), MailKind.BankAlert, id, ct: ct);
         if (administrators.Count > 0)
@@ -181,9 +238,9 @@ public sealed class BankFeed(HttpClient http, IOptions<BankOptions> options, ISe
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
     }
-
-    private sealed class BankAuthorizationException : Exception;
 }
+
+internal sealed class BankAuthorizationException : Exception;
 
 [DisallowConcurrentExecution]
 public sealed class BankSyncJob(BankFeed feed, AppDbContext db, TimeProvider clock) : IJob

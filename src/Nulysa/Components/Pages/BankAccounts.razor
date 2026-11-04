@@ -1,0 +1,122 @@
+@page "/admin/payments/bank"
+@attribute [Authorize(Policy = "Administrator")]
+@using System.Globalization
+@using Nulysa.Billing
+@using Nulysa.Integrations
+@inject BankConnections Connections
+@inject BillingQueries Queries
+@inject UiFeedback Feedback
+@inject Nulysa.Membership.AssociationClock Clock
+
+<AdminPageHeader Title="@T("Bank connections")" />
+<AdminSectionTabs Destination="bank-connections" />
+@if (notice is not null) { <p role="status" class="success-notice">@notice</p> }
+@if (error is not null) { <p role="alert">@error</p> }
+@if (!Connections.Enabled)
+{
+    <p>@T("Enable Banking is disabled.")</p>
+}
+else
+{
+    <form method="post" action="/admin/payments/bank/sync">
+        <AntiforgeryToken />
+        <button disabled="@(connections.Count == 0)">@T("Import now")</button>
+    </form>
+    @if (connections.Count == 0)
+    {
+        <p>@T("Save a bank connection to enable imports.")</p>
+    }
+    @if (choices.Count > 0)
+    {
+        <h2>@T("Choose an account to import")</h2>
+        <form method="post" action="/admin/payments/bank/connect">
+            <AntiforgeryToken />
+            <input type="hidden" name="selection" value="@Selection" />
+            <label for="bank-account">@T("Bank account")</label>
+            <select id="bank-account" name="account" required>
+                <option value="">@T("Choose an account")</option>
+                @foreach (var choice in choices) { <option value="@choice.Uid">@choice.Label</option> }
+            </select>
+            <button>@T("Save bank connection")</button>
+        </form>
+    }
+    else if (banks.Count > 0)
+    {
+        <h2>@T("Connect bank account")</h2>
+        <form method="post" action="/admin/payments/bank/start">
+            <AntiforgeryToken />
+            <label for="bank">@T("Bank")</label>
+            <select id="bank" name="bank" required>
+                <option value="">@T("Choose a bank")</option>
+                @foreach (var bank in banks) { <option value="@bank.Name">@bank.Name</option> }
+            </select>
+            <label for="bank-import-from">@T("First import date")</label>
+            <input id="bank-import-from" name="importFrom" type="date" value="@DateValue(Connections.DefaultImportFrom)" max="@DateValue(Clock.Today)" required />
+            <button>@T("Connect bank account")</button>
+        </form>
+    }
+    @if (connections.Count > 0)
+    {
+        <h2>@T("Connected accounts")</h2>
+        @foreach (var connection in connections)
+        {
+            var status = statuses.GetValueOrDefault(connection.Id.ToString());
+            <section>
+                <h3>@connection.Bank · @connection.Label</h3>
+                <p>@T("Consent expires {0}", TimeZoneInfo.ConvertTime(connection.ValidUntil, Clock.Zone).ToString("g"))
+                    @if (connection.ValidUntil <= Clock.Now) { <strong>@T("Authorization renewal required")</strong> }
+                    else if (connection.ValidUntil <= Clock.Now.AddDays(14)) { <strong>@T("Bank consent expires soon")</strong> }
+                </p>
+                <p>@T("First import date") · @connection.ImportFrom</p>
+                <p>@T(status?.Status ?? "Never synchronized") · @T("Last successful import") @(status?.LastSuccess is { } last ? TimeZoneInfo.ConvertTime(last, Clock.Zone).ToString("g") : T("Never"))</p>
+                <form method="post" action="/admin/payments/bank/start">
+                    <AntiforgeryToken />
+                    <input type="hidden" name="renewalId" value="@connection.Id" />
+                    <button>@T("Renew consent")</button>
+                </form>
+            </section>
+        }
+    }
+}
+
+@code {
+    [CascadingParameter] private HttpContext HttpContext { get; set; } = null!;
+    [SupplyParameterFromQuery] public Guid? Selection { get; set; }
+
+    private List<BankChoice> banks = [];
+    private List<BankAccountChoice> choices = [];
+    private List<BankConnection> connections = [];
+    private Dictionary<string, BankSyncState> statuses = [];
+    private string? notice;
+    private string? error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        notice = Feedback.Read(HttpContext);
+        error = Feedback.ReadError(HttpContext);
+        if (!Connections.Enabled)
+            return;
+
+        var ct = HttpContext.RequestAborted;
+        connections = await Connections.List(ct);
+        statuses = (await Queries.BankStatus(HttpContext.User, ct)).ToDictionary(x => x.Account);
+        if (Selection is { } selection)
+        {
+            choices = await Connections.Choices(HttpContext.User, selection, ct);
+            if (choices.Count == 0)
+                error ??= T("Bank authorization expired or was already used. Start again.");
+        }
+        if (choices.Count > 0)
+            return;
+        try
+        {
+            banks = await Connections.Banks(ct);
+        }
+        catch (Exception ex) when (BankConnectionEndpoints.IsProviderError(ex, ct))
+        {
+            error ??= T("Enable Banking could not complete the request. Try again.");
+        }
+    }
+
+    private static string DateValue(DateOnly date) => date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+}

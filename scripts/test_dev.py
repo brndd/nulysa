@@ -3,6 +3,7 @@
 import json
 import os
 from pathlib import Path
+import shutil
 import signal
 import subprocess
 import tempfile
@@ -26,6 +27,10 @@ def record(event):
             mail_url=os.environ.get('Mail__PublicUrl'),
             mail_spool=os.environ.get('Mail__SpoolPath'),
             purchase_balance=os.environ.get('Billing__PurchaseBalanceEnabled'),
+            bank_enabled=os.environ.get('Bank__Enabled'),
+            bank_provider=os.environ.get('Bank__Provider'),
+            bank_key_path=os.environ.get('Bank__EnableBanking__PrivateKeyPath'),
+            bank_callback=os.environ.get('Bank__EnableBanking__CallbackUrl'),
             keys=os.environ.get('DataProtection__Path'))) + '\\n')
 record(mode or name)
 if name == 'docker' and 'exec' in args and os.environ.get('DEV_TEST_DB_DOWN'):
@@ -48,6 +53,11 @@ class DevelopmentLauncherTests(unittest.TestCase):
         self.directory = tempfile.TemporaryDirectory(prefix="nulysa-dev-", dir="/tmp/opencode")
         self.addCleanup(self.directory.cleanup)
         self.path = Path(self.directory.name)
+        self.repo = self.path / "repo"
+        (self.repo / "scripts").mkdir(parents=True)
+        self.launcher = self.repo / "scripts/dev.sh"
+        shutil.copyfile(ROOT / "scripts/dev.sh", self.launcher)
+        (self.repo / "src/Nulysa").mkdir(parents=True)
         for name in ("dotnet", "docker", "sleep"):
             command = self.path / name
             command.write_text("#!/bin/sh\nexit 0\n" if name == "sleep" else STUB)
@@ -64,7 +74,14 @@ class DevelopmentLauncherTests(unittest.TestCase):
         return [json.loads(line) for line in self.log.read_text().splitlines()] if self.log.exists() else []
 
     def test_shared_local_environment_setup_forwarding_and_shutdown(self):
-        command = ["bash", str(ROOT / "scripts/dev.sh")]
+        (self.repo / "scripts/dev.env").write_text(
+            "Bank__Enabled=true\n"
+            "Bank__Provider=EnableBanking\n"
+            "Bank__EnableBanking__PrivateKeyPath='/synthetic keys/sandbox.pem'\n"
+            "Bank__EnableBanking__CallbackUrl=http://localhost:5000/admin/payments/bank/callback\n"
+            "ConnectionStrings__Database=dotenv-production-sentinel\n"
+        )
+        command = ["bash", str(self.launcher)]
         with subprocess.Popen(command, cwd=self.path, env=self.env, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE) as process:
             try:
                 deadline = time.monotonic() + 10
@@ -86,14 +103,19 @@ class DevelopmentLauncherTests(unittest.TestCase):
         for row in self.rows():
             self.assertEqual("Development", row["environment"])
             self.assertIn("Host=127.0.0.1;Port=55432;Database=nulysa;", row["connection"])
-            self.assertEqual(str(ROOT / ".local/data-protection"), row["keys"])
+            self.assertEqual(str(self.repo / ".local/data-protection"), row["keys"])
             self.assertEqual("Smtp", row["mail_transport"])
             self.assertEqual("http://127.0.0.1:5000/", row["mail_url"])
-            self.assertEqual(str(ROOT / ".local/data-protection/mail"), row["mail_spool"])
+            self.assertEqual(str(self.repo / ".local/data-protection/mail"), row["mail_spool"])
             self.assertEqual("true", row["purchase_balance"])
+            self.assertEqual("true", row["bank_enabled"])
+            self.assertEqual("EnableBanking", row["bank_provider"])
+            self.assertEqual("/synthetic keys/sandbox.pem", row["bank_key_path"])
+            self.assertEqual("http://localhost:5000/admin/payments/bank/callback", row["bank_callback"])
         result = subprocess.run(command + ["status"], cwd=self.path, env=self.env, capture_output=True, timeout=10)
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual("status", self.rows()[-1]["event"])
+        self.assertEqual("EnableBanking", self.rows()[-1]["bank_provider"])
 
         previous = len(self.rows())
         with subprocess.Popen(command, cwd=self.path, env=self.env, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE) as process:
@@ -113,7 +135,7 @@ class DevelopmentLauncherTests(unittest.TestCase):
                     process.communicate(timeout=10)
 
     def test_purchase_balance_can_be_explicitly_disabled(self):
-        result = subprocess.run(["bash", str(ROOT / "scripts/dev.sh"), "status"], cwd=self.path,
+        result = subprocess.run(["bash", str(self.launcher), "status"], cwd=self.path,
                                 env={**self.env, "Billing__PurchaseBalanceEnabled": "false"}, capture_output=True, timeout=10)
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertEqual("false", self.rows()[-1]["purchase_balance"])
@@ -122,7 +144,7 @@ class DevelopmentLauncherTests(unittest.TestCase):
         for setting, expected in (("DEV_TEST_CRASH", 17), ("DEV_TEST_DB_DOWN", 1)):
             with self.subTest(setting=setting):
                 self.log.unlink(missing_ok=True)
-                result = subprocess.run(["bash", str(ROOT / "scripts/dev.sh")], cwd=self.path,
+                result = subprocess.run(["bash", str(self.launcher)], cwd=self.path,
                                         env={**self.env, setting: "1"}, capture_output=True, timeout=10)
                 self.assertEqual(expected, result.returncode, result.stderr)
                 if setting == "DEV_TEST_DB_DOWN":

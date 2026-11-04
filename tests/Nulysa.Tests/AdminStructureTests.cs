@@ -37,6 +37,7 @@ public sealed class AdminStructureTests : BoardTest
             ($"/admin/members/{id}/actions/discount", "Add discount", "/admin/members", 1),
             ($"/admin/members/{id}/actions/credit", "Apply discount to already paid time", "/admin/members", 1),
             ("/admin/payments", "Payment review", "/admin/payments", 1),
+            ("/admin/payments/bank", "Bank connections", "/admin/payments/bank", 1),
             ("/admin/payments/import", "Manual import", "/admin/payments/import", 1),
             ("/ADMIN/PAYMENTS/IMPORT", "Manual import", "/admin/payments/import", 1),
             ("/admin/payments/accounting", "Accounting and exports", "/admin/payments/accounting", 1),

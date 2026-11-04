@@ -87,7 +87,7 @@ public sealed class MailRenderer(AppDbContext db, UserManager<User> users, Membe
                     return null;
 
                 subject = fi ? "Pankkisynkronointi vaatii huomiota" : "Bank import requires attention";
-                text = (fi ? "Pankkisyöte on epäonnistunut, vanhentunut tai vaatii uuden valtuutuksen. Tarkista maksujen hallinta: " : "The bank feed failed, is stale or needs renewed authorization. Check payment administration: ") + Link("admin/payments", new());
+                text = (fi ? "Pankkisyöte on epäonnistunut, vanhentunut tai sen valtuutus on uusittava pian. Tarkista maksujen hallinta: " : "The bank feed failed, is stale or its consent needs renewal soon. Check payment administration: ") + Link("admin/payments", new());
             }
             else if (delivery.Kind == MailKind.Restoration)
             {

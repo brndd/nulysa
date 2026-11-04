@@ -23,6 +23,7 @@ public static class AdminNavigation
         new("finances", "Finances",
         [
             new("payments", "Payment review", "/admin/payments"),
+            new("bank-connections", "Bank connections", "/admin/payments/bank"),
             new("import", "Manual import", "/admin/payments/import"),
             new("accounting", "Accounting and exports", "/admin/payments/accounting"),
             new("retained", "Retained balances", "/admin/payments/retained-balances")

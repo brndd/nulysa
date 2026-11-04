@@ -41,7 +41,7 @@ required values privately; `.env` and `.local/` are ignored by Git.
 - OIDC settings and separate persistent RSA keys: see [OIDC](oidc-reference.md).
 - Essential mail, membership retention/erasure and terms settings:
   see [S1 operations](membership.md#mail-configuration-and-failure-handling).
-- Invoice payee/Typst and GoCardless settings: see [S2 operations](billing.md).
+- Invoice payee, Typst and Enable Banking settings are documented in [billing operations](billing.md).
   Supply the real checksum-valid `Billing__Iban` in Production. Configure the
   membership price before approving members; a missing price rolls back approval.
 - Optional `Association__Name`, `Association__TimeZone` (default Europe/Helsinki),
@@ -76,7 +76,7 @@ atomic with domain writes and can fail or be trimmed. Logs are not a profile arc
 - `maintenance.billing-due-work`: every minute, per-account locked generation,
   expiry, service removal and bank-staleness alerts; dated standing does not wait
   for the scan. Zero-price catch-up is bounded to 24 periods per account/run.
-- `maintenance.bank-sync`: association-local midnight, booked GoCardless imports.
+- `maintenance.bank-sync` imports booked transactions at association-local midnight.
   Disabled feeds return without external calls. Inspect provider status separately
   from scheduler success. There is no storage job yet.
   Day-of-month `*/14` is not an anchored fortnightly schedule.

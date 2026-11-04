@@ -22,7 +22,7 @@
 {
 <h2>@T("Bank synchronization")</h2>
 <ul>@foreach (var status in statuses) { <li>@T("{0} · {1} · last success: {2} · last attempt: {3}", status.Account, status.Status, (status.LastSuccess?.ToString("u") ?? T("Never")), status.LastAttempt?.ToString("u"))</li> }</ul>
-@if (statuses.Count == 0) { <p>@T("No bank synchronization recorded. Configure the GoCardless feed before relying on automatic payment status.")</p> }
+@if (statuses.Count == 0) { <p>@T("No bank payments have been imported yet.")</p> }
 <h2 id="payment-review">@T("Failed-match review")</h2><p>@T("Oldest 100 unresolved transactions. Processing these reveals the next items in the queue.")</p><p>@T("Assign a known member and purpose explicitly. Ignoring preserves source facts and keeps donations/outgoing transactions out of member funds. Pending-deletion receipts require manual repair after restoration.")</p>
 <table tabindex="0"><caption>@T("Unresolved bank transactions")</caption><thead><tr><th scope="col">@T("ID / received")</th><th scope="col">@T("Amount")</th><th scope="col">@T("Reference / source")</th><th scope="col">@T("Message / counterparty")</th><th scope="col">@T("Review reason")</th></tr></thead><tbody>
 @foreach (var receipt in receipts) { <tr><td><a href="@($"/admin/payments/{receipt.Id}")">@T("Review transaction · {0}", receipt.ReceivedOn)</a><small> #@receipt.Id</small></td><td>@receipt.Amount @receipt.Currency</td><td>@receipt.Reference · @receipt.Source / @receipt.SourceAccount / @receipt.ExternalId</td><td>@receipt.Message · @receipt.Counterparty</td><td>@receipt.ReviewReason</td></tr> }

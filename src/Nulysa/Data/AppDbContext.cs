@@ -40,6 +40,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<ServiceDefinition> ServiceDefinitions => Set<ServiceDefinition>();
     public DbSet<ServiceEnrollment> ServiceEnrollments => Set<ServiceEnrollment>();
     public DbSet<ServiceChange> ServiceChanges => Set<ServiceChange>();
+    public DbSet<BankConnection> BankConnections => Set<BankConnection>();
+    public DbSet<BankConsentAttempt> BankConsentAttempts => Set<BankConsentAttempt>();
     public DbSet<BankSyncState> BankSyncStates => Set<BankSyncState>();
 
     protected override void OnModelCreating(ModelBuilder builder)
@@ -47,6 +49,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         base.OnModelCreating(builder);
         builder.UseOpenIddict();
         BillingMapping.Configure(builder);
+        builder.Entity<BankConnection>().HasIndex(x => new { x.Bank, x.IdentificationHash }).IsUnique();
+        builder.Entity<BankConsentAttempt>().HasIndex(x => x.ExpiresAt);
         builder.Entity<BankSyncState>(e =>
         {
             e.HasKey(x => x.Account);

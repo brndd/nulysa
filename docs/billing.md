@@ -130,17 +130,16 @@ never interpolated/evaluated Typst source. Read them with
 templates. Queued mail targets a revision and cancels stale work; PDF generation
 never prices purchases or spends funds. No PDF-version archive is maintained.
 
-### GoCardless bank feed
+### Bank feeds
 
-Set `Bank:Enabled=true`, private `Bank:SecretId`, `Bank:SecretKey` and
-`Bank:Accounts:0`… to the provider's account UUIDs. Obtain/renew bank consent outside
-this portal; there is no bank-onboarding UI. Account IDs are not IBANs.
+Enable Banking is the target provider. Board administrators manage its account
+connections under **Finances → Bank connections**.
 
-`bank-sync` runs at association-local midnight. Only booked entries are ingested;
-`bookingDate` supplies the receipt date. Stable transaction IDs, messages and
-counterparty details (including outgoing recipients) are retained. Pending entries
-are not spendable. A conflict/malformed booked entry fails visibly, rather than
-silently altering the old transaction. HTTP calls are bounded and outside member locks.
+`bank-sync` runs at association-local midnight. It imports booked entries using
+the bank booking date. It retains stable transaction IDs, messages and counterparty
+details, including outgoing recipients. Conflicting or malformed booked entries
+fail the sync and leave existing receipts intact. HTTP calls are bounded and run
+outside member locks.
 
 `/admin/payments` shows attempts, last success and authorization/failure status.
 `Bank:StaleHours` defaults to 26 (allowed 24–168). Minute-level due work detects
@@ -148,10 +147,82 @@ staleness and queues administrator alerts, throttled to one alert per account/da
 An independent worker/status monitor is still essential: a stopped worker cannot
 email about its own outage. Do not put provider secrets/payloads in logs.
 
-**Agreed provider milestone:** bank transfers and GoCardless ingestion are the S2
-provider implementation. MobilePay's authenticated adapter, duplicate-callback and
+MobilePay's authenticated adapter, duplicate-callback and
 payout reconciliation tests, and sandbox acceptance remain mandatory **before S6**.
 MobilePay is not supported by this release; browser returns are never payment proof.
+
+### Enable Banking sandbox
+
+Use the **Mock ASPSP** tab to create a synthetic account for reproducible tests.
+Enter `Nulysa sandbox EUR` in **Name** and paste the following into the account
+details field, then click **Add**.
+
+```json
+{
+  "name": "Nulysa Test Association",
+  "cash_account_type": "CACC",
+  "currency": "EUR",
+  "usage": "ORGA"
+}
+```
+
+Add a few synthetic transactions to the account. Use distinct entry references
+and recent booking dates. Start with a booked credit with a test invoice's
+structured reference, a booked credit with no reference, and a booked debit.
+Add more than ten entries to exercise the mock's pagination. For a test with
+bank-provided fixtures, use the Nordea sandbox listed in the provider guide.
+[Enable Banking sandbox guide](https://enablebanking.com/docs/api/sandbox/)
+
+In Enable Banking's **API applications** settings, add
+`http://localhost:5000/admin/payments/bank/callback` as a redirect URL for the
+sandbox application. Configure the application ID and PEM path in the gitignored
+`scripts/dev.env`. The optional `ImportFrom` value supplies the default first
+import date shown in the connection form.
+
+```sh
+Bank__Enabled=true
+Bank__Provider=EnableBanking
+Bank__EnableBanking__ApplicationId='<sandbox application UUID>'
+Bank__EnableBanking__PrivateKeyPath='/absolute/path/to/sandbox.pem'
+Bank__EnableBanking__CallbackUrl='http://localhost:5000/admin/payments/bank/callback'
+Bank__EnableBanking__ImportFrom='<YYYY-MM-DD>'
+```
+
+Start `bash scripts/dev.sh` and open `http://localhost:5000/admin/payments` to
+sign in as a board administrator. The launcher also prints a `127.0.0.1` URL.
+If you sign in there and start authorization, the callback to `localhost`
+will ask you to sign in again because the browser keeps separate sign-in
+cookies for those hosts. Sign in at `localhost` and start the connection there.
+
+Open **Bank connections**, select **Mock ASPSP**, choose a first import date that
+includes the test transactions and click **Connect bank account**. Approve
+access, select the mock account in Nulysa, and click **Save bank connection**.
+A fresh database starts with no connections.
+
+**Import now** queues a background job and shows **Bank import queued successfully**. The
+status on the page is a snapshot. Refresh after the worker has had a moment
+to run, then check **Last successful import** and the payment review queue.
+
+Production uses the same flow with an HTTPS callback URL and production
+application credentials. Supply the environment variables to the web and
+worker processes and mount the private key read-only for both. Register the
+full callback URL with Enable Banking. With `compose.production.yaml`, set
+`NULYSA_ENABLE_BANKING=true`, `NULYSA_ENABLE_BANKING_APPLICATION_ID` and
+`NULYSA_ENABLE_BANKING_CALLBACK_URL`, and place `enable-banking.pem` in the
+configured secrets directory. The worker reads the connections from
+PostgreSQL on every run. Use **Renew consent** before the expiry shown in the
+admin panel. Nulysa verifies the bank's stable account identifier, updates the
+session, and keeps the connection ID and first import date for deduplication.
+The board receives a reminder when consent is within 14 days of expiry.
+
+Enable Banking's published terms reserve ongoing restricted use for private
+individuals and allow business users to link accounts for evaluation. Confirm
+the terms for ongoing association use with Enable Banking before switching a
+live feed. Verify the booking dates, stable entry references and history
+available for the association's actual accounts, then choose a reconciled
+cutover date. Receipt identities are scoped to the provider, so importing the
+same bank history through both providers can create duplicate receipts.
+[Enable Banking terms](https://enablebanking.com/terms/)
 
 ## Corrections, reconciliation and erasure
 

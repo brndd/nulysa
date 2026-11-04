@@ -20,6 +20,11 @@ x-application: &application
     Billing__Bank: ${NULYSA_BANK_NAME:-}
     Billing__BusinessId: ${NULYSA_BUSINESS_ID:-}
     Billing__ContactEmail: ${NULYSA_BILLING_EMAIL:-}
+    Bank__Enabled: ${NULYSA_ENABLE_BANKING:-false}
+    Bank__Provider: EnableBanking
+    Bank__EnableBanking__ApplicationId: ${NULYSA_ENABLE_BANKING_APPLICATION_ID:-00000000-0000-0000-0000-000000000000}
+    Bank__EnableBanking__PrivateKeyPath: /run/nulysa/enable-banking.pem
+    Bank__EnableBanking__CallbackUrl: ${NULYSA_ENABLE_BANKING_CALLBACK_URL:-}
     ReverseProxy__KnownProxy: ${NULYSA_PROXY:?Supply the single trusted proxy IP}
     Oidc__Enabled: ${NULYSA_OIDC_ENABLED:-false}
     Oidc__Issuer: ${NULYSA_ISSUER:-}

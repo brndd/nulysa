@@ -1314,7 +1314,7 @@
   <data name="No automatic refund of purchased time." xml:space="preserve">
     <value>Ostettua aikaa ei palauteta automaattisesti.</value>
   </data>
-  <data name="No bank synchronization recorded. Configure the GoCardless feed before relying on automatic payment status." xml:space="preserve">
+  <data name="No bank payments imported yet. Ask the system operator to set up the bank connection." xml:space="preserve">
     <value>Pankkimaksuja ei ole vielä tuotu. Pyydä järjestelmän ylläpitäjää määrittämään pankkiyhteys.</value>
   </data>
   <data name="No billing account is available." xml:space="preserve">
@@ -2513,5 +2513,122 @@
   </data>
   <data name="Age: {0}" xml:space="preserve">
     <value>Ikä: {0}</value>
+  </data>
+  <data name="Authentication or feed failed" xml:space="preserve">
+    <value>Tunnistautuminen tai pankkisyöte epäonnistui</value>
+  </data>
+  <data name="Authorization renewal required" xml:space="preserve">
+    <value>Valtuutus on uusittava</value>
+  </data>
+  <data name="Bank" xml:space="preserve">
+    <value>Pankki</value>
+  </data>
+  <data name="Bank account connected." xml:space="preserve">
+    <value>Pankkitili yhdistetty.</value>
+  </data>
+  <data name="Bank authorization expired or was already used. Start again." xml:space="preserve">
+    <value>Pankkivaltuutus on vanhentunut tai jo käytetty. Aloita uudelleen.</value>
+  </data>
+  <data name="Bank authorization was cancelled." xml:space="preserve">
+    <value>Pankkivaltuutus peruutettiin.</value>
+  </data>
+  <data name="Bank connection was not found." xml:space="preserve">
+    <value>Pankkiyhteyttä ei löytynyt.</value>
+  </data>
+  <data name="Bank connections" xml:space="preserve">
+    <value>Pankkiyhteydet</value>
+  </data>
+  <data name="Bank consent expires soon" xml:space="preserve">
+    <value>Pankkivaltuutus vanhenee pian</value>
+  </data>
+  <data name="Bank consent renewed." xml:space="preserve">
+    <value>Pankkivaltuutus uusittu.</value>
+  </data>
+  <data name="Bank import queued successfully. Refresh this page in a moment to check the result." xml:space="preserve">
+    <value>Pankkitapahtumien tuonti lisättiin jonoon. Tarkista tulos päivittämällä sivu hetken kuluttua.</value>
+  </data>
+  <data name="Choose a bank" xml:space="preserve">
+    <value>Valitse pankki</value>
+  </data>
+  <data name="Choose a first import date on or before today." xml:space="preserve">
+    <value>Valitse tuonnin aloituspäiväksi tämä päivä tai aikaisempi päivä.</value>
+  </data>
+  <data name="Choose an account" xml:space="preserve">
+    <value>Valitse tili</value>
+  </data>
+  <data name="Choose an account to import" xml:space="preserve">
+    <value>Valitse tuotava tili</value>
+  </data>
+  <data name="Choose an available bank." xml:space="preserve">
+    <value>Valitse käytettävissä oleva pankki.</value>
+  </data>
+  <data name="Choose one of the authorized accounts." xml:space="preserve">
+    <value>Valitse jokin valtuutetuista tileistä.</value>
+  </data>
+  <data name="Connect bank account" xml:space="preserve">
+    <value>Yhdistä pankkitili</value>
+  </data>
+  <data name="Connected accounts" xml:space="preserve">
+    <value>Yhdistetyt tilit</value>
+  </data>
+  <data name="Consent expires {0}" xml:space="preserve">
+    <value>Valtuutus vanhenee {0}</value>
+  </data>
+  <data name="Current" xml:space="preserve">
+    <value>Ajan tasalla</value>
+  </data>
+  <data name="Enable Banking could not complete the request. Try again." xml:space="preserve">
+    <value>Enable Banking ei voinut suorittaa pyyntöä. Yritä uudelleen.</value>
+  </data>
+  <data name="Enable Banking is disabled." xml:space="preserve">
+    <value>Enable Banking on pois käytöstä.</value>
+  </data>
+  <data name="Enable Banking returned an unexpected authorization URL." xml:space="preserve">
+    <value>Enable Banking palautti odottamattoman valtuutusosoitteen.</value>
+  </data>
+  <data name="Enable Banking returned an unexpected session." xml:space="preserve">
+    <value>Enable Banking palautti odottamattoman istunnon.</value>
+  </data>
+  <data name="First import date" xml:space="preserve">
+    <value>Tuonnin aloituspäivä</value>
+  </data>
+  <data name="Import failed" xml:space="preserve">
+    <value>Tuonti epäonnistui</value>
+  </data>
+  <data name="Import now" xml:space="preserve">
+    <value>Tuo nyt</value>
+  </data>
+  <data name="Last successful import" xml:space="preserve">
+    <value>Viimeisin onnistunut tuonti</value>
+  </data>
+  <data name="Never synchronized" xml:space="preserve">
+    <value>Ei vielä synkronoitu</value>
+  </data>
+  <data name="No accounts were shared. Start again and choose an account at the bank." xml:space="preserve">
+    <value>Tilejä ei jaettu. Aloita uudelleen ja valitse tili pankin palvelussa.</value>
+  </data>
+  <data name="No bank payments have been imported yet." xml:space="preserve">
+    <value>Pankkimaksuja ei ole vielä tuotu.</value>
+  </data>
+  <data name="Renew consent" xml:space="preserve">
+    <value>Uusi valtuutus</value>
+  </data>
+  <data name="Synchronizing" xml:space="preserve">
+    <value>Synkronoidaan</value>
+  </data>
+  <data name="The renewed consent did not include the original bank account." xml:space="preserve">
+    <value>Uusittu valtuutus ei kata alkuperäistä pankkitiliä.</value>
+  </data>
+  <data name="This bank account is already connected. Use Renew consent." xml:space="preserve">
+    <value>Pankkitili on jo yhdistetty. Valitse Uusi valtuutus.</value>
+  </data>
+  <data name="This bank connection has already changed. Start renewal again." xml:space="preserve">
+    <value>Pankkiyhteys on jo muuttunut. Aloita uusiminen uudelleen.</value>
+  </data>
+  <data name="Save bank connection" xml:space="preserve">
+    <value>Tallenna pankkiyhteys</value>
+  </data>
+  <data name="Save a bank connection to enable imports." xml:space="preserve">
+    <value>Ota tuonti käyttöön tallentamalla pankkiyhteys.</value>
   </data>
 </root>

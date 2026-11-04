@@ -29,13 +29,20 @@ public sealed class BoardQueries(AppDbContext db, MembershipQueries members, Ass
         var mail = await db.Deliveries.CountAsync(delivery => delivery.Kind != MailKind.Invoice &&
             (delivery.State == DeliveryState.Review || delivery.State == DeliveryState.Failed), ct);
         var recorded = await db.BankSyncStates.AsNoTracking().ToListAsync(ct);
-        var accounts = bank.Value.Enabled ? bank.Value.Accounts : recorded.Select(status => status.Account);
+        var connections = bank.Value.Enabled && bank.Value.Provider == BankProvider.EnableBanking
+            ? await db.BankConnections.AsNoTracking().ToDictionaryAsync(x => x.Id.ToString(), ct) : [];
+        var accounts = !bank.Value.Enabled ? recorded.Select(status => status.Account)
+            : bank.Value.Provider == BankProvider.EnableBanking ? connections.Keys.AsEnumerable() : bank.Value.Accounts;
         var staleBefore = clock.Now.AddHours(-bank.Value.StaleHours);
         var statuses = accounts.Distinct().Order().Select(account =>
         {
             var status = recorded.SingleOrDefault(state => state.Account == account);
             var stale = status?.LastSuccess is null || status.LastSuccess < staleBefore;
-            return new BankAttention(account, status?.Status ?? "Never synchronized", status?.LastSuccess, status?.LastAttempt, stale);
+            var connection = connections.GetValueOrDefault(account);
+            var description = status?.Status ?? "Never synchronized";
+            if (connection is not null && connection.ValidUntil <= clock.Now.AddDays(14))
+                description = connection.ValidUntil <= clock.Now ? "Authorization renewal required" : "Bank consent expires soon";
+            return new BankAttention(connection?.Label ?? account, description, status?.LastSuccess, status?.LastAttempt, stale);
         }).ToList();
         return new(applications, payments, inactive.Total, deletions, mail, bank.Value.Enabled, bank.Value.StaleHours, statuses);
     }

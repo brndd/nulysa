@@ -2,6 +2,12 @@
 set -euo pipefail
 
 root=$(cd "$(dirname "$0")/.." && pwd)
+if [[ -f "$root/scripts/dev.env" ]]; then
+    # Developer-owned shell assignments shared by the web, worker and maintenance commands.
+    set -a
+    source "$root/scripts/dev.env"
+    set +a
+fi
 engine=${CONTAINER_ENGINE:-docker}
 # Always use the local profile, never an inherited production connection.
 export DOTNET_ENVIRONMENT=Development

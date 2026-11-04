@@ -87,6 +87,7 @@ public static class FoundationHost
                 return Results.BadRequest("Choose an end date after the start date.");
             return Results.File(System.Text.Encoding.UTF8.GetBytes(await queries.ExportReceipts(context.User, start, end, context.RequestAborted)), "text/csv; charset=utf-8", "bank-transactions.csv");
         }).RequireAuthorization("Administrator");
+        app.MapBankConnections();
         app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
         if (builder.Configuration.GetValue<bool>("Oidc:Enabled"))
             app.MapControllers();
@@ -139,14 +140,22 @@ public static class FoundationHost
         if (development)
             builder.Services.AddScoped<DevelopmentSeed>();
         builder.Services.AddScoped<InvoicePdf>();
-        builder.Services.AddHttpClient<BankFeed>(client =>
+        builder.Services.AddHttpClient<BankFeed>((services, client) =>
         {
-            client.BaseAddress = new Uri("https://bankaccountdata.gocardless.com/api/v2/");
+            var bank = services.GetRequiredService<IOptions<BankOptions>>().Value;
+            client.BaseAddress = new Uri(bank.Provider == BankProvider.EnableBanking
+                ? "https://api.enablebanking.com/"
+                : "https://bankaccountdata.gocardless.com/api/v2/");
             client.Timeout = TimeSpan.FromSeconds(30);
-        });
+        }).ConfigurePrimaryHttpMessageHandler((handler, _) =>
+        {
+            if (handler is SocketsHttpHandler sockets)
+                sockets.AllowAutoRedirect = false;
+            else if (handler is HttpClientHandler clientHandler)
+                clientHandler.AllowAutoRedirect = false;
+        }).RemoveAllLoggers().AddTypedClient<BankConnections>();
         builder.Services.AddOptions<BankOptions>().Bind(config.GetSection("Bank"))
-            .Validate(x => x.StaleHours is >= 24 and <= 168 && (!x.Enabled || (x.SecretId.Length > 0 && x.SecretKey.Length > 0 && x.Accounts.Length > 0 && x.Accounts.All(a => Guid.TryParse(a, out _)))),
-                "Enabled bank import requires provider credentials and account IDs.").ValidateOnStart();
+            .Validate(x => x.IsValid(), "Invalid bank feed settings. An enabled feed requires provider credentials and account configuration.").ValidateOnStart();
         builder.Services.AddOptions<BillingOptions>().Bind(config.GetSection("Billing"))
             .Validate(x => x.AllowedIntervals.Length > 0 && x.AllowedIntervals.All(i => i is >= 1 and <= 120) && x.AllowedIntervals.Contains(x.DefaultIntervalMonths) &&
                 x.InvoiceLeadDays is >= 7 and <= 365 && x.InitialMembershipGraceDays is >= 1 and <= 365 &&

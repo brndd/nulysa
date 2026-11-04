@@ -1314,7 +1314,7 @@
   <data name="No automatic refund of purchased time." xml:space="preserve">
     <value>No automatic refund of purchased time.</value>
   </data>
-  <data name="No bank synchronization recorded. Configure the GoCardless feed before relying on automatic payment status." xml:space="preserve">
+  <data name="No bank payments imported yet. Ask the system operator to set up the bank connection." xml:space="preserve">
     <value>No bank payments imported yet. Ask the system operator to set up the bank connection.</value>
   </data>
   <data name="No billing account is available." xml:space="preserve">
@@ -2513,5 +2513,122 @@
   </data>
   <data name="Age: {0}" xml:space="preserve">
     <value>Age: {0}</value>
+  </data>
+  <data name="Authentication or feed failed" xml:space="preserve">
+    <value>Authentication or feed failed</value>
+  </data>
+  <data name="Authorization renewal required" xml:space="preserve">
+    <value>Authorization renewal required</value>
+  </data>
+  <data name="Bank" xml:space="preserve">
+    <value>Bank</value>
+  </data>
+  <data name="Bank account connected." xml:space="preserve">
+    <value>Bank account connected.</value>
+  </data>
+  <data name="Bank authorization expired or was already used. Start again." xml:space="preserve">
+    <value>Bank authorization expired or was already used. Start again.</value>
+  </data>
+  <data name="Bank authorization was cancelled." xml:space="preserve">
+    <value>Bank authorization was cancelled.</value>
+  </data>
+  <data name="Bank connection was not found." xml:space="preserve">
+    <value>Bank connection was not found.</value>
+  </data>
+  <data name="Bank connections" xml:space="preserve">
+    <value>Bank connections</value>
+  </data>
+  <data name="Bank consent expires soon" xml:space="preserve">
+    <value>Bank consent expires soon</value>
+  </data>
+  <data name="Bank consent renewed." xml:space="preserve">
+    <value>Bank consent renewed.</value>
+  </data>
+  <data name="Bank import queued successfully. Refresh this page in a moment to check the result." xml:space="preserve">
+    <value>Bank import queued successfully. Refresh this page in a moment to check the result.</value>
+  </data>
+  <data name="Choose a bank" xml:space="preserve">
+    <value>Choose a bank</value>
+  </data>
+  <data name="Choose a first import date on or before today." xml:space="preserve">
+    <value>Choose a first import date on or before today.</value>
+  </data>
+  <data name="Choose an account" xml:space="preserve">
+    <value>Choose an account</value>
+  </data>
+  <data name="Choose an account to import" xml:space="preserve">
+    <value>Choose an account to import</value>
+  </data>
+  <data name="Choose an available bank." xml:space="preserve">
+    <value>Choose an available bank.</value>
+  </data>
+  <data name="Choose one of the authorized accounts." xml:space="preserve">
+    <value>Choose one of the authorized accounts.</value>
+  </data>
+  <data name="Connect bank account" xml:space="preserve">
+    <value>Connect bank account</value>
+  </data>
+  <data name="Connected accounts" xml:space="preserve">
+    <value>Connected accounts</value>
+  </data>
+  <data name="Consent expires {0}" xml:space="preserve">
+    <value>Consent expires {0}</value>
+  </data>
+  <data name="Current" xml:space="preserve">
+    <value>Current</value>
+  </data>
+  <data name="Enable Banking could not complete the request. Try again." xml:space="preserve">
+    <value>Enable Banking could not complete the request. Try again.</value>
+  </data>
+  <data name="Enable Banking is disabled." xml:space="preserve">
+    <value>Enable Banking is disabled.</value>
+  </data>
+  <data name="Enable Banking returned an unexpected authorization URL." xml:space="preserve">
+    <value>Enable Banking returned an unexpected authorization URL.</value>
+  </data>
+  <data name="Enable Banking returned an unexpected session." xml:space="preserve">
+    <value>Enable Banking returned an unexpected session.</value>
+  </data>
+  <data name="First import date" xml:space="preserve">
+    <value>First import date</value>
+  </data>
+  <data name="Import failed" xml:space="preserve">
+    <value>Import failed</value>
+  </data>
+  <data name="Import now" xml:space="preserve">
+    <value>Import now</value>
+  </data>
+  <data name="Last successful import" xml:space="preserve">
+    <value>Last successful import</value>
+  </data>
+  <data name="Never synchronized" xml:space="preserve">
+    <value>Never synchronized</value>
+  </data>
+  <data name="No accounts were shared. Start again and choose an account at the bank." xml:space="preserve">
+    <value>No accounts were shared. Start again and choose an account at the bank.</value>
+  </data>
+  <data name="No bank payments have been imported yet." xml:space="preserve">
+    <value>No bank payments have been imported yet.</value>
+  </data>
+  <data name="Renew consent" xml:space="preserve">
+    <value>Renew consent</value>
+  </data>
+  <data name="Synchronizing" xml:space="preserve">
+    <value>Synchronizing</value>
+  </data>
+  <data name="The renewed consent did not include the original bank account." xml:space="preserve">
+    <value>The renewed consent did not include the original bank account.</value>
+  </data>
+  <data name="This bank account is already connected. Use Renew consent." xml:space="preserve">
+    <value>This bank account is already connected. Use Renew consent.</value>
+  </data>
+  <data name="This bank connection has already changed. Start renewal again." xml:space="preserve">
+    <value>This bank connection has already changed. Start renewal again.</value>
+  </data>
+  <data name="Save bank connection" xml:space="preserve">
+    <value>Save bank connection</value>
+  </data>
+  <data name="Save a bank connection to enable imports." xml:space="preserve">
+    <value>Save a bank connection to enable imports.</value>
   </data>
 </root>

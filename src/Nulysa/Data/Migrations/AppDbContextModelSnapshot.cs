@@ -1158,6 +1158,97 @@ namespace Nulysa.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Nulysa.Integrations.BankConnection", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AccountUid")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ApplicationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Bank")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("ExpiryReminderSent")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("IdentificationHash")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateOnly>("ImportFrom")
+                        .HasColumnType("date");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("SessionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("ValidUntil")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Bank", "IdentificationHash")
+                        .IsUnique();
+
+                    b.ToTable("BankConnections");
+                });
+
+            modelBuilder.Entity("Nulysa.Integrations.BankConsentAttempt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AccountChoices")
+                        .HasColumnType("text");
+
+                    b.Property<long>("AdministratorId")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("ApplicationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Bank")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("CallbackClaimed")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("ImportFrom")
+                        .HasColumnType("date");
+
+                    b.Property<Guid?>("PreviousSessionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("RenewalId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("SessionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("ValidUntil")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExpiresAt");
+
+                    b.ToTable("BankConsentAttempts");
+                });
+
             modelBuilder.Entity("Nulysa.Integrations.BankSyncState", b =>
                 {
                     b.Property<string>("Account")
