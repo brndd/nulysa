@@ -131,9 +131,10 @@
     }
     function preferenceForms() {
         document.querySelectorAll('[data-preference-form]').forEach(form => {
-            const checkbox = form.querySelector('input[type="checkbox"]');
+            const checkboxes = form.querySelectorAll('input[type="checkbox"]');
             const submit = form.querySelector('button[type="submit"], button:not([type])');
-            submit.disabled = checkbox.checked === (form.dataset.saved === 'true');
+            submit.disabled = Array.from(checkboxes).every(checkbox =>
+                checkbox.checked === ((checkbox.dataset.saved ?? form.dataset.saved) === 'true'));
         });
     }
     document.addEventListener('change', event => {

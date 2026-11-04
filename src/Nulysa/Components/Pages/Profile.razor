@@ -4,6 +4,7 @@
 @using Nulysa.Accounts
 @using Nulysa.Membership
 @using Nulysa.Billing
+@using Nulysa.Communications
 @using System.ComponentModel.DataAnnotations
 @using System.Security.Claims
 @inject MembershipQueries Queries
@@ -14,6 +15,7 @@
 @inject IConfiguration Configuration
 @inject MemberPortalQueries PortalQueries
 @inject BillingCommands Billing
+@inject NewsletterPreferences Newsletters
 @inject Nulysa.Components.UiFeedback Feedback
 @inject Microsoft.Extensions.Options.IOptions<BillingOptions> Options
 
@@ -66,16 +68,31 @@ else if (details is null) { <AdminPageHeader Title="@T("Details")" /> }
         <section id="communications" aria-labelledby="communications-heading">
             <h2 id="communications-heading">@T("Communication preferences")</h2>
             <p>@T("Required security, membership, grace and deletion notices cannot be disabled. Bills remain available in the portal even if you turn off invoice emails.")</p>
-            @if (emailSettings is not null)
+            @if (emailSettings is not null || newsletterSubscribed is not null)
             {
-                <EditForm Model="EmailPreference" method="post" FormName="profile-invoice-preference" OnValidSubmit="SavePreference" data-preference-form data-saved="@emailSettings.Enabled.ToString().ToLowerInvariant()">
+                <EditForm Model="EmailPreference" method="post" FormName="profile-communication-preferences" OnValidSubmit="SavePreference" data-preference-form>
                     <DataAnnotationsValidator /><FormErrors />
                     <input type="hidden" name="EmailPreference.Key" value="@EmailPreference!.Key" />
-                    <div class="checkbox-field"><InputCheckbox id="email-invoices" @bind-Value="EmailPreference.Enabled" /><label for="email-invoices">@T("Email invoice PDFs")</label></div>
-                    <button>@T("Save communication preferences")</button>
+                    @if (emailSettings is not null)
+                    {
+                        <input type="hidden" name="EmailPreference.InitialInvoices" value="@EmailPreference.InitialInvoices?.ToString()" />
+                        <div class="checkbox-field">
+                            <InputCheckbox id="email-invoices" @bind-Value="EmailPreference.Invoices" data-saved="@emailSettings.Enabled.ToString().ToLowerInvariant()" />
+                            <label for="email-invoices">@T("Email invoice PDFs")</label>
+                        </div>
+                    }
+                    @if (newsletterSubscribed is { } subscribed)
+                    {
+                        <input type="hidden" name="EmailPreference.InitialNewsletters" value="@EmailPreference.InitialNewsletters?.ToString()" />
+                        <div class="checkbox-field">
+                            <InputCheckbox id="email-newsletters" @bind-Value="EmailPreference.Newsletters" data-saved="@subscribed.ToString().ToLowerInvariant()" />
+                            <label for="email-newsletters">@T("Receive newsletters")</label>
+                        </div>
+                    }
+                    <button type="submit">@T("Save communication preferences")</button>
                 </EditForm>
             }
-            else { <p>@T("No billing email preference is available for this account.")</p> }
+            @if (emailSettings is null) { <p>@T("No billing email preference is available for this account.")</p> }
         </section>
         @if (Id is null)
         {
@@ -150,17 +167,20 @@ else
         [Range(typeof(bool), "true", "true", ErrorMessage = "Confirm the membership action.")] public bool Confirmed { get; set; }
         public Guid Operation { get; set; } = Guid.NewGuid();
     }
-    public sealed class InvoicePreferenceInput
+    public sealed class CommunicationPreferenceInput
     {
         public Guid Key { get; set; } = Guid.NewGuid();
-        public bool Enabled { get; set; }
+        public bool Invoices { get; set; }
+        public bool Newsletters { get; set; }
+        public bool? InitialInvoices { get; set; }
+        public bool? InitialNewsletters { get; set; }
     }
     [Parameter] public long? Id { get; set; }
     [SupplyParameterFromQuery(Name = "returnUrl")] public string? ReturnUrl { get; set; }
     [SupplyParameterFromForm(FormName = "profile")] public ProfileInput? Input { get; set; }
     [SupplyParameterFromForm(FormName = "email")] public EmailChangeInput? EmailInput { get; set; }
     [SupplyParameterFromForm(FormName = "lifecycle")] public LifecycleInput? Lifecycle { get; set; }
-    [SupplyParameterFromForm(FormName = "profile-invoice-preference")] public InvoicePreferenceInput? EmailPreference { get; set; }
+    [SupplyParameterFromForm(FormName = "profile-communication-preferences")] public CommunicationPreferenceInput? EmailPreference { get; set; }
     [CascadingParameter] private HttpContext HttpContext { get; set; } = null!;
     private MemberDetails? details;
     private ClaimsPrincipal actor = null!;
@@ -168,6 +188,7 @@ else
     private string? notice;
     private string? passwordError;
     private InvoiceEmailSettings? emailSettings;
+    private bool? newsletterSubscribed;
     protected override async Task OnInitializedAsync()
     {
         actor = (await Authentication.GetAuthenticationStateAsync()).User;
@@ -181,7 +202,18 @@ else
             return;
         }
         emailSettings = await PortalQueries.EmailSettings(actor, details.Id, HttpContext.RequestAborted);
-        EmailPreference ??= new() { Enabled = emailSettings?.Enabled ?? true };
+        if (Id is null && details.PendingDeletionAt is null)
+        {
+            try { newsletterSubscribed = await Newsletters.Get(actor, HttpContext.RequestAborted); }
+            catch (UnauthorizedAccessException) { newsletterSubscribed = null; }
+        }
+        EmailPreference ??= new()
+        {
+            Invoices = emailSettings?.Enabled ?? false,
+            Newsletters = newsletterSubscribed ?? false,
+            InitialInvoices = emailSettings?.Enabled,
+            InitialNewsletters = newsletterSubscribed
+        };
         Input ??= details.Profile;
         EmailInput ??= new();
         Lifecycle ??= new() { Action = details.PendingDeletionAt is null ? "terminate" : "restore" };
@@ -210,14 +242,32 @@ else
     }
     private async Task SavePreference()
     {
-        if (emailSettings is null) return;
+        if (EmailPreference is not { } preference) return;
+
+        // Apply only the choices changed on the form. A newsletter opt-out may arrive while the page is open.
+        var changeInvoices = emailSettings is not null && preference.InitialInvoices is { } invoices && invoices != preference.Invoices;
+        var changeNewsletters = Id is null && newsletterSubscribed is not null &&
+            preference.InitialNewsletters is { } subscribed && subscribed != preference.Newsletters;
+        var ct = HttpContext.RequestAborted;
         try
         {
-            await Billing.SetEmailInvoices(actor, emailSettings.AccountId, EmailPreference!.Enabled, EmailPreference.Key);
+            if (changeInvoices && changeNewsletters)
+                await Billing.SetMemberEmailPreferences(actor, emailSettings!.AccountId, preference.Invoices, preference.Newsletters, preference.Key, ct);
+            else if (changeInvoices)
+                await Billing.SetEmailInvoices(actor, emailSettings!.AccountId, preference.Invoices, preference.Key, ct);
+            else if (changeNewsletters)
+                await Newsletters.Set(actor, preference.Newsletters, ct);
+
             Feedback.Save(HttpContext, "Communication preferences saved. Required notices remain enabled.");
-            Navigation.NavigateTo(Navigation.Uri);
+            Navigation.NavigateTo(Id is null ? "/profile#communications" : Navigation.Uri);
         }
         catch (ValidationException ex) { error = ex.Message; }
+        catch (UnauthorizedAccessException)
+        {
+            newsletterSubscribed = null;
+            HttpContext.Response.StatusCode = 403;
+            error = "Access denied";
+        }
     }
     private async Task ChangeLifecycle()
     {

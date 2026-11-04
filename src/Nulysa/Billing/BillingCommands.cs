@@ -15,7 +15,7 @@ using Quartz;
 namespace Nulysa.Billing;
 
 public sealed partial class BillingCommands(AppDbContext db, AssociationClock clock, IOptions<BillingOptions> options,
-    ISchedulerFactory schedulers, MailQueue mail)
+    ISchedulerFactory schedulers, MailQueue mail, NewsletterPreferences newsletters)
 {
     private BillingOptions Settings => options.Value;
 

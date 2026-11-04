@@ -3144,4 +3144,7 @@
   <data name="This newsletter unsubscribe link is invalid or has expired." xml:space="preserve">
     <value>Uutiskirjeiden peruutuslinkki on virheellinen tai vanhentunut.</value>
   </data>
+  <data name="Receive newsletters" xml:space="preserve">
+    <value>Vastaanota uutiskirjeitä</value>
+  </data>
 </root>

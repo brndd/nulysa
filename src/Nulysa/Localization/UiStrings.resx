@@ -3144,4 +3144,7 @@
   <data name="This newsletter unsubscribe link is invalid or has expired." xml:space="preserve">
     <value>This newsletter unsubscribe link is invalid or has expired.</value>
   </data>
+  <data name="Receive newsletters" xml:space="preserve">
+    <value>Receive newsletters</value>
+  </data>
 </root>

@@ -76,7 +76,7 @@ administrators can view the frozen content, copy it into a new draft, and retry
 definite failures with a reason. A campaign is complete when no deliveries are
 queued or sending. Its sent count records provider acceptance and survives retention or
 erasure of individual delivery records.
-The signed-in member preferences screen is separate UI work.
+Signed-in members can opt out or back in under **Communication preferences** in their profile.
 
 Automatic templates use Fluid to parse and render a subset of Liquid. Fields use
 `{{field_name}}` in text and

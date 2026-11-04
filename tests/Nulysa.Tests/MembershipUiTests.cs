@@ -13,6 +13,92 @@ namespace Nulysa.Tests;
 public sealed class MembershipFormTests : MembershipTest
 {
     [Fact]
+    public async Task Members_can_save_invoice_and_newsletter_preferences_together()
+    {
+        var board = await Board();
+        await using var commands = CommandsApp();
+        var id = await Admit(commands, board);
+        var token = await PasswordToken(commands, id);
+        await Run(commands, sp => sp.GetRequiredService<Nulysa.Accounts.AccountCommands>().SetPassword(id, token, Password));
+        await using var app = await StartProvider();
+        using var member = Client(language: "fi");
+        await Login(member);
+        await using var db = Context();
+        const string checkbox = """<input(?=[^>]*id="email-newsletters")(?=[^>]*\bchecked\b)[^>]*>""";
+        const string handler = "profile-communication-preferences";
+        var html = WebUtility.HtmlDecode(await member.GetStringAsync("profile"));
+        Assert.Contains("Vastaanota uutiskirjeitä", html);
+        var form = Regex.Match(html, """<form[^>]*data-preference-form[^>]*>[\s\S]*?</form>""").Value;
+        Assert.Contains("email-invoices", form);
+        Assert.Contains("email-newsletters", form);
+        Assert.Single(Regex.Matches(form, "<button").Cast<Match>());
+        Assert.Matches(checkbox, html);
+
+        using var missingAntiforgery = new FormUrlEncodedContent(new Dictionary<string, string> { ["_handler"] = handler });
+        Assert.Equal(HttpStatusCode.BadRequest, (await member.PostAsync("profile", missingAntiforgery)).StatusCode);
+        Assert.True(await db.Users.Where(x => x.Id == id).Select(x => x.EmailNewsletters).SingleAsync());
+
+        async Task Save(bool invoices, bool newsletters, bool initialInvoices, bool initialNewsletters)
+        {
+            var page = await member.GetStringAsync("profile");
+            var fields = new Dictionary<string, string>
+            {
+                ["_handler"] = handler, ["__RequestVerificationToken"] = Antiforgery(page),
+                ["EmailPreference.Key"] = Guid.NewGuid().ToString(),
+                ["EmailPreference.InitialInvoices"] = initialInvoices.ToString(),
+                ["EmailPreference.InitialNewsletters"] = initialNewsletters.ToString()
+            };
+            if (invoices)
+                fields["EmailPreference.Invoices"] = "true";
+            if (newsletters)
+                fields["EmailPreference.Newsletters"] = "true";
+            using var form = new FormUrlEncodedContent(fields);
+            using var result = await member.PostAsync("profile", form);
+            Assert.Equal(HttpStatusCode.Redirect, result.StatusCode);
+            Assert.Equal(new Uri(member.BaseAddress!, "profile#communications"), result.Headers.Location);
+            Assert.Equal(invoices, await db.BillingAccounts.Where(x => x.UserId == id).Select(x => x.EmailInvoices).SingleAsync());
+        }
+
+        await Save(false, false, true, true);
+        html = WebUtility.HtmlDecode(await member.GetStringAsync("profile"));
+        Assert.Contains("id=\"email-newsletters\"", html);
+        Assert.DoesNotMatch(checkbox, html);
+        Assert.False(await db.Users.Where(x => x.Id == id).Select(x => x.EmailNewsletters).SingleAsync());
+        await Save(false, true, false, false);
+        Assert.Matches(checkbox, await member.GetStringAsync("profile"));
+
+        // A newsletter opt-out arrived after the member opened the form to edit their invoice preference.
+        await Run(commands, sp => sp.GetRequiredService<NewsletterPreferences>().Set(Actor(id), false));
+        await Save(true, true, false, true);
+        Assert.False(await db.Users.Where(x => x.Id == id).Select(x => x.EmailNewsletters).SingleAsync());
+
+        using var administrator = Client();
+        await Login(administrator, "board@example.test");
+        var details = $"admin/members/{id}/details";
+        var adminPage = await administrator.GetStringAsync(details);
+        Assert.Contains(handler, adminPage);
+        Assert.DoesNotContain("email-newsletters", adminPage);
+        using var adminForm = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["_handler"] = handler, ["__RequestVerificationToken"] = Antiforgery(adminPage),
+            ["EmailPreference.Key"] = Guid.NewGuid().ToString(),
+            ["EmailPreference.InitialInvoices"] = "true",
+            ["EmailPreference.InitialNewsletters"] = "false",
+            ["EmailPreference.Newsletters"] = "true"
+        });
+        Assert.Equal(HttpStatusCode.Redirect, (await administrator.PostAsync(details, adminForm)).StatusCode);
+        Assert.False(await db.BillingAccounts.Where(x => x.UserId == id).Select(x => x.EmailInvoices).SingleAsync());
+        Assert.False(await db.Users.Where(x => x.Id == id).Select(x => x.EmailNewsletters).SingleAsync());
+
+        static string Antiforgery(string page)
+        {
+            var match = Regex.Match(page, """<input(?=[^>]*name="__RequestVerificationToken")(?=[^>]*value="([^"]+)")[^>]*>""");
+            Assert.True(match.Success);
+            return WebUtility.HtmlDecode(match.Groups[1].Value);
+        }
+    }
+
+    [Fact]
     public async Task Billing_history_labels_automatic_operations_as_System_and_preserves_actor_ids()
     {
         var board = await Board();
@@ -270,6 +356,47 @@ public sealed class MembershipFormTests : MembershipTest
 [Trait("Group", "Browser")]
 public sealed class MembershipBrowserTests : MembershipTest
 {
+    [Fact]
+    public async Task Either_communication_checkbox_enables_the_shared_save_button()
+    {
+        var board = await Board();
+        await using var commands = CommandsApp();
+        var id = await Admit(commands, board);
+        var token = await PasswordToken(commands, id);
+        await Run(commands, sp => sp.GetRequiredService<Nulysa.Accounts.AccountCommands>().SetPassword(id, token, Password));
+        await using var web = await StartProvider();
+        using var playwright = await Playwright.CreateAsync();
+        await using var browser = await playwright.Chromium.LaunchAsync(new() { Headless = true });
+        await using var context = await browser.NewContextAsync();
+        var root = Settings["Oidc:Issuer"]!;
+        await context.AddCookiesAsync([new Microsoft.Playwright.Cookie { Name = "Nulysa.Language", Value = "en", Url = root }]);
+        var page = await context.NewPageAsync();
+        await page.GotoAsync(root + "Account/Login");
+        await page.GetByLabel("Email", new() { Exact = true }).FillAsync(Email);
+        await page.GetByLabel("Password", new() { Exact = true }).FillAsync(Password);
+        await page.GetByRole(AriaRole.Button, new() { Name = "Log in", Exact = true }).ClickAsync();
+        await page.GotoAsync(root + "profile");
+
+        var preferences = page.Locator("#communications");
+        var invoices = preferences.GetByLabel("Send invoices via email", new() { Exact = true });
+        var newsletters = preferences.GetByLabel("Receive newsletters", new() { Exact = true });
+        var save = preferences.GetByRole(AriaRole.Button);
+        await Assertions.Expect(save).ToHaveCountAsync(1);
+        await Assertions.Expect(save).ToBeDisabledAsync();
+        await newsletters.UncheckAsync();
+        await Assertions.Expect(save).ToBeEnabledAsync();
+        await newsletters.CheckAsync();
+        await Assertions.Expect(save).ToBeDisabledAsync();
+        await invoices.UncheckAsync();
+        await Assertions.Expect(save).ToBeEnabledAsync();
+        await newsletters.UncheckAsync();
+        await save.ClickAsync();
+        await Assertions.Expect(page.GetByRole(AriaRole.Status)).ToHaveTextAsync("Email preferences saved.");
+        await Assertions.Expect(invoices).Not.ToBeCheckedAsync();
+        await Assertions.Expect(newsletters).Not.ToBeCheckedAsync();
+        await Assertions.Expect(save).ToBeDisabledAsync();
+    }
+
     [Fact]
     public async Task Static_forms_cover_application_review_password_profile_email_reset_resignation_and_admin_restoration()
     {

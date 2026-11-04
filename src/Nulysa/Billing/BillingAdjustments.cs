@@ -77,6 +77,17 @@ public sealed partial class BillingCommands
             return Task.CompletedTask;
         }, ct);
 
+    public Task SetMemberEmailPreferences(ClaimsPrincipal actor, long accountId, bool invoices, bool subscribed, Guid key, CancellationToken ct = default)
+        => Change(actor, accountId, key, "communication-preferences", new { invoices, subscribed }, "Member communication preferences", false,
+            async (facts, operation, scheduler) =>
+            {
+                Live(facts);
+                if (facts.Account.UserId != Authority.Id(actor))
+                    throw new UnauthorizedAccessException();
+                await newsletters.Set(actor, subscribed, ct);
+                facts.Account.EmailInvoices = invoices;
+            }, ct);
+
     public Task<long?> AddDiscount(ClaimsPrincipal actor, long accountId, long feeId, DateOnly start, DateOnly end, DiscountKind kind,
         decimal value, Guid key, string reason, CancellationToken ct = default)
     {
