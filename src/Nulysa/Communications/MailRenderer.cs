@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
@@ -14,15 +15,15 @@ public sealed class MailRenderer(AppDbContext db, UserManager<User> users, Membe
 {
     public async Task<OutgoingMail?> Render(Delivery delivery, CancellationToken ct)
     {
-        string email, language, text, subject;
+        string email;
+        Dictionary<string, string?> fields;
         var application = delivery.ApplicationId is { } applicationId
             ? await db.Applications.AsNoTracking().SingleOrDefaultAsync(x => x.Id == applicationId, ct) : null;
         var user = delivery.UserId is { } userId ? await db.Users.AsNoTracking().SingleOrDefaultAsync(x => x.Id == userId, ct) : null;
         if (delivery.CampaignId is not null)
             return await campaigns.RenderDelivery(delivery, user, preferences, ct);
 
-        (language, var variant) = await templates.Resolve(delivery.Kind, application?.Language ?? user?.Language ?? membershipOptions.Value.DefaultLanguage, ct);
-        var fi = language == "fi";
+        var language = application?.Language ?? user?.Language ?? membershipOptions.Value.DefaultLanguage;
 
         if (delivery.Kind == MailKind.Verification)
         {
@@ -31,17 +32,18 @@ public sealed class MailRenderer(AppDbContext db, UserManager<User> users, Membe
                 return null;
             email = application.Email;
             var link = Link("apply/verify", new() { ["id"] = application.Id.ToString(), ["token"] = membership.VerificationToken(application) });
-            subject = fi ? "Vahvista jäsenhakemuksesi" : "Verify your membership application";
-            text = fi ? $"Vahvista sähköpostiosoitteesi: {link}\nHakemus ei vielä anna kirjautumisoikeutta. Linkki vanhenee hakemuksen säilytysajan päättyessä."
-                : $"Verify your email: {link}\nVerification does not grant login access. This link expires when the application's retention period ends.";
+            fields = new()
+            {
+                ["verification_url"] = link,
+                ["verification_expires_at"] = LocalTime(application.CreatedAt.AddHours(membershipOptions.Value.UnverifiedRetentionHours))
+            };
         }
         else if (delivery.Kind == MailKind.Rejection)
         {
             if (application?.RejectedAt is null)
                 return null;
             email = application.Email;
-            subject = fi ? "Jäsenhakemuksen päätös" : "Membership application decision";
-            text = (fi ? "Jäsenhakemustasi ei hyväksytty." : "Your membership application was not approved.") + "\n" + application.RejectionExplanation;
+            fields = new() { ["rejection_reason"] = application.RejectionExplanation };
         }
         else
         {
@@ -62,9 +64,11 @@ public sealed class MailRenderer(AppDbContext db, UserManager<User> users, Membe
                 var attachment = await pdf.Render(invoiceId, delivery.InvoiceRevision, ct);
                 if (attachment is null)
                     return null;
-                return templates.Render(email, (fi ? "Maksupyyntö " : "Payment request ") + invoiceId,
-                    (fi ? "Ennakkomaksupyyntö on liitteenä. Ajantasaiset maksutiedot: " : "Your advance payment request is attached. Current funding and remaining amount: ") + Link("billing", new()),
-                    variant, attachment, $"invoice-{invoiceId}.pdf");
+                return await templates.Render(delivery.Kind, language, email, new()
+                {
+                    ["invoice_number"] = invoiceId.ToString(CultureInfo.InvariantCulture),
+                    ["billing_url"] = Link("billing", new())
+                }, ct, attachment, $"invoice-{invoiceId}.pdf");
             }
             else if (delivery.Kind is MailKind.MembershipGrace or MailKind.MembershipInactive)
             {
@@ -78,38 +82,37 @@ public sealed class MailRenderer(AppDbContext db, UserManager<User> users, Membe
                 if (delivery.Kind == MailKind.MembershipGrace && (!standing.Active || !standing.IsMembershipGrace))
                     return null;
 
-                subject = delivery.Kind == MailKind.MembershipInactive ? (fi ? "Jäsenyys epäaktiivinen" : "Membership inactive") : (fi ? "Jäsenmaksun lisäaika" : "Membership payment grace");
-                text = (delivery.Kind == MailKind.MembershipInactive
-                    ? (fi ? "Jäsenmaksusi jäi maksamatta, joten jäsenyytesi on epäaktiivinen. Katso, miten voit aktivoida jäsenyytesi uudelleen: " : "Your membership fee was not paid, so your membership is inactive. See how to reactivate: ")
-                    : (fi ? $"Jäsenmaksu on maksamatta. Jäsenpalvelut jatkuvat {standing.ActiveUntilExclusive?.AddDays(-1):yyyy-MM-dd} asti. " : $"Your membership payment is overdue. Benefits remain active through {standing.ActiveUntilExclusive?.AddDays(-1):yyyy-MM-dd}. ")) + Link(delivery.Kind == MailKind.MembershipInactive ? "services" : "billing", new());
+                fields = delivery.Kind == MailKind.MembershipInactive
+                    ? new() { ["services_url"] = Link("services", new()) }
+                    : new()
+                    {
+                        ["benefits_until"] = standing.ActiveUntilExclusive?.AddDays(-1).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                        ["billing_url"] = Link("billing", new())
+                    };
             }
             else if (delivery.Kind == MailKind.BankAlert)
             {
                 if (!user.MayLogIn || !await Authority.IsAdministrator(db, new System.Security.Claims.ClaimsPrincipal(new System.Security.Claims.ClaimsIdentity([new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, user.Id.ToString())], "mail")), ct))
                     return null;
 
-                subject = fi ? "Pankkisynkronointi vaatii huomiota" : "Bank import requires attention";
-                text = (fi ? "Pankkisyöte on epäonnistunut, vanhentunut tai sen valtuutus on uusittava pian. Tarkista maksujen hallinta: " : "The bank feed failed, is stale or its consent needs renewal soon. Check payment administration: ") + Link("admin/payments", new());
+                fields = new() { ["payments_url"] = Link("admin/payments", new()) };
             }
             else if (delivery.Kind == MailKind.Restoration)
             {
                 if (user.PendingDeletionAt is not null)
                     return null;
-                subject = fi ? "Tilin poisto peruttu" : "Pending deletion cancelled";
-                text = fi ? "Hallinto peruutti tilisi poiston. Kirjautuminen ja jäsenpalvelut ovat jälleen käytössä. Poisto ei palauta laskutusta, kattavuutta tai tunnuksia. Ota yhteyttä hallitukseen, jos et pyytänyt tätä."
-                    : "An administrator cancelled the pending deletion of your account. Login and member services are available again. Restoration does not reopen billing, coverage or credentials. Contact the board if you did not request this.";
+                fields = [];
             }
             else if (delivery.Kind == MailKind.PasswordChanged)
             {
                 if (!user.MayLogIn)
                     return null;
 
-                var changedAt = TimeZoneInfo.ConvertTime(delivery.CreatedAt, clock.Zone);
-                subject = fi ? "Salasanasi on vaihdettu" : "Your password was changed";
-                text = fi
-                    ? $"Tilisi salasana vaihdettiin {changedAt:yyyy-MM-dd HH:mm zzz}. Jos et tehnyt muutosta, ota heti yhteyttä yhdistyksen ylläpitäjiin. Voit palauttaa salasanasi osoitteessa: "
-                    : $"Your account password was changed on {changedAt:yyyy-MM-dd HH:mm zzz}. If you did not make this change, contact the association's administrators immediately. You can reset your password at: ";
-                text += Link("Account/ForgotPassword", new());
+                fields = new()
+                {
+                    ["password_changed_at"] = LocalTime(delivery.CreatedAt),
+                    ["password_reset_url"] = Link("Account/ForgotPassword", new())
+                };
             }
             else if (delivery.Kind == MailKind.DeletionWarning)
             {
@@ -118,14 +121,16 @@ public sealed class MailRenderer(AppDbContext db, UserManager<User> users, Membe
                     return null;
 
                 var eligible = TimeZoneInfo.ConvertTime(eligibleAt, clock.Zone);
-                subject = fi ? "Jäsenyyden päättyminen ja tietojen poisto" : "Membership ended: account deletion warning";
-                text = fi ? $"Kirjautuminen ja jäsenpalvelut on estetty. Tilisi voidaan poistaa aikaisintaan {eligible:yyyy-MM-dd HH:mm zzz}. Poistoerä ajetaan 14 päivän välein, joten poisto tapahtuu tavallisesti {eligible:yyyy-MM-dd}–{eligible.AddDays(14):yyyy-MM-dd}, häiriöissä myöhemmin. Ota yhteys hallitukseen, jos haluat perua poiston."
-                    : $"Login and member services are blocked immediately. Your account becomes eligible for deletion on {eligible:yyyy-MM-dd HH:mm zzz}. Batches run every 14 days: deletion is normally {eligible:yyyy-MM-dd}–{eligible.AddDays(14):yyyy-MM-dd}, possibly later after failures. Contact an administrator to request restoration before actual deletion.";
                 var account = await db.BillingAccounts.SingleAsync(x => x.UserId == user.Id, ct);
                 var balances = (await BillingFacts.Load(db, account.Id, ct)).Balances;
-                if (balances.BillingCredit + balances.PurchaseBalance + balances.Held > 0)
-                    text += fi ? $"\nKäyttämättömiä varoja: {balances.BillingCredit + balances.PurchaseBalance + balances.Held:0.00} EUR. Ota yhteyttä rahastonhoitajaan palautusta varten. Tilin poisto ei poista saatavaasi."
-                        : $"\nUnspent funds: {balances.BillingCredit + balances.PurchaseBalance + balances.Held:0.00} EUR. Contact the treasurer for a refund. Scheduled account deletion does not forfeit your claim.";
+                var unspent = balances.BillingCredit + balances.PurchaseBalance + balances.Held;
+                fields = new()
+                {
+                    ["deletion_eligible_at"] = LocalTime(eligibleAt),
+                    ["deletion_window_start"] = eligible.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                    ["deletion_window_end"] = eligible.AddDays(14).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                    ["unspent_funds"] = unspent > 0 ? unspent.ToString("0.00", CultureInfo.InvariantCulture) + " EUR" : null
+                };
             }
             else
             {
@@ -139,26 +144,23 @@ public sealed class MailRenderer(AppDbContext db, UserManager<User> users, Membe
                     email = user.PendingEmail;
                     var token = await users.GenerateChangeEmailTokenAsync(user, email);
                     var link = Link("Account/ConfirmEmail", new() { ["id"] = user.Id.ToString(), ["version"] = delivery.Version.ToString(), ["token"] = token });
-                    subject = fi ? "Vahvista uusi sähköpostiosoite" : "Confirm your new email address";
-                    text = fi ? $"Vahvista uusi osoitteesi: {link}\nNykyinen osoite toimii vahvistukseen asti. Linkki on voimassa enintään vuorokauden."
-                        : $"Confirm your new email address: {link}\nYour current address remains in use until confirmation. This link is valid for at most one day.";
+                    fields = new() { ["confirmation_url"] = link };
                 }
                 else
                 {
                     var token = await users.GeneratePasswordResetTokenAsync(user);
                     var link = Link("Account/SetPassword", new() { ["id"] = user.Id.ToString(), ["token"] = token });
-                    subject = delivery.Kind == MailKind.Welcome ? (fi ? "Tervetuloa jäseneksi" : "Welcome to membership")
-                        : (fi ? "Salasanan palautus" : "Reset your password");
-                    text = fi ? $"Aseta salasana: {link}\nLinkki on voimassa vuorokauden."
-                        : $"Set your password: {link}\nThis link is valid for one day.";
+                    fields = new() { ["password_url"] = link };
                     if (delivery.Kind == MailKind.Welcome)
-                        text += fi ? "\nJäsenyys alkaa hyväksymisestä. Alkulasku lähetetään erikseen ja löytyy portaalista: " + Link("billing", new())
-                            : "\nAdmission starts your membership. Your initial invoice is sent separately and is available in the portal: " + Link("billing", new());
+                        fields.Add("billing_url", Link("billing", new()));
                 }
             }
         }
-        return templates.Render(email, subject, text, variant);
+        return await templates.Render(delivery.Kind, language, email, fields, ct);
     }
+
+    private string LocalTime(DateTimeOffset value) =>
+        TimeZoneInfo.ConvertTime(value, clock.Zone).ToString("yyyy-MM-dd HH:mm zzz", CultureInfo.InvariantCulture);
 
     private string Link(string path, Dictionary<string, string?> values)
         => QueryHelpers.AddQueryString(new Uri(new Uri(mailOptions.Value.PublicUrl), path).AbsoluteUri, values);

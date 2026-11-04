@@ -37,14 +37,15 @@ export function connectEditor(tabs, input) {
     });
 }
 
-export function insertOperationalDetails(input, marker) {
-    if (!(input instanceof HTMLTextAreaElement)) return;
+export function insertTemplateField(input, marker, linkLabel) {
+    if (!(input instanceof HTMLTextAreaElement || input instanceof HTMLInputElement)) return;
 
-    // Insert a standalone paragraph without replacing selected prose.
-    const newline = input.value.indexOf("\n", input.selectionEnd);
-    const position = newline === -1 ? input.value.length : newline;
-    const insertion = (position === 0 ? "" : "\n\n") + marker + "\n\n";
-    input.setRangeText(insertion, position, position, "end");
+    const { value, selectionStart, selectionEnd, maxLength } = input;
+    const label = value.slice(selectionStart, selectionEnd) || linkLabel;
+    const insertion = linkLabel ? `[${label.replace(/[\\[\]]/g, "\\$&")}](${marker})` : marker;
+    if (maxLength >= 0 && value.length - (selectionEnd - selectionStart) + insertion.length > maxLength) return;
+
+    input.setRangeText(insertion, selectionStart, selectionEnd, "end");
     input.focus();
     input.dispatchEvent(new Event("input", { bubbles: true }));
 }

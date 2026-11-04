@@ -10,7 +10,7 @@
 
 <AdminPageHeader Title="@T("Automatic mail templates")" />
 <AdminSectionTabs Destination="mail-templates" />
-<p>@T("Each automatic template includes the required operational details. Preview shows a placeholder for those details.")</p>
+<p>@T("Edit the subject and Markdown body for each language. Preview uses sample values.")</p>
 <ul>
     @foreach (var template in templates)
     {
@@ -19,38 +19,67 @@
 </ul>
 
 @if (error is not null) { <p role="alert">@ValidationText.Translate(error)</p> }
-@if (saved) { <p role="status">@T("Template saved.")</p> }
+@if (status is not null) { <p role="status">@T(status)</p> }
 
-@if (current is not null)
+@if (current is not null && selected is not null && input is not null)
 {
     <h2>@MailKindLabel.Text(current.Kind)</h2>
+    <nav aria-label="@T("Template language")">
+        <ul>
+            @foreach (var entry in current.Languages)
+            {
+                var language = UiLanguages.Find(entry.Source.Language)!;
+                <li>
+                    @if (entry == selected)
+                    {
+                        <span aria-current="page">@language.Name</span>
+                    }
+                    else
+                    {
+                        <a href="@($"/admin/communications/templates/{current.Kind}?language={language.Code}")">@language.Name</a>
+                    }
+                </li>
+            }
+        </ul>
+    </nav>
+    <p>@T(selected.Custom ? "Custom override" : "Shipped default")</p>
+    @if (selected.Problem is not null)
+    {
+        <div class="status-panel operational-warning">
+            <p>@T("This override is invalid. Automatic mail uses the shipped default until it is repaired.")</p>
+            <p>@ValidationText.Translate(selected.Problem)</p>
+        </div>
+    }
     <form @onsubmit="Save" @onsubmit:preventDefault>
         <label for="template-fallback">@T("Fallback language")</label>
         <select id="template-fallback" @bind="fallback">
-            @foreach (var input in inputs)
+            @foreach (var entry in current.Languages)
             {
-                <option value="@input.Language.Code">@input.Language.Name</option>
+                <option value="@entry.Source.Language">@UiLanguages.Find(entry.Source.Language)!.Name</option>
             }
         </select>
-        @foreach (var input in inputs)
-        {
-            <MarkdownMailEditor @key="input" Input="input" Operational="true" />
-        }
+        <MarkdownMailEditor @key="input" Input="input" TemplateKind="current.Kind" />
         <button type="submit" disabled="@(!RendererInfo.IsInteractive || busy)">@T("Save template")</button>
+        @if (selected.Custom)
+        {
+            <button type="button" class="secondary-action" disabled="@(!RendererInfo.IsInteractive || busy)" @onclick="Reset">@T("Restore default for this language")</button>
+        }
     </form>
 }
 
 @code {
     [Parameter] public string? TemplateKind { get; set; }
+    [SupplyParameterFromQuery(Name = "language")] public string? RequestedLanguage { get; set; }
 
     private ClaimsPrincipal actor = null!;
     private IReadOnlyList<OperationalTemplateView> templates = [];
     private OperationalTemplateView? current;
-    private MarkdownMailInput[] inputs = [];
+    private OperationalTemplateLanguage? selected;
+    private MarkdownMailInput? input;
     private string fallback = "";
     private string? error;
+    private string? status;
     private bool busy;
-    private bool saved;
 
     protected override async Task OnInitializedAsync()
     {
@@ -60,16 +89,8 @@
 
     protected override void OnParametersSet()
     {
-        current = null;
-        saved = false;
-        error = null;
-        if (TemplateKind is null)
-            return;
-        var template = templates.SingleOrDefault(x => string.Equals(x.Kind.ToString(), TemplateKind, StringComparison.OrdinalIgnoreCase));
-        if (template is null)
-            error = "Choose an automatic mail template.";
-        else
-            Open(template);
+        status = null;
+        Open(UiLanguages.Find(RequestedLanguage)?.Code ?? UiLanguages.Current);
     }
 
     private async Task Reload()
@@ -78,34 +99,44 @@
         templates = await scope.ServiceProvider.GetRequiredService<OperationalTemplates>().List(actor);
     }
 
-    private void Open(OperationalTemplateView template)
+    private void Open(string language)
     {
-        current = template;
-        fallback = template.FallbackLanguage;
-        saved = false;
         error = null;
-        inputs = UiLanguages.Supported.Where(language => template.BuiltInLanguages.Contains(language.Code)).Select(language =>
+        current = templates.SingleOrDefault(x => string.Equals(x.Kind.ToString(), TemplateKind, StringComparison.OrdinalIgnoreCase));
+        if (current is null)
         {
-            var variant = template.Variants.SingleOrDefault(x => x.Language == language.Code);
-            var enabled = variant is not null || template.Variants.Count == 0;
-            return new MarkdownMailInput(language, variant, enabled, "{{association}} — {{subject}}", MailMarkdown.OperationalDetails);
-        }).ToArray();
+            if (TemplateKind is not null)
+                error = "Choose an automatic mail template.";
+            return;
+        }
+        fallback = current.FallbackLanguage;
+        selected = current.Languages.SingleOrDefault(x => x.Source.Language == language)
+            ?? current.Languages.Single(x => x.Source.Language == fallback);
+        input = new(UiLanguages.Find(selected.Source.Language)!, null, true, selected.Source.Subject, selected.Source.Body);
     }
 
-    private async Task Save()
+    private Task Save() => Change(reset: false);
+    private Task Reset() => Change(reset: true);
+
+    private async Task Change(bool reset)
     {
-        if (busy || current is null)
+        if (busy || current is null || input is null)
             return;
         busy = true;
-        saved = false;
-        error = null;
+        status = error = null;
         try
         {
-            var variants = MarkdownMailInput.ReadEnabled(inputs, operational: true);
+            var kind = current.Kind;
+            var source = new OperationalTemplateSource(input.Language.Code, input.Subject, input.Source);
             await using var scope = Scopes.CreateAsyncScope();
-            await scope.ServiceProvider.GetRequiredService<OperationalTemplates>().Save(actor, current.Kind, variants, fallback);
-            saved = true;
+            var service = scope.ServiceProvider.GetRequiredService<OperationalTemplates>();
+            if (reset)
+                await service.Reset(actor, kind, source.Language);
+            else
+                await service.Save(actor, kind, source, fallback);
             await Reload();
+            Open(source.Language);
+            status = reset ? "Default template restored." : "Template saved.";
         }
         catch (ValidationException problem) { error = problem.Message; }
         finally { busy = false; }

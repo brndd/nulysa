@@ -1,5 +1,4 @@
 using Microsoft.Playwright;
-using Nulysa.Communications;
 
 namespace Nulysa.Tests;
 
@@ -111,12 +110,34 @@ public sealed class MarkdownMailBrowserTests : BoardTest
         await page.GotoAsync(root + "admin/communications/templates");
         await page.GetByRole(AriaRole.Link, new() { Name = "Application verification", Exact = true }).ClickAsync();
         await Assertions.Expect(page).ToHaveURLAsync(root + "admin/communications/templates/Verification");
-        await body.FillAsync("Thanks for applying.");
-        await english.GetByRole(AriaRole.Button, new() { Name = "Insert operational details", Exact = true }).ClickAsync();
-        await Assertions.Expect(body).ToHaveValueAsync($"Thanks for applying.\n\n{MailMarkdown.OperationalDetails}\n\n");
-        await english.GetByRole(AriaRole.Tab, new() { Name = "Preview", Exact = true }).ClickAsync();
-        await Assertions.Expect(previewPanel.GetByText("Required operational details appear here.", new() { Exact = true })).ToBeVisibleAsync();
+        await Assertions.Expect(english.GetByRole(AriaRole.Link, new() { Name = "Liquid documentation", Exact = true }))
+            .ToHaveAttributeAsync("href", "https://shopify.github.io/liquid/");
+        await Assertions.Expect(body).ToHaveValueAsync(new System.Text.RegularExpressions.Regex("verification_url"));
+        await body.FillAsync(@"Thanks for applying. {% raw %}{{example}}{% endraw %}. Reply by {{verification_expires_at}}. Verify now");
+        await body.EvaluateAsync("el => el.setSelectionRange(el.value.length - 10, el.value.length)");
+        await english.GetByLabel("Template field", new() { Exact = true }).SelectOptionAsync("verification_url");
+        await english.GetByRole(AriaRole.Button, new() { Name = "Insert in body", Exact = true }).ClickAsync();
+        const string edited = @"Thanks for applying. {% raw %}{{example}}{% endraw %}. Reply by {{verification_expires_at}}. [Verify now]({{verification_url}})";
+        await Assertions.Expect(body).ToHaveValueAsync(edited);
+        await preview.ClickAsync();
+        await Assertions.Expect(previewPanel).ToContainTextAsync("Thanks for applying. {{example}}.");
+        await Assertions.Expect(previewPanel.GetByRole(AriaRole.Link, new() { Name = "Verify now" }))
+            .ToHaveAttributeAsync("href", "https://example.org/apply/verify?id=example");
         await page.GetByRole(AriaRole.Button, new() { Name = "Save template", Exact = true }).ClickAsync();
         await Assertions.Expect(page.GetByText("Template saved.", new() { Exact = true })).ToBeVisibleAsync();
+        await page.ReloadAsync();
+        await Assertions.Expect(body).ToHaveValueAsync(edited);
+        var languages = page.GetByRole(AriaRole.Navigation, new() { Name = "Template language" }).GetByRole(AriaRole.List);
+        await Assertions.Expect(languages.GetByRole(AriaRole.Listitem)).ToHaveCountAsync(2);
+        await Assertions.Expect(languages.Locator("span[aria-current=page]")).ToHaveTextAsync("English");
+        await Assertions.Expect(languages.GetByRole(AriaRole.Link)).ToHaveCountAsync(1);
+        await languages.GetByRole(AriaRole.Link, new() { Name = "Suomi", Exact = true }).ClickAsync();
+        await Assertions.Expect(page.Locator("#markdown-fi-body")).ToHaveValueAsync(new System.Text.RegularExpressions.Regex("Vahvista sähköpostiosoitteesi"));
+        await Assertions.Expect(languages.Locator("span[aria-current=page]")).ToHaveTextAsync("Suomi");
+        await languages.GetByRole(AriaRole.Link, new() { Name = "English", Exact = true }).ClickAsync();
+        var reset = page.GetByRole(AriaRole.Button, new() { Name = "Restore default for this language", Exact = true });
+        await reset.ClickAsync();
+        await Assertions.Expect(page.GetByText("Default template restored.", new() { Exact = true })).ToBeVisibleAsync();
+        await Assertions.Expect(body).ToHaveValueAsync(new System.Text.RegularExpressions.Regex("Verify your email"));
     }
 }

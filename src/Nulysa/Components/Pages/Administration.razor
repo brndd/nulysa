@@ -1,6 +1,7 @@
 @page "/admin"
 @attribute [Authorize(Policy = "Administrator")]
 @using Nulysa.Membership
+@using Nulysa.Communications
 @inject BoardQueries Queries
 @inject AuthenticationStateProvider Authentication
 @inject IConfiguration Configuration
@@ -25,6 +26,19 @@
         <a href="/admin/members?state=pending-deletion"><strong>@attention.PendingDeletions</strong><span>@T(attention.PendingDeletions == 1 ? "Account marked for deletion" : "Pending deletions")</span><small>@T("Review before the erasure batch")</small></a>
         <a href="/admin/mail-attention"><strong>@attention.EssentialMailProblems</strong><span>@T(attention.EssentialMailProblems == 1 ? "Important email problem" : "Essential mail problems")</span><small>@T("Reconcile failed or uncertain delivery")</small></a>
     </nav>
+    @if (attention.TemplateProblems.Count > 0)
+    {
+        <section class="status-panel operational-warning" aria-labelledby="template-warning">
+            <h2 id="template-warning">@T("Automatic mail templates need attention")</h2>
+            <p>@T("Automatic mail uses the shipped default for each invalid override listed below.")</p>
+            <ul>
+                @foreach (var problem in attention.TemplateProblems)
+                {
+                    <li><a href="@($"/admin/communications/templates/{problem.Kind}?language={problem.Language}")">@MailKindLabel.Text(problem.Kind) (@UiLanguages.Find(problem.Language)!.Name)</a></li>
+                }
+            </ul>
+        </section>
+    }
     <section id="bank-sync" aria-labelledby="bank-heading">
         <h2 id="bank-heading">@T("Bank synchronization")</h2>
         @if (!attention.BankEnabled)

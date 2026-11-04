@@ -425,31 +425,154 @@ public sealed class CommunicationsTests : MembershipTest
     }
 
     [Fact]
-    public async Task Automatic_template_requires_explicit_fallback_and_keeps_the_real_verification_link()
+    public async Task Automatic_overrides_validate_required_fields_and_deliver_the_real_link()
     {
         var board = await Board();
         var transport = new RecordingMail();
         await using var app = CommandsApp(transport);
-        var template = new MailVariant("en", "{{association}}: {{subject}}",
-            [new(MailBlockKind.Heading, [new("Welcome to the association")]), new(MailBlockKind.OperationalDetails, [])]);
-        await Assert.ThrowsAsync<ValidationException>(() => Run(app, sp => sp.GetRequiredService<OperationalTemplates>()
-            .Save(board, MailKind.Verification, [template], "fi")));
-        await Assert.ThrowsAsync<ValidationException>(() => Run(app, sp => sp.GetRequiredService<OperationalTemplates>()
-            .Save(board, MailKind.Verification, [Variant("en")], "en")));
-        await Run(app, sp => sp.GetRequiredService<OperationalTemplates>().Save(board, MailKind.Verification, [template], "en"));
+        var template = new OperationalTemplateSource("fi", @"{% raw %}{{literal}}{% endraw %} — {{association}}",
+            "## Kiitos hakemuksestasi\n\nVahvista sähköpostisi viimeistään {{verification_expires_at}}: <{{verification_url}}>");
+        Task Save(OperationalTemplateSource source, string fallback) => Run(app, sp => sp.GetRequiredService<OperationalTemplates>()
+            .Save(board, MailKind.Verification, source, fallback));
+        await Assert.ThrowsAsync<ValidationException>(() => Save(template, "sv"));
+        var missing = await Assert.ThrowsAsync<ValidationException>(() => Save(template with { Body = "Missing verification link." }, "en"));
+        Assert.Contains("{{verification_url}}", missing.Message);
+        await Save(template, "en");
+        await Save(new("en", "Verify", "<{{verification_url}}> by {{verification_expires_at}}."), "en");
+
         var templates = await Run(app, sp => sp.GetRequiredService<OperationalTemplates>().List(board));
         Assert.Equal("en", templates.Single(x => x.Kind == MailKind.Verification).FallbackLanguage);
+        Assert.All(templates.Single(x => x.Kind == MailKind.Verification).Languages, x => Assert.True(x.Custom));
 
         var id = Guid.NewGuid();
         await Run(app, sp => sp.GetRequiredService<MembershipCommands>().Apply(id, Input())); // Finnish preference.
         await using var db = Context();
         await Dispatch(app, (await db.Deliveries.SingleAsync(x => x.ApplicationId == id)).Id);
         var sent = Assert.Single(transport.Sent);
-        Assert.Contains("Verify your membership application", sent.Subject);
-        Assert.Contains("<h2>Welcome to the association</h2>", sent.Html);
-        Assert.Contains("Verify your email", sent.Text);
+        Assert.StartsWith("{{literal}}", sent.Subject);
+        Assert.Contains("<h2>Kiitos hakemuksestasi</h2>", sent.Html);
         Assert.Contains("<a href=", sent.Html);
         await Run(app, sp => sp.GetRequiredService<MembershipCommands>().Verify(id, Link(sent)["token"]!));
         Assert.NotNull((await db.Applications.AsNoTracking().SingleAsync(x => x.Id == id)).VerifiedAt);
+    }
+
+    [Fact]
+    public async Task Liquid_override_requires_operational_fields_in_every_branch()
+    {
+        var board = await Board();
+        await using var app = CommandsApp(new RecordingMail());
+        var template = new OperationalTemplateSource("en", "Deletion warning", """
+            Typical deletion window: {{deletion_window_start}}–{{deletion_window_end}}.
+
+            {% if unspent_funds %}
+            Earliest deletion: {{deletion_eligible_at}}. Remaining funds: {{unspent_funds}}.
+            {% else %}
+            Contact the board.
+            {% endif %}
+            """);
+        var error = await Assert.ThrowsAsync<ValidationException>(() => Run(app, sp => sp.GetRequiredService<OperationalTemplates>()
+            .Save(board, MailKind.DeletionWarning, template, "en")));
+        Assert.Contains("{{deletion_eligible_at}}", error.Message);
+    }
+
+    [Fact]
+    public async Task Broken_automatic_override_uses_same_language_default_and_appears_on_admin_overview_until_reset()
+    {
+        var board = await Board();
+        var transport = new RecordingMail();
+        await using var app = CommandsApp(transport);
+        const string brokenBody = "{{retired_field}}";
+        await using var db = Context();
+        db.OperationalMailTemplates.Add(new()
+        {
+            Kind = MailKind.Verification,
+            FallbackLanguage = "en",
+            Content = JsonSerializer.Serialize(new Dictionary<string, OperationalTemplateSource>
+            {
+                ["fi"] = new("fi", "Broken subject", brokenBody),
+                ["en"] = new("en", "Custom English", "<{{verification_url}}> by {{verification_expires_at}}.")
+            }),
+            UpdatedBy = Authority.Id(board),
+            UpdatedAt = Clock.Now
+        });
+        await db.SaveChangesAsync();
+
+        var attention = await Run(app, sp => sp.GetRequiredService<BoardQueries>().Attention(board, 30));
+        Assert.Equal(new(MailKind.Verification, "fi"), Assert.Single(attention.TemplateProblems));
+        Assert.Equal(0, attention.EssentialMailProblems);
+        var list = await Run(app, sp => sp.GetRequiredService<OperationalTemplates>().List(board));
+        var broken = list.Single(x => x.Kind == MailKind.Verification).Languages.Single(x => x.Source.Language == "fi");
+        Assert.Contains("retired_field", broken.Problem);
+        Assert.Equal(brokenBody, broken.Source.Body);
+
+        var id = Guid.NewGuid();
+        await Run(app, sp => sp.GetRequiredService<MembershipCommands>().Apply(id, Input()));
+        await Dispatch(app, (await db.Deliveries.SingleAsync(x => x.ApplicationId == id)).Id);
+        Assert.Contains("Vahvista jäsenhakemuksesi", Assert.Single(transport.Sent).Subject);
+
+        await Run(app, sp => sp.GetRequiredService<OperationalTemplates>().Reset(board, MailKind.Verification, "fi"));
+        attention = await Run(app, sp => sp.GetRequiredService<BoardQueries>().Attention(board, 30));
+        Assert.Empty(attention.TemplateProblems);
+        list = await Run(app, sp => sp.GetRequiredService<OperationalTemplates>().List(board));
+        var remaining = Assert.Single(list.Single(x => x.Kind == MailKind.Verification).Languages, x => x.Custom);
+        Assert.Equal("Custom English", remaining.Source.Subject);
+    }
+
+    [Fact]
+    public async Task Previous_markup_opens_as_liquid_and_keeps_its_condition_and_literals()
+    {
+        var board = await Board();
+        await using var app = CommandsApp(new RecordingMail());
+        await using var db = Context();
+        db.OperationalMailTemplates.Add(new()
+        {
+            Kind = MailKind.Rejection,
+            FallbackLanguage = "en",
+            Content = JsonSerializer.Serialize(new Dictionary<string, OperationalTemplateSource>
+            {
+                ["en"] = new("en", @"Decision \{{literal}} \{\{other\}\}",
+                    "Decision text.\n\n{{#if rejection_reason}}\n{{rejection_reason}}\n{{/if}}")
+            }),
+            UpdatedBy = Authority.Id(board),
+            UpdatedAt = Clock.Now
+        });
+        await db.SaveChangesAsync();
+
+        var list = await Run(app, sp => sp.GetRequiredService<OperationalTemplates>().List(board));
+        var converted = Assert.Single(list.Single(x => x.Kind == MailKind.Rejection).Languages, x => x.Custom);
+        Assert.Null(converted.Problem);
+        Assert.Contains("{% if rejection_reason %}", converted.Source.Body);
+        var preview = OperationalTemplates.Preview(MailKind.Rejection, converted.Source);
+        Assert.Equal("Decision {{literal}} {{other}}", preview.Subject);
+        Assert.Contains("currently at capacity", preview.Text);
+
+        await Run(app, sp => sp.GetRequiredService<OperationalTemplates>().Save(board, MailKind.Rejection, converted.Source, "en"));
+        list = await Run(app, sp => sp.GetRequiredService<OperationalTemplates>().List(board));
+        Assert.Equal(converted, Assert.Single(list.Single(x => x.Kind == MailKind.Rejection).Languages, x => x.Custom));
+    }
+
+    [Fact]
+    public async Task Previous_wrapper_can_be_opened_as_a_full_markdown_override()
+    {
+        var board = await Board();
+        await using var app = CommandsApp(new RecordingMail());
+        await using var db = Context();
+        db.OperationalMailTemplates.Add(new()
+        {
+            Kind = MailKind.Verification,
+            FallbackLanguage = "en",
+            Content = JsonSerializer.Serialize<MailVariant[]>([new("en", "{{association}}: {{subject}}",
+                [new(MailBlockKind.Heading, [new("Welcome to the association")]), new(MailBlockKind.OperationalDetails, [])])]),
+            UpdatedBy = Authority.Id(board),
+            UpdatedAt = Clock.Now
+        });
+        await db.SaveChangesAsync();
+
+        var list = await Run(app, sp => sp.GetRequiredService<OperationalTemplates>().List(board));
+        var converted = Assert.Single(list.Single(x => x.Kind == MailKind.Verification).Languages, x => x.Custom);
+        Assert.Null(converted.Problem);
+        Assert.Equal("{{association}}: Verify your membership application", converted.Source.Subject);
+        Assert.Contains("## Welcome to the association", converted.Source.Body);
+        Assert.Contains("<{{verification_url}}>", converted.Source.Body);
     }
 }

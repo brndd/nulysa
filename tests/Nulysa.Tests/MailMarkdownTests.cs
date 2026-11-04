@@ -48,15 +48,39 @@ public sealed class MailMarkdownTests
     }
 
     [Fact]
-    public void Automatic_details_require_one_standalone_marker_and_render_as_a_block()
+    public void Automatic_preview_supports_literal_braces_text_fields_and_typed_links()
     {
-        const string token = MailMarkdown.OperationalDetails;
-        var variant = MailMarkdown.Parse("en", "{{subject}}", $"Hello\n\n{token}\n\nThanks", operational: true);
-        var preview = MailMarkdown.Preview(variant, details: "Your real details", sampleSubject: "Sample");
-        Assert.Equal("Sample", preview.Subject);
-        Assert.Contains("<p>Your real details</p>", preview.Html);
-        Assert.Throws<ValidationException>(() => MailMarkdown.Parse("en", "Subject", token));
-        Assert.Throws<ValidationException>(() => MailMarkdown.Parse("en", "Subject", $"Hello {token}", operational: true));
-        Assert.Throws<ValidationException>(() => MailMarkdown.Parse("en", "Subject", $"{token}\n\n{token}", operational: true));
+        var preview = OperationalTemplates.Preview(MailKind.Verification, new("en",
+            @"{% raw %}{{example}}{% endraw %} and {% raw %}{{other}}{% endraw %} for {{association}}",
+            @"{% raw %}{{example}}{% endraw %} and {% raw %}{{other}}{% endraw %} **{{association}}**. [Verify now]({{verification_url}})."));
+
+        Assert.Equal("{{example}} and {{other}} for Example Hackerspace", preview.Subject);
+        Assert.Contains("{{example}} and {{other}} <strong>Example Hackerspace</strong>", preview.Html);
+        Assert.Contains("<a href=\"https://example.org/apply/verify?id=example\"", preview.Html);
+        Assert.Equal(new MailContent("", "", ""), OperationalTemplates.Preview(MailKind.Verification, new("en", "", "")));
+    }
+
+    [Theory]
+    [InlineData("{{retired_field}}")]
+    [InlineData("{{ association | upcase }}")]
+    [InlineData("{% include 'file' %}")]
+    [InlineData("{% if rejection_reason %}Text{% endif %}")]
+    [InlineData("{{verification_url}}")]
+    [InlineData("[Verify](https://example.test/?token={{verification_url}})")]
+    [InlineData("[Verify](https://example.test/{{association}})")]
+    [InlineData("[Verify](https://example.test \"{{association}}\")")]
+    [InlineData("{% if association %}\nHello\n{% endif %}")]
+    public void Automatic_preview_rejects_unknown_or_misplaced_fields(string body)
+    {
+        Assert.Throws<ValidationException>(() => OperationalTemplates.Preview(MailKind.Verification, new("en", "", body)));
+    }
+
+    [Fact]
+    public void Automatic_preview_renders_sample_optional_sections()
+    {
+        var preview = OperationalTemplates.Preview(MailKind.Rejection, new("en", "Decision",
+            "Decision recorded.\n\n{% if rejection_reason %}\n**Reason:** {{rejection_reason}}\n{% else %}\nNo reason supplied.\n{% endif %}"));
+
+        Assert.Contains("<strong>Reason:</strong> The association is currently at capacity.", preview.Html);
     }
 }

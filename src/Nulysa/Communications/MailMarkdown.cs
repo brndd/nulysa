@@ -9,15 +9,15 @@ namespace Nulysa.Communications;
 
 public static class MailMarkdown
 {
-    public const string OperationalDetails = "{{operational_details}}";
+    internal const string OperationalDetails = "{{operational_details}}";
     public const int SourceLimit = 40_000;
     private static readonly MarkdownPipeline Pipeline = new MarkdownPipelineBuilder()
         .UsePreciseSourceLocation().UsePipeTables().UseTaskLists().Build();
 
-    public static MailVariant Parse(string language, string subject, string source, bool operational = false)
-        => Parse(language, subject, source, operational, allowEmptySubject: false);
+    public static MailVariant Parse(string language, string subject, string source)
+        => Parse(language, subject, source, allowEmptySubject: false);
 
-    internal static MailVariant Parse(string language, string subject, string source, bool operational, bool allowEmptySubject)
+    internal static MailVariant Parse(string language, string subject, string source, bool allowEmptySubject)
     {
         if (source.Length > SourceLimit)
             throw new ValidationException("The Markdown source is too long.");
@@ -27,11 +27,6 @@ public static class MailMarkdown
         {
             switch (block)
             {
-                case ParagraphBlock when source.Substring(block.Span.Start, block.Span.Length).Trim() == OperationalDetails:
-                    if (!operational || blocks.Any(x => x.Kind == MailBlockKind.OperationalDetails))
-                        throw Unsupported(block);
-                    blocks.Add(new(MailBlockKind.OperationalDetails, []));
-                    break;
                 case ParagraphBlock paragraph:
                     blocks.Add(Convert(paragraph, MailBlockKind.Paragraph));
                     break;
@@ -53,13 +48,12 @@ public static class MailMarkdown
                     throw Unsupported(block);
             }
         }
-        return RichMail.Validate([new(language, subject, [.. blocks]) { Markdown = source }], operational, allowEmptySubject)[0];
+        return RichMail.Validate([new(language, subject, [.. blocks]) { Markdown = source }], allowEmptySubject: allowEmptySubject)[0];
     }
 
-    public static MailContent Preview(MailVariant variant, bool newsletter = false,
-        string? details = null, string? sampleSubject = null, string? association = null)
+    public static MailContent Preview(MailVariant variant, bool newsletter = false)
     {
-        var content = RichMail.Render(variant, details, sampleSubject, association);
+        var content = RichMail.Render(variant);
         return newsletter ? RichMail.WithUnsubscribe(content, variant.Language) : content;
     }
 

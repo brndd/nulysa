@@ -374,7 +374,7 @@ public sealed class BoardUiTests : BoardTest
     [Fact]
     public async Task New_board_routes_are_private_and_empty_or_invalid_filters_have_clear_states()
     {
-        await Board();
+        var board = await Board();
         var member = await CreateUser();
         await using var web = await StartProvider();
         using var client = Client();
@@ -391,6 +391,7 @@ public sealed class BoardUiTests : BoardTest
         var mail = await administrator.GetStringAsync("admin/mail-attention?page=999999999999999&state=unknown");
 
         Assert.Contains("<h1>Needs attention</h1>", dashboard);
+        Assert.DoesNotContain("id=\"template-warning\"", dashboard);
         Assert.Contains("Automatic bank import is disabled", dashboard);
         Assert.Contains("No bank payments have been imported yet", dashboard);
         Assert.Contains("Membership inactive for at least 30 days", dashboard);
@@ -411,6 +412,20 @@ public sealed class BoardUiTests : BoardTest
         var empty = WebUtility.HtmlDecode(await finnish.GetStringAsync("admin"));
         foreach (var label in new[] { "vahvistettua hakemusta", "käsittelemätöntä maksua", "jäsentä, joilla jäsenmaksu maksamatta", "poistoa odottavaa tiliä", "tärkeiden sähköpostien ongelmaa" })
             Assert.Contains($"<strong>0</strong><span>{label}</span>", empty);
+
+        await using var db = Context();
+        db.OperationalMailTemplates.Add(new()
+        {
+            Kind = MailKind.Verification,
+            FallbackLanguage = "en",
+            Content = """{"fi":{"Subject":"Broken","Body":"{{retired_field}}"}}""",
+            UpdatedAt = Clock.Now,
+            UpdatedBy = Authority.Id(board)
+        });
+        await db.SaveChangesAsync();
+        var warning = await administrator.GetStringAsync("admin");
+        Assert.Matches("""class="attention-queues"[^>]*>[\s\S]*?</nav>\s*<section [^>]*aria-labelledby="template-warning"[ >]""", warning);
+        Assert.Contains("href=\"/admin/communications/templates/Verification?language=fi\"", warning);
     }
 
 }

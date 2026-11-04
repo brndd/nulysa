@@ -46,16 +46,17 @@ EF migrations before starting web and worker.
   terminal delivery retention rules (30 days); progress exposes how many are
   no longer retained. Campaign outcomes appear in progress. Campaign delivery
   failures and backlog age are excluded from the operational mail alarms.
-- `OperationalTemplates` lists, saves and resets automatic mail overrides.
-  Every saved override requires a fallback variant. The subject can use
-  `{{subject}}` and `{{association}}`. Each Markdown body requires
-  `{{operational_details}}` in its own paragraph. This block includes the
-  existing translated notice, account links and instructions;
-  invoice PDFs and all delivery eligibility rules stay in the worker. The
-  default policy uses the recipient's built-in translation or the configured
-  `Membership:DefaultLanguage`. When adding a language, add its operational
-  translations or use the visible fallback. Override language variants require
-  a translation for the operational details block.
+- `OperationalTemplates` manages one subject and Markdown body per message
+  kind and language. Shipped defaults are embedded from
+  `src/Nulysa/Communications/Templates/*.md`, with a `Subject:` header followed
+  by a blank line and the body. Application startup validates the shipped files.
+  The worker supplies named fields from the per-kind contract. It resolves the
+  recipient's language first, using the configured fallback language if there is
+  no shipped translation. A valid override takes precedence over the shipped
+  version for the selected language. An invalid override stays available for
+  editing and the admin overview links to it while mail uses the shipped version.
+  Existing wrappers open as expanded Markdown and saving stores the expanded source.
+  Invoice PDFs and delivery eligibility continue to be handled by the worker.
 - `NewsletterPreferences` reads and changes the signed-in member's own
   preference. Newsletter email includes an opaque, 90-day unsubscribe token
   tied to the address used at dispatch. Anonymous
@@ -73,3 +74,18 @@ failures with a reason. A campaign is complete when no deliveries are queued or
 sending. Its sent count records provider acceptance and survives retention or
 erasure of individual delivery records.
 Member preferences and browser unsubscribe confirmation are separate UI work.
+
+Automatic templates use Fluid to parse and render a subset of Liquid. Fields use
+`{{field_name}}` in text and
+`[label]({{action_url}})` or `<{{action_url}}>` for a generated link. The editor
+shows which fields are required in the body. Values are inserted after Markdown
+parsing, so their contents are treated as plain text or as one validated URL.
+Wrap literal braces in `{% raw %}{{example}}{% endraw %}` in either the
+subject or body. Optional sections use `{% if field_name %}`, an optional
+`{% else %}`, and `{% endif %}`. Required fields must appear in every
+rendered branch. Liquid expressions can reference the named fields directly.
+Existing templates written in the earlier syntax are converted on read and
+stored as Liquid when saved. The editor previews with sample values. When changing
+a field contract, keep compatible names where possible. Removing a name or adding
+a required field can invalidate a stored override. Wording-only updates take
+effect automatically in languages using the shipped template.

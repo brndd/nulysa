@@ -15,9 +15,9 @@ public sealed record BankAttention(string Account, string Status, DateTimeOffset
 }
 
 public sealed record BoardAttention(int Applications, int PaymentReviews, int InactiveMembers, int PendingDeletions,
-    int EssentialMailProblems, bool BankEnabled, int StaleHours, List<BankAttention> BankAccounts);
+    int EssentialMailProblems, bool BankEnabled, int StaleHours, List<BankAttention> BankAccounts, IReadOnlyList<OperationalTemplateProblem> TemplateProblems);
 
-public sealed class BoardQueries(AppDbContext db, MembershipQueries members, AssociationClock clock, IOptions<BankOptions> bank)
+public sealed class BoardQueries(AppDbContext db, MembershipQueries members, AssociationClock clock, IOptions<BankOptions> bank, OperationalTemplates templates)
 {
     public async Task<BoardAttention> Attention(ClaimsPrincipal actor, int inactiveDays, CancellationToken ct = default)
     {
@@ -44,6 +44,6 @@ public sealed class BoardQueries(AppDbContext db, MembershipQueries members, Ass
                 description = connection.ValidUntil <= clock.Now ? "Authorization renewal required" : "Bank consent expires soon";
             return new BankAttention(connection?.Label ?? account, description, status?.LastSuccess, status?.LastAttempt, stale);
         }).ToList();
-        return new(applications, payments, inactive.Total, deletions, mail, bank.Value.Enabled, bank.Value.StaleHours, statuses);
+        return new(applications, payments, inactive.Total, deletions, mail, bank.Value.Enabled, bank.Value.StaleHours, statuses, await templates.Problems(actor, ct));
     }
 }

@@ -167,6 +167,7 @@ public static class FoundationHost
             .Validate(x => (development && x.Iban.Length == 0) || BillingOptions.ValidIban(x.Iban), "Billing:Iban must be a checksum-valid payment destination.").ValidateOnStart();
         builder.Services.AddScoped<Campaigns>();
         builder.Services.AddScoped<NewsletterPreferences>();
+        OperationalTemplateCatalog.ValidateDefaults();
         builder.Services.AddScoped<OperationalTemplates>();
         builder.Services.AddScoped<MailQueue>();
         builder.Services.AddScoped<MailRenderer>();

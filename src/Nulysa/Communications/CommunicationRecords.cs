@@ -44,5 +44,3 @@ public sealed record CampaignRecipient(Guid Id, long? UserId, string? PreferredL
     DeliveryState State, int Attempts, DateTimeOffset? AcceptedAt, string? ProviderId, bool Test);
 public sealed record CampaignProgress(CampaignSummary Campaign, IReadOnlyDictionary<DeliveryState, int> Counts, int NoLongerRetained,
     IReadOnlyList<CampaignRecipient> Recipients, int TotalRows, int Page);
-public sealed record OperationalTemplateView(MailKind Kind, IReadOnlyList<MailVariant> Variants, string FallbackLanguage,
-    IReadOnlyList<string> BuiltInLanguages, DateTimeOffset? UpdatedAt);

@@ -3,15 +3,41 @@
 @using Nulysa.Communications
 @implements IAsyncDisposable
 @inject IJSRuntime JS
-@inject IConfiguration Configuration
 
 <fieldset class="markdown-mail-editor">
     <legend>@Input.Language.Name</legend>
-    <label><input type="checkbox" @bind="Input.Enabled" /> @T("Include this language")</label>
+    @if (TemplateKind is null)
+    {
+        <label><input type="checkbox" @bind="Input.Enabled" /> @T("Include this language")</label>
+    }
     @if (Input.Enabled)
     {
         <label for="@FieldId("subject")">@T("Subject")</label>
-        <input id="@FieldId("subject")" @bind="Input.Subject" @bind:event="oninput" @bind:after="RefreshPreview" maxlength="200" />
+        <input id="@FieldId("subject")" @bind="Input.Subject" @bind:event="oninput" @bind:after="RefreshPreview" @ref="subject" maxlength="200" />
+        @if (TemplateKind is { } kind)
+        {
+            var field = OperationalTemplates.Fields(kind).FirstOrDefault(x => x.Name == selectedField);
+            <div class="compact-form">
+                <label for="@FieldId("field")">@T("Template field")</label>
+                <select id="@FieldId("field")" @bind="selectedField">
+                    <option value="">@T("Choose a field")</option>
+                    @foreach (var item in OperationalTemplates.Fields(kind))
+                    {
+                        <option value="@item.Name">@T(item.Label) ({{@item.Name}})@(item.Required ? $" · {T("Required in body")}" : "")</option>
+                    }
+                </select>
+                <button type="button" class="secondary-action" disabled="@(field is null || field.Link)" @onclick="() => InsertField(field, true)">@T("Insert in subject")</button>
+                <button type="button" class="secondary-action" disabled="@(field is null || previewing)" @onclick="() => InsertField(field, false)">@T("Insert in body")</button>
+            </div>
+            <p><small>@T("This template uses Liquid syntax.")
+                <a href="https://shopify.github.io/liquid/" target="_blank" rel="noopener noreferrer">@T("Liquid documentation")</a>
+            </small></p>
+            @if (field is { Optional: true })
+            {
+                <p><small>@T("To hide a paragraph when this field is empty, put it between these markers on separate lines.")
+                    <code>{% if @field.Name %}</code> <code>{% endif %}</code></small></p>
+            }
+        }
         <div class="markdown-panel">
             <div class="markdown-header">
                 <div class="markdown-tabs" role="tablist" aria-label="@T("Message editor")" @ref="tabs">
@@ -28,11 +54,6 @@
                     <md-quote title="@T("Quote")" aria-label="@T("Quote")"><MarkdownToolbarIcon Name="quote" /></md-quote>
                     <md-link title="@T("Link")" aria-label="@T("Link")"><MarkdownToolbarIcon Name="link" /></md-link>
                     <md-unordered-list title="@T("Bullet list")" aria-label="@T("Bullet list")"><MarkdownToolbarIcon Name="bullet" /></md-unordered-list>
-                    @if (Operational)
-                    {
-                        <span class="markdown-divider" aria-hidden="true"></span>
-                        <button type="button" data-md-button @onclick="InsertDetails">@T("Insert operational details")</button>
-                    }
                 </markdown-toolbar>
             </div>
             <div class="markdown-body" id="@FieldId("write-panel")" role="tabpanel" aria-labelledby="@FieldId("write-tab")" hidden="@previewing">
@@ -58,10 +79,12 @@
 
 @code {
     [Parameter, EditorRequired] public MarkdownMailInput Input { get; set; } = null!;
-    [Parameter] public bool Operational { get; set; }
+    [Parameter] public MailKind? TemplateKind { get; set; }
     [Parameter] public bool Newsletter { get; set; }
 
+    private ElementReference subject;
     private ElementReference body;
+    private string selectedField = "";
     private ElementReference tabs;
     private bool connected;
     private IJSObjectReference? module;
@@ -87,12 +110,9 @@
         preview = null;
         try
         {
-            var variant = Input.ReadPreview(Operational);
-            var culture = System.Globalization.CultureInfo.GetCultureInfo(variant.Language);
-            preview = MailMarkdown.Preview(variant, Newsletter,
-                Operational ? UiText.ForCulture("Required operational details appear here.", culture) : null,
-                Operational ? UiText.ForCulture("Original automatic mail subject", culture) : null,
-                Configuration["Association:Name"] ?? "Nulysa");
+            preview = TemplateKind is { } kind
+                ? OperationalTemplates.Preview(kind, new(Input.Language.Code, Input.Subject, Input.Source))
+                : MailMarkdown.Preview(Input.ReadPreview(), Newsletter);
         }
         catch (ValidationException problem) { error = problem.Message; }
     }
@@ -112,10 +132,13 @@
         await module.InvokeVoidAsync("connectEditor", tabs, body);
     }
 
-    private async Task InsertDetails()
+    private async Task InsertField(OperationalTemplateField? field, bool inSubject)
     {
-        if (module is not null)
-            await module.InvokeVoidAsync("insertOperationalDetails", body, MailMarkdown.OperationalDetails);
+        if (module is null || field is null)
+            return;
+        var marker = "{{" + field.Name + "}}";
+        await module.InvokeVoidAsync("insertTemplateField", inSubject ? subject : body, marker,
+            field.Link ? T(field.Label) : null);
     }
 
     public async ValueTask DisposeAsync()

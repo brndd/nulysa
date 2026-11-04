@@ -2703,9 +2703,6 @@
   <data name="Automatic mail templates" xml:space="preserve">
     <value>Automaattisten viestien pohjat</value>
   </data>
-  <data name="Each automatic template includes the required operational details. Preview shows a placeholder for those details." xml:space="preserve">
-    <value>Jokainen automaattinen viestipohja sisältää pakolliset tiedot. Esikatselu näyttää niiden paikan.</value>
-  </data>
   <data name="Fallback language" xml:space="preserve">
     <value>Varakieli</value>
   </data>
@@ -2751,20 +2748,11 @@
   <data name="Subject" xml:space="preserve">
     <value>Aihe</value>
   </data>
-  <data name="Insert operational details" xml:space="preserve">
-    <value>Lisää pakolliset tiedot</value>
-  </data>
   <data name="Message body (Markdown)" xml:space="preserve">
     <value>Viestin sisältö (Markdown)</value>
   </data>
   <data name="Email preview" xml:space="preserve">
     <value>Viestin esikatselu</value>
-  </data>
-  <data name="Required operational details appear here." xml:space="preserve">
-    <value>Pakolliset tiedot lisätään tähän.</value>
-  </data>
-  <data name="Original automatic mail subject" xml:space="preserve">
-    <value>Automaattisen viestin alkuperäinen aihe</value>
   </data>
   <data name="Unsupported Markdown or link on line {0}." xml:space="preserve">
     <value>Rivillä {0} on Markdown-muotoilu tai linkki, jota ei tueta.</value>
@@ -2963,5 +2951,152 @@
   </data>
   <data name="Sent counts messages accepted by the mail provider." xml:space="preserve">
     <value>Lähetettyjen määrä kertoo, montako viestiä sähköpostipalvelu hyväksyi.</value>
+  </data>
+  <data name="Edit the subject and Markdown body for each language. Preview uses sample values." xml:space="preserve">
+    <value>Muokkaa kunkin kielen aihetta ja Markdown-viestiä. Esikatselu käyttää esimerkkiarvoja.</value>
+  </data>
+  <data name="Template language" xml:space="preserve">
+    <value>Viestipohjan kieli</value>
+  </data>
+  <data name="Custom override" xml:space="preserve">
+    <value>Mukautettu viestipohja</value>
+  </data>
+  <data name="Shipped default" xml:space="preserve">
+    <value>Toimitettu oletuspohja</value>
+  </data>
+  <data name="This override is invalid. Automatic mail uses the shipped default until it is repaired." xml:space="preserve">
+    <value>Mukautettu viestipohja on virheellinen. Automaattinen sähköposti käyttää oletuspohjaa, kunnes virhe on korjattu.</value>
+  </data>
+  <data name="Restore default for this language" xml:space="preserve">
+    <value>Palauta tämän kielen oletuspohja</value>
+  </data>
+  <data name="Default template restored." xml:space="preserve">
+    <value>Oletuspohja palautettu.</value>
+  </data>
+  <data name="Automatic mail templates need attention" xml:space="preserve">
+    <value>Automaattisissa viestipohjissa on korjattavaa</value>
+  </data>
+  <data name="Automatic mail uses the shipped default for each invalid override listed below." xml:space="preserve">
+    <value>Automaattinen sähköposti käyttää oletuspohjaa alla lueteltujen virheellisten pohjien tilalla.</value>
+  </data>
+  <data name="Template field" xml:space="preserve">
+    <value>Viestipohjan kenttä</value>
+  </data>
+  <data name="Choose a field" xml:space="preserve">
+    <value>Valitse kenttä</value>
+  </data>
+  <data name="Required in body" xml:space="preserve">
+    <value>Pakollinen viestissä</value>
+  </data>
+  <data name="Insert in subject" xml:space="preserve">
+    <value>Lisää aiheeseen</value>
+  </data>
+  <data name="Insert in body" xml:space="preserve">
+    <value>Lisää viestiin</value>
+  </data>
+  <data name="To hide a paragraph when this field is empty, put it between these markers on separate lines." xml:space="preserve">
+    <value>Jos haluat piilottaa kappaleen kentän ollessa tyhjä, lisää nämä merkinnät kappaleen ympärille omille riveilleen.</value>
+  </data>
+  <data name="Association name" xml:space="preserve">
+    <value>Yhdistyksen nimi</value>
+  </data>
+  <data name="Billing page" xml:space="preserve">
+    <value>Laskutussivu</value>
+  </data>
+  <data name="Email verification link" xml:space="preserve">
+    <value>Sähköpostin vahvistuslinkki</value>
+  </data>
+  <data name="Verification expiry" xml:space="preserve">
+    <value>Vahvistuslinkin vanhenemisaika</value>
+  </data>
+  <data name="Set password link" xml:space="preserve">
+    <value>Salasanan asetuslinkki</value>
+  </data>
+  <data name="Rejection explanation" xml:space="preserve">
+    <value>Hylkäyksen perustelu</value>
+  </data>
+  <data name="Earliest deletion time" xml:space="preserve">
+    <value>Aikaisin poistoajankohta</value>
+  </data>
+  <data name="Typical deletion window start" xml:space="preserve">
+    <value>Tavanomaisen poistoajan alku</value>
+  </data>
+  <data name="Typical deletion window end" xml:space="preserve">
+    <value>Tavanomaisen poistoajan loppu</value>
+  </data>
+  <data name="Unspent funds" xml:space="preserve">
+    <value>Käyttämättömät varat</value>
+  </data>
+  <data name="New address confirmation link" xml:space="preserve">
+    <value>Uuden osoitteen vahvistuslinkki</value>
+  </data>
+  <data name="Payment request number" xml:space="preserve">
+    <value>Maksupyynnön numero</value>
+  </data>
+  <data name="Last day of member benefits" xml:space="preserve">
+    <value>Jäsenetujen viimeinen päivä</value>
+  </data>
+  <data name="Member services page" xml:space="preserve">
+    <value>Jäsenpalvelusivu</value>
+  </data>
+  <data name="Payment administration page" xml:space="preserve">
+    <value>Maksujen hallintasivu</value>
+  </data>
+  <data name="Password change time" xml:space="preserve">
+    <value>Salasanan vaihtoaika</value>
+  </data>
+  <data name="Request a password reset" xml:space="preserve">
+    <value>Pyydä salasanan palautusta</value>
+  </data>
+  <data name="Choose an automatic mail template." xml:space="preserve">
+    <value>Valitse automaattinen viestipohja.</value>
+  </data>
+  <data name="Choose a supported template language." xml:space="preserve">
+    <value>Valitse tuettu viestipohjan kieli.</value>
+  </data>
+  <data name="Choose a supported fallback language." xml:space="preserve">
+    <value>Valitse tuettu varakieli.</value>
+  </data>
+  <data name="Enter a single-line subject up to 200 characters." xml:space="preserve">
+    <value>Kirjoita yhdelle riville enintään 200 merkin aihe.</value>
+  </data>
+  <data name="The subject and body must contain text when optional fields are empty." xml:space="preserve">
+    <value>Aiheessa ja viestissä on oltava tekstiä, vaikka valinnaiset kentät ovat tyhjiä.</value>
+  </data>
+  <data name="Unknown template field: {0}." xml:space="preserve">
+    <value>Tuntematon viestipohjan kenttä: {0}.</value>
+  </data>
+  <data name="Use {0} as a Markdown link destination." xml:space="preserve">
+    <value>Käytä kenttää {0} Markdown-linkin osoitteena.</value>
+  </data>
+  <data name="Use URL fields as complete Markdown link destinations." xml:space="preserve">
+    <value>Käytä osoitekenttiä kokonaisina Markdown-linkkien osoitteina.</value>
+  </data>
+  <data name="Use template fields in visible text or as complete Markdown link destinations." xml:space="preserve">
+    <value>Käytä viestipohjan kenttiä näkyvässä tekstissä tai kokonaisina Markdown-linkkien osoitteina.</value>
+  </data>
+  <data name="An automatic mail link is invalid." xml:space="preserve">
+    <value>Automaattisen sähköpostin linkki on virheellinen.</value>
+  </data>
+  <data name="This template uses Liquid syntax." xml:space="preserve">
+    <value>Tämä viestipohja käyttää Liquid-syntaksia.</value>
+  </data>
+  <data name="Liquid documentation" xml:space="preserve">
+    <value>Liquidin ohjeet</value>
+  </data>
+  <data name="Invalid Liquid template: {0}" xml:space="preserve">
+    <value>Virheellinen Liquid-viestipohja: {0}</value>
+  </data>
+  <data name="Include {{{{{0}}}}} in the message body in every conditional branch." xml:space="preserve">
+    <value>Lisää {{{{{0}}}}} viestin jokaisen ehtolohkon haaraan.</value>
+  </data>
+  <data name="Use Liquid if blocks with optional fields." xml:space="preserve">
+    <value>Käytä Liquidin if-lohkoissa valinnaisia kenttiä.</value>
+  </data>
+  <data name="Use Liquid fields, if and else blocks, comments, or raw blocks." xml:space="preserve">
+    <value>Käytä Liquid-kenttiä, if- ja else-lohkoja, kommentteja tai raw-lohkoja.</value>
+  </data>
+  <data name="Use a single named template field in Liquid expressions." xml:space="preserve">
+    <value>Käytä Liquid-lausekkeessa yhtä nimettyä viestipohjan kenttää.</value>
   </data>
 </root>

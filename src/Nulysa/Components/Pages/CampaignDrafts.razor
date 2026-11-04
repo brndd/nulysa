@@ -152,7 +152,7 @@
         error = null;
         try
         {
-            var variants = MarkdownMailInput.ReadEnabled(inputs, operational: false);
+            var variants = MarkdownMailInput.ReadEnabled(inputs);
             await using var scope = Scopes.CreateAsyncScope();
             var result = await scope.ServiceProvider.GetRequiredService<Campaigns>().Save(actor, id, revision, title, kind, variants);
             revision = result.Revision;

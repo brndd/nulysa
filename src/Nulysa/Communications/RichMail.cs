@@ -4,7 +4,6 @@ using System.Net;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Text.RegularExpressions;
 using Nulysa.Localization;
 
 namespace Nulysa.Communications;
@@ -25,7 +24,7 @@ internal static class RichMail
     public const int SubjectLimit = 200;
     private const int BodyLimit = 32_000;
 
-    public static MailVariant[] Validate(IReadOnlyCollection<MailVariant> variants, bool operational = false, bool allowEmptySubject = false)
+    public static MailVariant[] Validate(IReadOnlyCollection<MailVariant> variants, bool allowEmptySubject = false)
     {
         if (variants.Count == 0 || variants.Count > UiLanguages.Supported.Count)
             throw new ValidationException("Provide at least one supported message language.");
@@ -43,19 +42,13 @@ internal static class RichMail
             if (variant.Markdown is { Length: > MailMarkdown.SourceLimit })
                 throw new ValidationException("The Markdown source is too long.");
             if (variant.Body is not { Length: > 0 and <= 100 } || variant.Body.Any(block => block is null ||
-                !Enum.IsDefined(block.Kind) || block.Runs is not { Length: <= 100 } ||
-                (block.Kind == MailBlockKind.OperationalDetails ? block.Runs.Length != 0 :
-                    block.Runs.Length == 0 || block.Runs.All(run => string.IsNullOrWhiteSpace(run?.Text))) ||
+                !Enum.IsDefined(block.Kind) || block.Kind == MailBlockKind.OperationalDetails ||
+                block.Runs is not { Length: > 0 and <= 100 } || block.Runs.All(run => string.IsNullOrWhiteSpace(run?.Text)) ||
                 block.Runs.Any(run => run?.Text is not { Length: <= BodyLimit } || run.Text.Contains('\0') ||
                     (run.Link is not null && !SafeLink(run.Link)))))
                 throw new ValidationException("Use supported formatting and absolute HTTPS, HTTP or mailto links.");
             if (variant.Body.SelectMany(block => block.Runs).Sum(run => (long)run.Text.Length + (run.Link?.Length ?? 0)) > BodyLimit)
                 throw new ValidationException("The message body is too long.");
-            if (variant.Body.Count(block => block.Kind == MailBlockKind.OperationalDetails) != (operational ? 1 : 0))
-                throw new ValidationException(operational ? "Include the operational details block once." : "Operational details are only available in automatic mail.");
-            if (operational && (variant.Subject.Replace("{{subject}}", "").Replace("{{association}}", "").Contains("{{") ||
-                variant.Subject.Replace("{{subject}}", "").Replace("{{association}}", "").Contains("}}")))
-                throw new ValidationException("Use only {{subject}} and {{association}} in an automatic mail subject.");
             return variant with { Language = language, Subject = variant.Subject.Trim() };
         }).OrderBy(variant => variant.Language, StringComparer.Ordinal).ToArray();
     }
@@ -63,7 +56,7 @@ internal static class RichMail
     public static string Store(MailVariant[] variants) => JsonSerializer.Serialize(variants);
     public static MailVariant[] Read(string json) => JsonSerializer.Deserialize<MailVariant[]>(json)!;
 
-    public static MailContent Render(MailVariant variant, string? details = null, string? originalSubject = null, string? association = null)
+    public static MailContent Render(MailVariant variant)
     {
         var text = new StringBuilder();
         var html = new StringBuilder();
@@ -77,12 +70,6 @@ internal static class RichMail
             }
             if (text.Length > 0)
                 text.Append(list ? "\n" : "\n\n");
-            if (block.Kind == MailBlockKind.OperationalDetails)
-            {
-                text.Append(details);
-                html.Append("<p>").Append(LinkDetails(details ?? "")).Append("</p>");
-                continue;
-            }
             var tag = block.Kind switch
             {
                 MailBlockKind.Heading => "h2",
@@ -119,10 +106,7 @@ internal static class RichMail
         if (list)
             html.Append("</ul>");
 
-        // Split on tokens so values are substituted once, even if a value contains token syntax.
-        var subject = originalSubject is null ? variant.Subject : Regex.Replace(
-            variant.Subject, @"\{\{(subject|association)\}\}", token => token.Groups[1].Value == "subject" ? originalSubject : association ?? "");
-        return new(subject, text.ToString(), html.ToString());
+        return new(variant.Subject, text.ToString(), html.ToString());
     }
 
     public static MailContent WithUnsubscribe(MailContent content, string language, string? url = null)
@@ -134,23 +118,6 @@ internal static class RichMail
             Html = content.Html + (url is null ? $"<p>{label}</p>" :
                 $"<p><a href=\"{WebUtility.HtmlEncode(url)}\" rel=\"noopener noreferrer\">{label}</a></p>")
         };
-    }
-
-    private static string LinkDetails(string text)
-    {
-        // Automatic details carry the real account links. Encode all dynamic text, including labels and URLs.
-        var html = new StringBuilder();
-        var offset = 0;
-        foreach (Match match in Regex.Matches(text, @"https?://[^\s<>""']+", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
-        {
-            if (!SafeLink(match.Value))
-                continue;
-            html.Append(EncodeLines(text[offset..match.Index]));
-            var url = WebUtility.HtmlEncode(match.Value);
-            html.Append($"<a href=\"{url}\" rel=\"noopener noreferrer\">{url}</a>");
-            offset = match.Index + match.Length;
-        }
-        return html.Append(EncodeLines(text[offset..])).ToString();
     }
 
     private static string EncodeLines(string value) => WebUtility.HtmlEncode(value).Replace("\r\n", "\n").Replace("\r", "\n").Replace("\n", "<br>");
