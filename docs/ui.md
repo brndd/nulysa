@@ -226,10 +226,11 @@ with SQL history pagination and journal aggregates; domain commands and board co
 views retain the existing financial evaluator/aggregate. The front page and profile
 email settings also use smaller projections.
 UI3's board workflows are implemented for the current S1–S2 features. Payment review
-opens `/admin/payments/{receiptId}`, shows immutable source facts and uses explicit
-purpose/member/destination selection, followed by review and confirmation. Member
-search returns at most 25 live members; the unresolved queue shows its oldest 100
-items. Posted-receipt selection shows the latest 100. Broader board financial-history
+opens beneath the selected row on `/admin/payments`. The sortable table shows 25
+transactions per page and defaults to payments needing review. **All payments**
+includes processed transactions. The URL preserves the filter, sort and page during
+purpose, member and destination selection, preview and confirmation. Member search
+returns at most 25 live members. Posted-receipt selection shows the latest 100. Broader board financial-history
 profiling can follow actual account sizes; it does not change the member read path.
 
 `/admin/members/{id}/actions/{action}` offers named discount, withdrawal, future-credit,

@@ -2631,4 +2631,40 @@
   <data name="Save a bank connection to enable imports." xml:space="preserve">
     <value>Save a bank connection to enable imports.</value>
   </data>
+  <data name="Bank transactions" xml:space="preserve">
+    <value>Bank transactions</value>
+  </data>
+  <data name="Payment filter" xml:space="preserve">
+    <value>Payment filter</value>
+  </data>
+  <data name="Needs review" xml:space="preserve">
+    <value>Needs review</value>
+  </data>
+  <data name="All payments" xml:space="preserve">
+    <value>All payments</value>
+  </data>
+  <data name="No payments found." xml:space="preserve">
+    <value>No payments found.</value>
+  </data>
+  <data name="No payments need review." xml:space="preserve">
+    <value>No payments need review.</value>
+  </data>
+  <data name="Counterparty" xml:space="preserve">
+    <value>Counterparty</value>
+  </data>
+  <data name="Assigned" xml:space="preserve">
+    <value>Assigned</value>
+  </data>
+  <data name="Ignored" xml:space="preserve">
+    <value>Ignored</value>
+  </data>
+  <data name="Review" xml:space="preserve">
+    <value>Review</value>
+  </data>
+  <data name="Close" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="Payment pages" xml:space="preserve">
+    <value>Payment pages</value>
+  </data>
 </root>

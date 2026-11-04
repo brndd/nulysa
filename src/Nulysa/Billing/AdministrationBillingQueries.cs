@@ -7,8 +7,46 @@ namespace Nulysa.Billing;
 
 public sealed record PaymentMember(long AccountId, long UserId, string Name, string Email);
 
+public sealed record PaymentReviewPage(List<Receipt> Entries, int Number, int PageCount, int Total)
+{
+    public const int Size = 25;
+}
+
 public sealed class AdministrationBillingQueries(AppDbContext db)
 {
+    public async Task<PaymentReviewPage> Review(ClaimsPrincipal actor, bool all, string sort, bool descending,
+        int page, CancellationToken ct = default)
+    {
+        await Authority.RequireAdministrator(db, actor, ct);
+        var query = db.Receipts.AsNoTracking();
+        if (!all)
+            query = query.Where(row => row.State == ReceiptState.New || row.State == ReceiptState.Review);
+
+        var total = await query.CountAsync(ct);
+        var pages = Math.Max(1, (total - 1) / PaymentReviewPage.Size + 1);
+        page = Math.Clamp(page, 1, pages);
+        var ordered = (sort, descending) switch
+        {
+            ("amount", false) => query.OrderBy(row => row.Amount),
+            ("amount", true) => query.OrderByDescending(row => row.Amount),
+            ("reference", false) => query.OrderBy(row => row.Reference),
+            ("reference", true) => query.OrderByDescending(row => row.Reference),
+            ("counterparty", false) => query.OrderBy(row => row.Counterparty),
+            ("counterparty", true) => query.OrderByDescending(row => row.Counterparty),
+            ("message", false) => query.OrderBy(row => row.Message),
+            ("message", true) => query.OrderByDescending(row => row.Message),
+            ("reason", false) => query.OrderBy(row => row.ReviewReason),
+            ("reason", true) => query.OrderByDescending(row => row.ReviewReason),
+            ("status", false) => query.OrderBy(row => row.State),
+            ("status", true) => query.OrderByDescending(row => row.State),
+            (_, true) => query.OrderByDescending(row => row.ReceivedOn),
+            _ => query.OrderBy(row => row.ReceivedOn)
+        };
+        var entries = await ordered.ThenBy(row => row.Id)
+            .Skip((page - 1) * PaymentReviewPage.Size).Take(PaymentReviewPage.Size).ToListAsync(ct);
+        return new(entries, page, pages, total);
+    }
+
     public async Task<bool> InvoiceBelongsToMember(ClaimsPrincipal actor, long invoiceId, long userId, CancellationToken ct = default)
     {
         await Authority.RequireAdministrator(db, actor, ct);

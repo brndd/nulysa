@@ -69,7 +69,7 @@ public sealed partial class BillingTests
         var other = await Admit(app, board, "other@example.test");
 
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Run(app, sp => sp.GetRequiredService<BillingQueries>().Account(Actor(other), account)));
-        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Run(app, sp => sp.GetRequiredService<BillingQueries>().Review(Actor(id))));
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Run(app, sp => sp.GetRequiredService<AdministrationBillingQueries>().Review(Actor(id), false, "date", false, 1)));
     }
 
     [Fact]

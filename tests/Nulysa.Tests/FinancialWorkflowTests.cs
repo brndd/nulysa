@@ -139,7 +139,7 @@ public sealed class FinancialWorkflowTests : BoardTest
         await using var web = await StartProvider();
         using var client = Client();
         await Login(client, "board@example.test");
-        var url = $"admin/payments/{receipt}?purpose=invoice&account={first.AccountId}";
+        var url = $"admin/payments?review={receipt}&sort=amount&dir=desc&purpose=invoice&account={first.AccountId}";
         var input = Hidden(await client.GetStringAsync(url));
         input["_handler"] = "review-receipt";
         input["Input.Target"] = foreign.ToString()!;
@@ -149,7 +149,7 @@ public sealed class FinancialWorkflowTests : BoardTest
         Assert.Contains("Choose an available destination", await invalid.Content.ReadAsStringAsync());
         await using var db = Context();
         Assert.Equal(ReceiptState.Review, (await db.Receipts.AsNoTracking().SingleAsync(row => row.Id == receipt)).State);
-        url = $"admin/payments/{receipt}?purpose=billing&account={first.AccountId}";
+        url = $"admin/payments?review={receipt}&sort=amount&dir=desc&purpose=billing&account={first.AccountId}";
         input["Input.Confirmed"] = "false";
         var preview = await client.PostAsync(url, new FormUrlEncodedContent(input));
         Assert.Contains("Review payment", await preview.Content.ReadAsStringAsync());
@@ -157,10 +157,53 @@ public sealed class FinancialWorkflowTests : BoardTest
         var confirm = Hidden(await preview.Content.ReadAsStringAsync());
         confirm["_handler"] = "review-receipt";
         confirm["Input.Confirmed"] = "true";
-        Assert.Equal(HttpStatusCode.Redirect, (await client.PostAsync(url, new FormUrlEncodedContent(confirm))).StatusCode);
+        var saved = await client.PostAsync(url, new FormUrlEncodedContent(confirm));
+        Assert.Equal(HttpStatusCode.Redirect, saved.StatusCode);
+        Assert.Equal("/admin/payments?page=1&sort=amount&dir=desc", saved.Headers.Location!.PathAndQuery);
+        Assert.Equal("#payment-review", saved.Headers.Location.Fragment);
         Assert.Equal(ReceiptState.Posted, (await db.Receipts.AsNoTracking().SingleAsync(row => row.Id == receipt)).State);
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() => Run(commands, services => services.GetRequiredService<AdministrationBillingQueries>().Receipt(Actor(id), receipt)));
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("admin/payments/" + long.MaxValue)).StatusCode);
+    }
+
+    [Fact]
+    public async Task Payment_table_pages_past_one_hundred_rows_and_sorts_stably_with_an_all_payments_view()
+    {
+        await Board();
+        await using var db = Context();
+        var rows = Enumerable.Range(1, 126).Select(index => new Receipt
+        {
+            Source = "test",
+            SourceAccount = "bank",
+            ExternalId = $"row-{index}",
+            Reference = $"ref-{index:000}",
+            Amount = index % 7 + 1,
+            ReceivedOn = new(2026, 6, 1),
+            ImportedAt = Clock.Now,
+            State = index == 126 ? ReceiptState.Ignored : ReceiptState.Review
+        }).ToList();
+        db.Receipts.AddRange(rows);
+        await db.SaveChangesAsync();
+        await using var web = await StartProvider();
+        using var client = Client();
+        await Login(client, "board@example.test");
+
+        static long[] RowIds(string html) => Regex.Matches(html, "<tr id=\"payment-([0-9]+)\"")
+            .Select(match => long.Parse(match.Groups[1].Value)).ToArray();
+
+        var finalPage = await client.GetStringAsync("admin/payments?page=5");
+        Assert.Contains("Page 5 of 5", finalPage);
+        Assert.Equal(rows.Take(125).OrderBy(row => row.Id).Skip(100).Select(row => row.Id), RowIds(finalPage));
+        var all = await client.GetStringAsync("admin/payments?scope=all&page=6");
+        Assert.Contains("Page 6 of 6", all);
+        Assert.Equal(rows[^1].Id, Assert.Single(RowIds(all)));
+
+        var ascending = await client.GetStringAsync("admin/payments?sort=amount&dir=asc&page=2");
+        var descending = await client.GetStringAsync("admin/payments?sort=amount&dir=desc&page=2");
+        Assert.Contains("aria-sort=\"ascending\"", ascending);
+        Assert.Contains("aria-sort=\"descending\"", descending);
+        Assert.Equal(rows.Take(125).OrderBy(row => row.Amount).ThenBy(row => row.Id).Skip(25).Take(25).Select(row => row.Id), RowIds(ascending));
+        Assert.Equal(rows.Take(125).OrderByDescending(row => row.Amount).ThenBy(row => row.Id).Skip(25).Take(25).Select(row => row.Id), RowIds(descending));
     }
 
     [Theory]

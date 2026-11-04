@@ -2631,4 +2631,40 @@
   <data name="Save a bank connection to enable imports." xml:space="preserve">
     <value>Ota tuonti käyttöön tallentamalla pankkiyhteys.</value>
   </data>
+  <data name="Bank transactions" xml:space="preserve">
+    <value>Pankkitapahtumat</value>
+  </data>
+  <data name="Payment filter" xml:space="preserve">
+    <value>Maksujen suodatus</value>
+  </data>
+  <data name="Needs review" xml:space="preserve">
+    <value>Tarkistettavat</value>
+  </data>
+  <data name="All payments" xml:space="preserve">
+    <value>Kaikki maksut</value>
+  </data>
+  <data name="No payments found." xml:space="preserve">
+    <value>Maksuja ei löytynyt.</value>
+  </data>
+  <data name="No payments need review." xml:space="preserve">
+    <value>Ei tarkistettavia maksuja.</value>
+  </data>
+  <data name="Counterparty" xml:space="preserve">
+    <value>Maksaja tai saaja</value>
+  </data>
+  <data name="Assigned" xml:space="preserve">
+    <value>Kohdistettu</value>
+  </data>
+  <data name="Ignored" xml:space="preserve">
+    <value>Ohitettu</value>
+  </data>
+  <data name="Review" xml:space="preserve">
+    <value>Tarkista</value>
+  </data>
+  <data name="Close" xml:space="preserve">
+    <value>Sulje</value>
+  </data>
+  <data name="Payment pages" xml:space="preserve">
+    <value>Maksusivut</value>
+  </data>
 </root>

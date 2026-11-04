@@ -5,10 +5,12 @@
 @attribute [Authorize(Policy = "Administrator")]
 @using System.ComponentModel.DataAnnotations
 @using System.Security.Claims
+@using Microsoft.AspNetCore.WebUtilities
 @using Nulysa.Billing
 @using Nulysa.Integrations
 @inject Nulysa.Components.UiFeedback Feedback
 @inject BillingQueries Queries
+@inject AdministrationBillingQueries Administration
 @inject BillingCommands Commands
 @inject AuthenticationStateProvider Authentication
 @inject NavigationManager Navigation
@@ -16,17 +18,82 @@
 
 <AdminPageHeader Title="@Title" />
 <AdminSectionTabs Destination="@Destination" />
-@if (notice is not null) { <p role="status" class="success-notice">@T(notice)</p> }
+@if (notice is not null && Area != "review") { <p role="status" class="success-notice">@T(notice)</p> }
 @if (error is not null) { <p role="alert">@ValidationText.Translate(error)</p> }
 @if (Area == "review")
 {
 <h2>@T("Bank synchronization")</h2>
 <ul>@foreach (var status in statuses) { <li>@T("{0} · {1} · last success: {2} · last attempt: {3}", status.Account, status.Status, (status.LastSuccess?.ToString("u") ?? T("Never")), status.LastAttempt?.ToString("u"))</li> }</ul>
 @if (statuses.Count == 0) { <p>@T("No bank payments have been imported yet.")</p> }
-<h2 id="payment-review">@T("Failed-match review")</h2><p>@T("Oldest 100 unresolved transactions. Processing these reveals the next items in the queue.")</p><p>@T("Assign a known member and purpose explicitly. Ignoring preserves source facts and keeps donations/outgoing transactions out of member funds. Pending-deletion receipts require manual repair after restoration.")</p>
-<table tabindex="0"><caption>@T("Unresolved bank transactions")</caption><thead><tr><th scope="col">@T("ID / received")</th><th scope="col">@T("Amount")</th><th scope="col">@T("Reference / source")</th><th scope="col">@T("Message / counterparty")</th><th scope="col">@T("Review reason")</th></tr></thead><tbody>
-@foreach (var receipt in receipts) { <tr><td><a href="@($"/admin/payments/{receipt.Id}")">@T("Review transaction · {0}", receipt.ReceivedOn)</a><small> #@receipt.Id</small></td><td>@receipt.Amount @receipt.Currency</td><td>@receipt.Reference · @receipt.Source / @receipt.SourceAccount / @receipt.ExternalId</td><td>@receipt.Message · @receipt.Counterparty</td><td>@receipt.ReviewReason</td></tr> }
-</tbody></table>
+<section aria-labelledby="payment-review" class="payment-review">
+    <h2 id="payment-review">@T("Bank transactions")</h2>
+    @if (notice is not null) { <p role="status" class="success-notice">@T(notice)</p> }
+    @if (payments is { } list)
+    {
+        <nav class="balance-filter" aria-label="@T("Payment filter")">
+            <a href="@(QueueUrl(1, all: false) + "#payment-review")" aria-current="@(!All ? "page" : null)">@T("Needs review")</a>
+            <a href="@(QueueUrl(1, all: true) + "#payment-review")" aria-current="@(All ? "page" : null)">@T("All payments")</a>
+        </nav>
+        @if (list.Total == 0)
+        {
+            <p>@T(All ? "No payments found." : "No payments need review.")</p>
+        }
+        else
+        {
+            var queue = QueueUrl(list.Number);
+            <div class="payment-review-scroll" role="region" aria-label="@T("Bank transactions")" tabindex="0">
+                <table>
+                    <thead><tr>
+                        @foreach (var column in Columns)
+                        {
+                            var selected = Sort == column.Key;
+                            <th scope="col" aria-sort="@(selected ? Descending ? "descending" : "ascending" : null)">
+                                <a href="@(QueueUrl(1, column.Key, selected && !Descending) + "#payment-review")">@T(column.Label)
+                                    @if (selected) { <span aria-hidden="true">@(Descending ? "↓" : "↑")</span> }
+                                </a>
+                            </th>
+                        }
+                    </tr></thead>
+                    <tbody>
+                        @foreach (var receipt in list.Entries)
+                        {
+                            var expanded = ReviewId == receipt.Id;
+                            var anchor = RowAnchor(receipt.Id);
+                            <tr id="@anchor[1..]">
+                                <td>
+                                    <span class="payment-booked-date">@UiText.Date(receipt.ReceivedOn)</span>
+                                    <small>#@receipt.Id</small><br />
+                                    <a href="@((expanded ? queue : QueryHelpers.AddQueryString(queue, "review", receipt.Id.ToString())) + anchor)"
+                                       aria-expanded="@(expanded ? "true" : "false")">@T(expanded ? "Close" : NeedsReview(receipt) ? "Review" : "Details")</a>
+                                </td>
+                                <td class="payment-amount">@receipt.Amount.ToString("0.00") @receipt.Currency</td>
+                                <td><span class="payment-review-excerpt">@receipt.Reference</span></td>
+                                <td><span class="payment-review-excerpt">@receipt.Counterparty</span></td>
+                                <td><span class="payment-review-excerpt">@receipt.Message</span></td>
+                                <td><span class="payment-review-excerpt">@receipt.ReviewReason</span></td>
+                                <td>@T(Status(receipt))</td>
+                            </tr>
+                            @if (expanded)
+                            {
+                                <tr class="payment-review-expanded"><td colspan="@Columns.Length">
+                                    <ReceiptReview ReceiptId="receipt.Id" QueueUrl="@queue" />
+                                </td></tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+            @if (list.PageCount > 1)
+            {
+                <nav class="section-pagination" aria-label="@T("Payment pages")">
+                    @if (list.Number > 1) { <a href="@(QueueUrl(list.Number - 1) + "#payment-review")">@T("Previous")</a> }
+                    <span>@T("Page {0} of {1}", list.Number, list.PageCount)</span>
+                    @if (list.Number < list.PageCount) { <a href="@(QueueUrl(list.Number + 1) + "#payment-review")">@T("Next")</a> }
+                </nav>
+            }
+        }
+    }
+</section>
 }
 @if (Area == "import")
 {

@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.WebUtilities;
 using Nulysa.Billing;
 using Nulysa.Integrations;
 using Nulysa.Localization;
@@ -29,7 +30,39 @@ public partial class Payments
     }
     [SupplyParameterFromForm(FormName = "manual-receipt")] public ImportInput? Import { get; set; }
     private ClaimsPrincipal actor = null!;
-    private List<Receipt> receipts = [];
+    private static readonly (string Key, string Label)[] Columns =
+    [
+        ("date", "Date"), ("amount", "Amount"), ("reference", "Reference"),
+        ("counterparty", "Counterparty"), ("message", "Message"), ("reason", "Review reason"), ("status", "Status")
+    ];
+    [SupplyParameterFromQuery(Name = "page")] public string? RequestedPage { get; set; }
+    [SupplyParameterFromQuery(Name = "sort")] public string? RequestedSort { get; set; }
+    [SupplyParameterFromQuery(Name = "dir")] public string? RequestedDirection { get; set; }
+    [SupplyParameterFromQuery(Name = "scope")] public string? RequestedScope { get; set; }
+    [SupplyParameterFromQuery(Name = "review")] public string? RequestedReview { get; set; }
+    private string Sort => Columns.Any(column => column.Key == RequestedSort) ? RequestedSort! : "date";
+    private bool Descending => RequestedDirection == "desc";
+    private bool All => RequestedScope == "all";
+    private long? ReviewId => long.TryParse(RequestedReview, out var id) ? id : null;
+    private PaymentReviewPage? payments;
+
+    private string QueueUrl(int page, string? sort = null, bool? descending = null, bool? all = null) =>
+        QueryHelpers.AddQueryString("/admin/payments", new Dictionary<string, string?>
+        {
+            ["page"] = page.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["sort"] = sort ?? Sort,
+            ["dir"] = (descending ?? Descending) ? "desc" : "asc",
+            ["scope"] = (all ?? All) ? "all" : null
+        });
+
+    private static string RowAnchor(long id) => $"#payment-{id}";
+    private static bool NeedsReview(Receipt row) => row.State is ReceiptState.New or ReceiptState.Review;
+    private static string Status(Receipt row) => row.State switch
+    {
+        ReceiptState.Posted => "Assigned",
+        ReceiptState.Ignored => "Ignored",
+        _ => "Needs review"
+    };
     private List<BankSyncState> statuses = [];
     private List<FinancialClaim> claims = [];
     private Reconciliation? reconciliation;
@@ -41,7 +74,8 @@ public partial class Payments
         actor = (await Authentication.GetAuthenticationStateAsync()).User;
         if (Area == "review")
         {
-            receipts = await Queries.Review(actor);
+            var page = int.TryParse(RequestedPage, out var number) ? number : 1;
+            payments = await Administration.Review(actor, All, Sort, Descending, page);
             statuses = await Queries.BankStatus(actor);
         }
         if (Area == "claims")

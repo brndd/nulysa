@@ -1,6 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.WebUtilities;
 using Nulysa.Billing;
 using Nulysa.Integrations;
 using static Nulysa.Localization.UiText;
@@ -17,6 +18,14 @@ public partial class ReceiptReview
         public bool Confirmed { get; set; }
     }
     [Parameter] public long ReceiptId { get; set; }
+    [Parameter] public string? QueueUrl { get; set; }
+    private string ReviewPath => QueueUrl is null ? $"/admin/payments/{ReceiptId}" : QueryHelpers.AddQueryString(QueueUrl, "review", ReceiptId.ToString());
+    private string Fragment => QueueUrl is null ? "" : $"#payment-{ReceiptId}";
+    private string MemberLink(long? account = null) => QueryHelpers.AddQueryString(ReviewPath, new Dictionary<string, string?>
+    {
+        ["purpose"] = Purpose,
+        ["account"] = account?.ToString()
+    }) + Fragment;
     [SupplyParameterFromQuery(Name = "purpose")] public string? RequestedPurpose { get; set; }
     [SupplyParameterFromQuery(Name = "account")] public string? RequestedAccount { get; set; }
     [SupplyParameterFromQuery(Name = "q")] public string? Search { get; set; }
@@ -82,7 +91,7 @@ public partial class ReceiptReview
                 await Commands.AssignReceipt(actor, ReceiptId, member!.AccountId, allocation, Input.Key, Input.Reason);
             }
             Feedback.Save(HttpContext, "Transaction disposition saved. Source facts were retained.");
-            Navigation.NavigateTo("/admin/payments");
+            Navigation.NavigateTo(QueueUrl is null ? "/admin/payments" : QueueUrl + "#payment-review");
         }
         catch (ValidationException ex)
         {

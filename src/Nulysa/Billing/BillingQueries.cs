@@ -310,12 +310,6 @@ public sealed partial class BillingQueries(AppDbContext db, AssociationClock clo
         return await db.ServiceDefinitions.AsNoTracking().OrderBy(x => x.Id).ToListAsync(ct);
     }
 
-    public async Task<List<Receipt>> Review(ClaimsPrincipal actor, CancellationToken ct = default)
-    {
-        await Authority.RequireAdministrator(db, actor, ct);
-        return await db.Receipts.AsNoTracking().Where(x => x.State == ReceiptState.New || x.State == ReceiptState.Review).OrderBy(x => x.ImportedAt).Take(100).ToListAsync(ct);
-    }
-
     public async Task<List<FeeDefinition>> Fees(ClaimsPrincipal actor, CancellationToken ct = default)
     {
         await Authority.RequireAdministrator(db, actor, ct);

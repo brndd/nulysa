@@ -764,9 +764,10 @@ S3–S6 or change the single full-replacement cutover plan.
    opens a dialog with an optional message and cancel/confirm actions. Both routes
    use the same commands, verified-only queries and safe failure feedback. Under-18
    review still uses external consent handling; no admission policy was added.
-3. **Contextual payments and financial adjustments — implemented.** Bank rows open
-   a source-fact detail page with explicit disposition, bounded member search and
-   labelled group/bill/balance selection. Preview and confirmation preserve the retry
+3. **Contextual payments and financial adjustments — implemented.** The bank table
+   sorts by column and pages through payments needing review or all transactions.
+   Selected rows expand inline with source facts, payment purpose, bounded member
+   search and labelled group/bill/balance selection. Preview and confirmation preserve the retry
    key and selected record. Financial accounts offer separate discount, withdrawal,
    future-credit, whole-month grant, cancellation, refund, receipt-reversal and one-off
    actions. Only relevant fields are shown; previews freeze the entered fields before

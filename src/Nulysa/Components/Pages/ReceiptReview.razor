@@ -2,6 +2,7 @@
 @attribute [Authorize(Policy = "Administrator")]
 @using System.ComponentModel.DataAnnotations
 @using System.Security.Claims
+@using Microsoft.AspNetCore.WebUtilities
 @using Nulysa.Billing
 @inject AdministrationBillingQueries Administration
 @inject BillingQueries Queries
@@ -10,19 +11,29 @@
 @inject NavigationManager Navigation
 @inject UiFeedback Feedback
 
-<AdminPageHeader Title="@T("Review bank transaction")" Trail="@(new BreadcrumbItem[] { new(T("Payment review"), "/admin/payments"), new(T("Review bank transaction")) })" />
-<div class="detail-workspace">
+@if (QueueUrl is null)
+{
+    <AdminPageHeader Title="@T("Review bank transaction")" Trail="@(new BreadcrumbItem[] { new(T("Payment review"), "/admin/payments"), new(T("Review bank transaction")) })" />
+}
+<div class="@(QueueUrl is null ? "detail-workspace" : "receipt-review-inline")">
 @if (receipt is not null)
 {
-    <div class="member-subject"><h2>@receipt.Amount.ToString("0.00") @receipt.Currency · @receipt.ReceivedOn</h2>
-        <p>@receipt.Counterparty · @receipt.Message</p><p>@T("Reference: {0}", receipt.Reference)</p><p><strong>@receipt.ReviewReason</strong></p>
+    var description = string.Join(" · ", new[] { receipt.Counterparty, receipt.Message }.Where(value => !string.IsNullOrWhiteSpace(value)));
+    <div class="member-subject"><h2>@receipt.Amount.ToString("0.00") @receipt.Currency · @UiText.Date(receipt.ReceivedOn)</h2>
+        @if (description.Length > 0) { <p>@description</p> }
+        <p>@T("Reference: {0}", receipt.Reference)</p>
+        @if (!string.IsNullOrWhiteSpace(receipt.ReviewReason)) { <p><strong>@receipt.ReviewReason</strong></p> }
         <details><summary>@T("Original source facts")</summary><p>@T("Receipt #{0} · {1} / {2} / {3} · imported {4}", receipt.Id, receipt.Source, receipt.SourceAccount, receipt.ExternalId, receipt.ImportedAt.ToString("u"))</p></details>
     </div>
     @if (error is not null) { <p role="alert">@ValidationText.Translate(error)</p> }
     @if (receipt.State is not (ReceiptState.New or ReceiptState.Review)) { <p>@T("This transaction has already been processed: {0}. Reload related balances before any further correction.", receipt.State)</p> }
     else
     {
-        <form method="get" class="filter-panel">
+        <form method="get" action="@(AdminNavigation.Path(ReviewPath) + Fragment)" class="filter-panel">
+            @foreach (var (name, value) in QueryHelpers.ParseQuery(ReviewPath.Split('?', 2).ElementAtOrDefault(1)))
+            {
+                <input type="hidden" name="@name" value="@value" />
+            }
             <label for="purpose">@T("Disposition / purpose")</label><select id="purpose" name="purpose">
                 <option value="">@T("Choose a purpose")</option>
                 @foreach (var purpose in Purposes) { <option value="@purpose.Key" selected="@(Purpose == purpose.Key)">@T(purpose.Value)</option> }
@@ -31,11 +42,11 @@
             @if (MemberAccount is not null) { <input type="hidden" name="account" value="@MemberAccount" /> }
             <button>@T("Choose purpose / search")</button>
         </form>
-        @if (member is not null) { <p><strong>@T("{0} · Member #{1} · {2}", member.Name, member.UserId, member.Email)</strong> <a href="@($"/admin/payments/{ReceiptId}?purpose={Purpose}")">@T("Choose a different member")</a></p> }
+        @if (member is not null) { <p><strong>@T("{0} · Member #{1} · {2}", member.Name, member.UserId, member.Email)</strong> <a href="@MemberLink()">@T("Choose a different member")</a></p> }
         else if (Purpose != "ignore")
         {
             <p>@T("Search returns up to 25 live members. Refine the search if needed. Pending-deletion accounts must be restored before assigning money.")</p>
-            <ul>@foreach (var candidate in members) { <li><a href="@($"/admin/payments/{ReceiptId}?purpose={Purpose}&account={candidate.AccountId}")">@candidate.Name · #@candidate.UserId · @candidate.Email</a></li> }</ul>
+            <ul>@foreach (var candidate in members) { <li><a href="@MemberLink(candidate.AccountId)">@candidate.Name · #@candidate.UserId · @candidate.Email</a></li> }</ul>
         }
         @if (Purposes.ContainsKey(Purpose) && (Purpose == "ignore" || member is not null))
         {
