@@ -13,7 +13,7 @@ using Quartz;
 
 namespace Nulysa.Communications;
 
-public sealed class Campaigns(AppDbContext db, ISchedulerFactory schedulers, IDataProtectionProvider protection, TimeProvider clock)
+public sealed class Campaigns(AppDbContext db, ISchedulerFactory schedulers, IDataProtectionProvider protection, TimeProvider clock, MailQueue mail)
 {
     public const int PageSize = 50;
     private ITimeLimitedDataProtector Confirmations => protection.CreateProtector("MailCampaignConfirmation.v1").ToTimeLimitedDataProtector();
@@ -126,7 +126,7 @@ public sealed class Campaigns(AppDbContext db, ISchedulerFactory schedulers, IDa
         campaign.QueuedBy = Authority.Id(actor);
         campaign.RecipientCount = deliveries.Length;
         await db.SaveChangesAsync(ct);
-        await MailQueue.ScheduleBatch(scheduler, deliveries, ct);
+        await mail.ScheduleBatch(scheduler, deliveries, ct);
         await tx.CommitAsync(ct);
         return Summary(campaign);
     }
@@ -157,7 +157,7 @@ public sealed class Campaigns(AppDbContext db, ISchedulerFactory schedulers, IDa
         using var enlistment = scheduler.EnlistTransaction(tx.GetDbTransaction());
         db.Deliveries.Add(delivery);
         await db.SaveChangesAsync(ct);
-        await MailQueue.ScheduleBatch(scheduler, [delivery], ct);
+        await mail.ScheduleBatch(scheduler, [delivery], ct);
         await tx.CommitAsync(ct);
         return delivery.Id;
     }
@@ -215,7 +215,7 @@ public sealed class Campaigns(AppDbContext db, ISchedulerFactory schedulers, IDa
             });
         }
         await db.SaveChangesAsync(ct);
-        await MailQueue.ScheduleBatch(scheduler, deliveries, ct);
+        await mail.ScheduleBatch(scheduler, deliveries, ct);
         await tx.CommitAsync(ct);
         return deliveries.Count;
     }

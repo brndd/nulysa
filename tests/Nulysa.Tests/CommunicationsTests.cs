@@ -383,6 +383,48 @@ public sealed class CommunicationsTests : MembershipTest
 
     [Fact]
     [Trait("Category", "Slow")]
+    public async Task A_later_verification_sends_before_the_bulk_campaign_finishes()
+    {
+        Settings["Mail:MaxPerMinute"] = "4";
+        Settings["Mail:SpoolPath"] = Path.Combine(DirectoryPath, "paced-campaign-mail");
+        var board = await Board();
+        await using var app = CommandsApp();
+        await using var db = Context();
+        // Seed the audience without queuing approval mail.
+        var recipients = Enumerable.Range(1, 3).Select(number => new User
+        {
+            UserName = $"bulk-{number}@example.test", Email = $"bulk-{number}@example.test",
+            EmailConfirmed = true, Admitted = true, Language = "en"
+        }).ToArray();
+        db.Users.AddRange(recipients);
+        await db.SaveChangesAsync();
+        db.Members.AddRange(recipients.Select(user => new Member { UserId = user.Id, JoinedOn = new DateOnly(2026, 1, 1) }));
+        await db.SaveChangesAsync();
+
+        var campaignId = Guid.NewGuid();
+        await Run(app, sp => Campaign(sp).Save(board, campaignId, null, "Paced campaign", CampaignKind.Newsletter, [Variant("en")]));
+        var preview = await Run(app, sp => Campaign(sp).Preview(board, campaignId, NoFallbacks));
+        await Run(app, sp => Campaign(sp).Send(board, campaignId, NoFallbacks, preview.Confirmation!));
+        var bulk = await db.Deliveries.Where(x => x.CampaignId == campaignId).Select(x => x.Id).ToArrayAsync();
+        var bulkStarts = new List<DateTimeOffset>();
+        foreach (var id in bulk)
+            bulkStarts.Add(Assert.Single(await Scheduler.GetTriggersOfJob(MailQueue.JobKey(id))).StartTimeUtc);
+        bulkStarts.Sort();
+        Assert.Equal(3, bulkStarts.Count);
+        Assert.Equal(TimeSpan.FromSeconds(15), bulkStarts[1] - bulkStarts[0]);
+        Assert.Equal(TimeSpan.FromSeconds(15), bulkStarts[2] - bulkStarts[1]);
+
+        var application = Guid.NewGuid();
+        await Run(app, sp => sp.GetRequiredService<MembershipCommands>().Apply(application, Input()));
+        var verification = await db.Deliveries.Where(x => x.ApplicationId == application).Select(x => x.Id).SingleAsync();
+
+        StartWorker();
+        await Until(() => db.Deliveries.AnyAsync(x => x.Id == verification && x.State == DeliveryState.Accepted));
+        Assert.True(await db.Deliveries.AnyAsync(x => x.CampaignId == campaignId && x.State == DeliveryState.Pending));
+    }
+
+    [Fact]
+    [Trait("Category", "Slow")]
     public async Task Persisted_campaign_dispatch_defers_when_the_provider_window_is_full()
     {
         Settings["Mail:MaxPerMinute"] = "1";

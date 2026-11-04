@@ -42,6 +42,14 @@ public sealed class MailDispatcher(AppDbContext db, MailRenderer renderer, IMail
             if (delivery.RetryNotBefore is { } retryAt && retryAt > clock.GetUtcNow())
                 return await Defer(tx, retryAt, ct);
 
+            if (MailQueue.IsBulk(delivery.Kind))
+            {
+                // Skip rendering a bulk message while quota is unavailable. Reserve the slot under the lock below.
+                var snapshot = await db.MailRateWindows.AsNoTracking().SingleOrDefaultAsync(ct);
+                if (snapshot is not null && RateBlockedUntil(snapshot, clock.GetUtcNow()) is { } blockedUntil)
+                    return await Defer(tx, blockedUntil, ct);
+            }
+
             try
             {
                 message = await renderer.Render(delivery, ct);
@@ -79,15 +87,13 @@ public sealed class MailDispatcher(AppDbContext db, MailRenderer renderer, IMail
                 db.MailRateWindows.Add(window);
             }
             var now = clock.GetUtcNow();
-            if (window.ProviderPausedUntil is { } pausedUntil && pausedUntil > now)
-                return await Defer(tx, pausedUntil, ct);
+            if (RateBlockedUntil(window, now) is { } blockedUntilAfterRender)
+                return await Defer(tx, blockedUntilAfterRender, ct);
             if (window.StartedAt.AddMinutes(1) <= now)
             {
                 window.StartedAt = now;
                 window.Attempts = 0;
             }
-            if (window.Attempts >= options.Value.MaxPerMinute)
-                return await Defer(tx, window.StartedAt.AddMinutes(1), ct);
             window.Attempts++;
 
             delivery.State = DeliveryState.Sending;
@@ -198,6 +204,15 @@ public sealed class MailDispatcher(AppDbContext db, MailRenderer renderer, IMail
             }
             return delay;
         }
+    }
+
+    private DateTimeOffset? RateBlockedUntil(MailRateWindow window, DateTimeOffset now)
+    {
+        var quotaResetsAt = window.StartedAt.AddMinutes(1);
+        var blockedUntil = window.Attempts >= options.Value.MaxPerMinute && quotaResetsAt > now ? (DateTimeOffset?)quotaResetsAt : null;
+        if (window.ProviderPausedUntil is { } pause && pause > now && (blockedUntil is null || pause > blockedUntil))
+            return pause;
+        return blockedUntil;
     }
 
     private Task<Delivery?> Lock(Guid id, CancellationToken ct)

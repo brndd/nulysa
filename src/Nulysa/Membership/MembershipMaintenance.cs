@@ -9,7 +9,7 @@ using Quartz;
 
 namespace Nulysa.Membership;
 
-public sealed class MembershipMaintenance(AppDbContext db, AssociationClock clock, IOptions<MembershipOptions> options, ISchedulerFactory schedulers, MembershipCommands membership)
+public sealed class MembershipMaintenance(AppDbContext db, AssociationClock clock, IOptions<MembershipOptions> options, ISchedulerFactory schedulers, MembershipCommands membership, MailQueue mail)
 {
     public async Task Scan(CancellationToken ct = default)
     {
@@ -77,7 +77,7 @@ public sealed class MembershipMaintenance(AppDbContext db, AssociationClock cloc
             // Keep application/delivery row mutations ahead of scheduler writes.
             if (obsoleteJobs.Count > 0)
                 await scheduler.DeleteJobs(obsoleteJobs, ct);
-            await MailQueue.ScheduleBatch(scheduler, missing, ct);
+            await mail.ScheduleBatch(scheduler, missing, ct);
             await tx.CommitAsync(ct);
         }
 

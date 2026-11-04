@@ -1,12 +1,13 @@
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Nulysa.Data;
 using Quartz;
 
 namespace Nulysa.Communications;
 
-public sealed class MailQueue(AppDbContext db, TimeProvider clock)
+public sealed class MailQueue(AppDbContext db, TimeProvider clock, IOptions<MailOptions> options)
 {
     public const int AttemptsPerRound = 3;
     internal const string CampaignJobDataKey = "campaign";
@@ -35,15 +36,26 @@ public sealed class MailQueue(AppDbContext db, TimeProvider clock)
         await ScheduleBatch(scheduler, [delivery], ct);
     }
 
-    internal static async Task ScheduleBatch(IScheduler scheduler, IReadOnlyCollection<Delivery> deliveries, CancellationToken ct)
+    internal async Task ScheduleBatch(IScheduler scheduler, IReadOnlyCollection<Delivery> deliveries, CancellationToken ct)
     {
         if (deliveries.Count == 0)
             return;
+
         var start = DateTimeOffset.UtcNow;
-        await scheduler.ScheduleJobs(deliveries.ToDictionary(CreateJob, delivery =>
-            (IReadOnlyCollection<ITrigger>)[Trigger(JobKey(delivery.Id, delivery.QueueVersion), Priority(delivery.Kind)).StartAt(start).Build()]),
-            cancellationToken: ct);
+        var bulkSpacing = 60d / options.Value.MaxPerMinute;
+        var bulkIndex = 0;
+        var jobs = new Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>>(deliveries.Count);
+        foreach (var delivery in deliveries)
+        {
+            // Quartz orders by fire time before priority. Keep future bulk work from getting ahead of newly queued mail.
+            var dueAt = IsBulk(delivery.Kind) ? start.AddSeconds(bulkIndex++ * bulkSpacing) : start;
+            var job = CreateJob(delivery);
+            jobs.Add(job, [Trigger(job.Key, Priority(delivery.Kind)).StartAt(dueAt).Build()]);
+        }
+        await scheduler.ScheduleJobs(jobs, cancellationToken: ct);
     }
+
+    internal static bool IsBulk(MailKind kind) => kind is MailKind.Newsletter or MailKind.OfficialNotice;
 
     internal static int Priority(MailKind kind) => kind switch
     {

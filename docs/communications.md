@@ -36,8 +36,10 @@ EF migrations before starting web and worker.
   alternatives. A temporary SMTP rejection records the next attempt time before
   scheduling the retry. Due-work maintenance can replace missing jobs. SMTP 421
   pauses new sends across workers for one minute. Other temporary SMTP rejections
-  delay only the affected delivery. Operational mail has higher Quartz trigger
-  priority than bulk mail when due together.
+  delay only the affected delivery. Bulk campaign batches are spaced at the
+  configured send rate so later operational jobs can run before future bulk jobs.
+  Operational mail has higher Quartz priority at the same fire time. The shared
+  rate limit still applies to every delivery.
 - `Progress` reports recipient states and attempts, with test sends identified
   separately. `RetryFailed` accepts selected definite failures, confirmation
   and a reason. It records who retried them and creates a new job generation so
