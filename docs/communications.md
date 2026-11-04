@@ -7,10 +7,15 @@ EF migrations before starting web and worker.
 
 - `Campaigns` lists, saves and copies newsletters and official notices. A
   draft's revision guards edits. Copy a previous campaign to reuse its content.
-  Content is a JSON document of headings, paragraphs, bullet items and quotes
-  with optional bold, italic and absolute links. Use this structure in the
-  editor adapter. The server validates it and generates both an HTML fragment
-  and a plain-text body; no raw HTML, images or scripts are accepted.
+  The admin draft and template editors use Markdown with Write and Preview tabs.
+  The standard formatting controls use GitHub's MIT-licensed
+  [Markdown toolbar](https://github.com/github/markdown-toolbar-element).
+  The project vendors the unmodified `dist/index.js` and `LICENSE` from
+  `@github/markdown-toolbar-element@2.1.0` under `wwwroot/vendor`.
+  Markdig converts supported syntax into the existing message blocks for both
+  preview and save. The saved variant keeps the source for editing. The mail
+  renderer generates the HTML preview and both outgoing formats from validated
+  blocks. Raw HTML, images and unsupported Markdown constructs are rejected.
 - `Preview` groups current verified members by preferred language, including
   inactive members. Each missing language needs an explicit choice of a saved
   variant. The preview returns the outgoing subject and bodies for each group
@@ -43,8 +48,9 @@ EF migrations before starting web and worker.
   failures and backlog age are excluded from the operational mail alarms.
 - `OperationalTemplates` lists, saves and resets automatic mail overrides.
   Every saved override requires a fallback variant. The subject can use
-  `{{subject}}` and `{{association}}`. The required operational details block
-  includes the existing translated notice, account links and instructions;
+  `{{subject}}` and `{{association}}`. Each Markdown body requires
+  `{{operational_details}}` in its own paragraph. This block includes the
+  existing translated notice, account links and instructions;
   invoice PDFs and all delivery eligibility rules stay in the worker. The
   default policy uses the recipient's built-in translation or the configured
   `Membership:DefaultLanguage`. When adding a language, add its operational
@@ -59,5 +65,5 @@ EF migrations before starting web and worker.
   mail clients to offer the action, configure the provider to DKIM-sign both
   headers as described in [RFC 8058](https://www.rfc-editor.org/rfc/rfc8058.html#section-4).
 
-Draft authoring, preview and progress screens, and the member preference and
-browser unsubscribe screens are left for the UI pass.
+Campaign audience confirmation and delivery progress, member preferences and
+browser unsubscribe confirmation are separate UI work.

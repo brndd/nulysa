@@ -37,7 +37,7 @@
             @foreach (var delivery in result.Entries)
             {
                 <li class="status-panel">
-                    <strong>@T(KindLabel(delivery.Kind)) · @(delivery.State == DeliveryState.Review ? T("Uncertain — reconcile with provider") : T("Failed — delivery not confirmed"))</strong>
+                    <strong>@MailKindLabel.Text(delivery.Kind) · @(delivery.State == DeliveryState.Review ? T("Uncertain — reconcile with provider") : T("Failed — delivery not confirmed"))</strong>
                     <dl><dt>@T("Delivery ID")</dt><dd class="supporting-reference">@delivery.Id</dd>
                         <dt>@T("Provider reference")</dt><dd class="supporting-reference">@(delivery.ProviderId ?? T("None recorded"))</dd>
                         <dt>@T("Created / attempts")</dt><dd>@T("{0} · {1} attempts", delivery.CreatedAt.ToString("u"), delivery.Attempts)</dd>
@@ -68,19 +68,4 @@
     }
 
     private string PageUrl(int page) => QueryHelpers.AddQueryString("/admin/mail-attention", new Dictionary<string, string?> { ["state"] = State, ["scope"] = Scope, ["page"] = page.ToString() });
-    private static string KindLabel(MailKind kind) => kind switch
-    {
-        MailKind.Verification => "Application verification",
-        MailKind.Welcome => "Welcome and password setup",
-        MailKind.Rejection => "Application rejection",
-        MailKind.DeletionWarning => "Deletion warning",
-        MailKind.PasswordReset => "Password reset",
-        MailKind.PasswordChanged => "Password changed",
-        MailKind.EmailChange => "Email change",
-        MailKind.Restoration => "Account restoration",
-        MailKind.MembershipGrace => "Membership grace notice",
-        MailKind.MembershipInactive => "Membership inactivity notice",
-        MailKind.BankAlert => "Bank synchronization alert",
-        _ => "Invoice"
-    };
 }

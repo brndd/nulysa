@@ -1,0 +1,113 @@
+@page "/admin/communications/templates"
+@page "/admin/communications/templates/{TemplateKind}"
+@attribute [Authorize(Policy = "Administrator")]
+@rendermode @(new InteractiveServerRenderMode())
+@using System.ComponentModel.DataAnnotations
+@using System.Security.Claims
+@using Nulysa.Communications
+@inject IServiceScopeFactory Scopes
+@inject AuthenticationStateProvider Authentication
+
+<AdminPageHeader Title="@T("Automatic mail templates")" />
+<AdminSectionTabs Destination="mail-templates" />
+<p>@T("Each automatic template includes the required operational details. Preview shows a placeholder for those details.")</p>
+<ul>
+    @foreach (var template in templates)
+    {
+        <li><a href="@($"/admin/communications/templates/{template.Kind}")" aria-current="@(current?.Kind == template.Kind ? "page" : null)">@MailKindLabel.Text(template.Kind)</a></li>
+    }
+</ul>
+
+@if (error is not null) { <p role="alert">@ValidationText.Translate(error)</p> }
+@if (saved) { <p role="status">@T("Template saved.")</p> }
+
+@if (current is not null)
+{
+    <h2>@MailKindLabel.Text(current.Kind)</h2>
+    <form @onsubmit="Save" @onsubmit:preventDefault>
+        <label for="template-fallback">@T("Fallback language")</label>
+        <select id="template-fallback" @bind="fallback">
+            @foreach (var input in inputs)
+            {
+                <option value="@input.Language.Code">@input.Language.Name</option>
+            }
+        </select>
+        @foreach (var input in inputs)
+        {
+            <MarkdownMailEditor @key="input" Input="input" Operational="true" />
+        }
+        <button type="submit" disabled="@(!RendererInfo.IsInteractive || busy)">@T("Save template")</button>
+    </form>
+}
+
+@code {
+    [Parameter] public string? TemplateKind { get; set; }
+
+    private ClaimsPrincipal actor = null!;
+    private IReadOnlyList<OperationalTemplateView> templates = [];
+    private OperationalTemplateView? current;
+    private MarkdownMailInput[] inputs = [];
+    private string fallback = "";
+    private string? error;
+    private bool busy;
+    private bool saved;
+
+    protected override async Task OnInitializedAsync()
+    {
+        actor = (await Authentication.GetAuthenticationStateAsync()).User;
+        await Reload();
+    }
+
+    protected override void OnParametersSet()
+    {
+        current = null;
+        saved = false;
+        error = null;
+        if (TemplateKind is null)
+            return;
+        var template = templates.SingleOrDefault(x => string.Equals(x.Kind.ToString(), TemplateKind, StringComparison.OrdinalIgnoreCase));
+        if (template is null)
+            error = "Choose an automatic mail template.";
+        else
+            Open(template);
+    }
+
+    private async Task Reload()
+    {
+        await using var scope = Scopes.CreateAsyncScope();
+        templates = await scope.ServiceProvider.GetRequiredService<OperationalTemplates>().List(actor);
+    }
+
+    private void Open(OperationalTemplateView template)
+    {
+        current = template;
+        fallback = template.FallbackLanguage;
+        saved = false;
+        error = null;
+        inputs = UiLanguages.Supported.Where(language => template.BuiltInLanguages.Contains(language.Code)).Select(language =>
+        {
+            var variant = template.Variants.SingleOrDefault(x => x.Language == language.Code);
+            var enabled = variant is not null || template.Variants.Count == 0;
+            return new MarkdownMailInput(language, variant, enabled, "{{association}} — {{subject}}", MailMarkdown.OperationalDetails);
+        }).ToArray();
+    }
+
+    private async Task Save()
+    {
+        if (busy || current is null)
+            return;
+        busy = true;
+        saved = false;
+        error = null;
+        try
+        {
+            var variants = MarkdownMailInput.ReadEnabled(inputs, operational: true);
+            await using var scope = Scopes.CreateAsyncScope();
+            await scope.ServiceProvider.GetRequiredService<OperationalTemplates>().Save(actor, current.Kind, variants, fallback);
+            saved = true;
+            await Reload();
+        }
+        catch (ValidationException problem) { error = problem.Message; }
+        finally { busy = false; }
+    }
+}

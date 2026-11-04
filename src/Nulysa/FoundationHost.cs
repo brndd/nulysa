@@ -247,7 +247,9 @@ public static class FoundationHost
             });
             builder.Services.AddRazorPages(options => options.Conventions.ConfigureFilter(new LocalizePageErrors()));
             builder.Services.AddScoped<UiFeedback>();
-            builder.Services.AddRazorComponents().AddInteractiveServerComponents();
+            builder.Services.AddRazorComponents().AddInteractiveServerComponents()
+                // A bounded Markdown textarea may contain 40,000 UTF-16 code units, each escaped in JSON.
+                .AddHubOptions(options => options.MaximumReceiveMessageSize = 256 * 1024);
             builder.Services.AddCascadingAuthenticationState();
             builder.Services.AddScoped<AuthenticationStateProvider, AccountAuthenticationStateProvider>();
             builder.Services.AddControllers();

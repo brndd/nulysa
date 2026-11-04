@@ -28,7 +28,12 @@ public static class AdminNavigation
             new("accounting", "Accounting and exports", "/admin/payments/accounting"),
             new("retained", "Retained balances", "/admin/payments/retained-balances")
         ]),
-        new("communications", "Communications", [new("mail", "Mail problems", "/admin/mail-attention")]),
+        new("communications", "Communications",
+        [
+            new("campaign-drafts", "Campaign drafts", "/admin/communications/drafts"),
+            new("mail-templates", "Automatic mail templates", "/admin/communications/templates"),
+            new("mail", "Mail problems", "/admin/mail-attention")
+        ]),
         new("settings", "Association settings",
         [
             new("fees", "Fees and prices", "/admin/settings/fees"),

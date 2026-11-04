@@ -368,3 +368,109 @@ fieldset { min-width: 0; }
 .receipt-review-inline .member-subject h2 { margin-top: 0; }
 .receipt-review-inline .filter-panel { margin: .75rem 0; padding: .75rem; }
 .payment-review-expanded { background: var(--nulysa-muted); }
+
+.markdown-mail-editor {
+    display: grid;
+    gap: .5rem;
+    margin-block: 1rem;
+    min-inline-size: 0;
+}
+
+.markdown-panel {
+    min-width: 0;
+    border: 1px solid var(--nulysa-border);
+    border-radius: var(--nulysa-radius);
+    background: var(--nulysa-surface);
+}
+
+.markdown-header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: end;
+    gap: .25rem .5rem;
+    padding-inline: .35rem;
+    border-bottom: 1px solid var(--nulysa-border);
+    border-radius: var(--nulysa-radius) var(--nulysa-radius) 0 0;
+    background: var(--nulysa-muted);
+}
+
+.markdown-tabs, .markdown-formatting {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .15rem;
+}
+
+.markdown-tabs button, .markdown-formatting > :is([role="button"], button) {
+    margin: 0;
+    min-height: 40px;
+    padding: .3rem .55rem;
+    border: 1px solid transparent;
+    border-radius: .3rem;
+    background: transparent;
+    color: var(--nulysa-secondary);
+    font-weight: 500;
+}
+
+.markdown-tabs button {
+    margin-bottom: -1px;
+    border-radius: .3rem .3rem 0 0;
+}
+
+.markdown-tabs button[aria-selected="true"] {
+    border-color: var(--nulysa-border);
+    border-bottom-color: var(--nulysa-surface);
+    background: var(--nulysa-surface);
+    color: var(--nulysa-text);
+    font-weight: 650;
+}
+
+.markdown-formatting {
+    margin-inline-start: auto;
+    padding-block: .15rem;
+}
+
+.markdown-formatting:not(:defined) { visibility: hidden; }
+
+.markdown-formatting > [role="button"] {
+    display: inline-grid;
+    place-items: center;
+    min-width: 40px;
+    cursor: pointer;
+}
+
+.markdown-formatting > :is([role="button"], button):hover {
+    background: var(--nulysa-surface);
+    color: var(--nulysa-text);
+}
+
+.markdown-divider {
+    height: 1.1rem;
+    margin-inline: .2rem;
+    border-inline-start: 1px solid var(--nulysa-border);
+}
+
+.markdown-body {
+    min-height: 19rem;
+    padding: .5rem;
+}
+
+.markdown-body textarea {
+    width: 100%;
+    min-height: 18rem;
+    margin: 0;
+    font-family: ui-monospace, monospace;
+    resize: vertical;
+}
+
+.markdown-preview {
+    display: block;
+    width: 100%;
+    min-height: 16rem;
+    padding: .65rem .75rem;
+    border: 1px solid var(--nulysa-border);
+    border-radius: var(--nulysa-radius);
+    background: inherit;
+    color: inherit;
+}

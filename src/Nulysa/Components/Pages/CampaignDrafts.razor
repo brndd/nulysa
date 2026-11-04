@@ -1,0 +1,152 @@
+@page "/admin/communications/drafts"
+@page "/admin/communications/drafts/{DraftId:guid}"
+@attribute [Authorize(Policy = "Administrator")]
+@rendermode @(new InteractiveServerRenderMode())
+@using System.ComponentModel.DataAnnotations
+@using System.Security.Claims
+@using Nulysa.Communications
+@inject IServiceScopeFactory Scopes
+@inject AuthenticationStateProvider Authentication
+
+<AdminPageHeader Title="@T("Campaign drafts")" />
+<AdminSectionTabs Destination="campaign-drafts" />
+
+<button type="button" disabled="@(!RendererInfo.IsInteractive || busy)" @onclick="NewDraft">@T("New draft")</button>
+@if (drafts.Count > 0)
+{
+    <ul>
+        @foreach (var draft in drafts)
+        {
+            <li><a href="@($"/admin/communications/drafts/{draft.Id}")" aria-current="@(DraftId == draft.Id ? "page" : null)">@draft.Title</a></li>
+        }
+    </ul>
+}
+@if (page > 1 || drafts.Count == Campaigns.PageSize)
+{
+    <nav aria-label="@T("Campaign pages")">
+        <button type="button" disabled="@(!RendererInfo.IsInteractive || busy || page == 1)" @onclick="() => Load(page - 1)">@T("Previous")</button>
+        <span>@T("Page {0}", page)</span>
+        <button type="button" disabled="@(!RendererInfo.IsInteractive || busy || drafts.Count < Campaigns.PageSize)" @onclick="() => Load(page + 1)">@T("Next")</button>
+    </nav>
+}
+
+@if (error is not null) { <p role="alert">@ValidationText.Translate(error)</p> }
+@if (saved) { <p role="status">@T("Draft saved.")</p> }
+
+@if (inputs is not null)
+{
+    <form @onsubmit="Save" @onsubmit:preventDefault>
+        <label for="campaign-title">@T("Draft title")</label>
+        <input id="campaign-title" @bind="title" required maxlength="200" />
+        <label for="campaign-kind">@T("Message type")</label>
+        <select id="campaign-kind" @bind="kind">
+            <option value="@CampaignKind.Newsletter">@T("Newsletter")</option>
+            <option value="@CampaignKind.OfficialNotice">@T("Official notice")</option>
+        </select>
+        @foreach (var input in inputs)
+        {
+            <MarkdownMailEditor @key="input" Input="input" Newsletter="@(kind == CampaignKind.Newsletter)" />
+        }
+        <button type="submit" disabled="@(!RendererInfo.IsInteractive || busy)">@T("Save draft")</button>
+    </form>
+}
+
+@code {
+    [Parameter] public Guid? DraftId { get; set; }
+
+    private ClaimsPrincipal actor = null!;
+    private IReadOnlyList<CampaignSummary> drafts = [];
+    private MarkdownMailInput[]? inputs;
+    private Guid id;
+    private Guid? revision;
+    private string title = "";
+    private CampaignKind kind;
+    private string? error;
+    private int page = 1;
+    private bool busy;
+    private bool saved;
+
+    protected override async Task OnInitializedAsync()
+    {
+        actor = (await Authentication.GetAuthenticationStateAsync()).User;
+        await Load(1);
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        inputs = null;
+        saved = false;
+        error = null;
+        if (DraftId is { } draftId)
+            await Open(draftId);
+    }
+
+    private async Task Load(int requestedPage)
+    {
+        await using var scope = Scopes.CreateAsyncScope();
+        var rows = await scope.ServiceProvider.GetRequiredService<Campaigns>().List(actor, requestedPage);
+        if (rows.Count == 0 && requestedPage > page)
+            return;
+        drafts = rows;
+        page = requestedPage;
+    }
+
+    private void NewDraft()
+    {
+        id = Guid.NewGuid();
+        revision = null;
+        title = "";
+        kind = CampaignKind.Newsletter;
+        error = null;
+        saved = false;
+        inputs = UiLanguages.Supported.Select((language, index) => new MarkdownMailInput(language, null, index == 0)).ToArray();
+    }
+
+    private async Task Open(Guid campaignId)
+    {
+        busy = true;
+        saved = false;
+        error = null;
+        try
+        {
+            await using var scope = Scopes.CreateAsyncScope();
+            var draft = await scope.ServiceProvider.GetRequiredService<Campaigns>().Get(actor, campaignId);
+            if (draft.Campaign.QueuedAt is not null)
+            {
+                error = "This campaign has been queued. Copy it to write a new draft.";
+                return;
+            }
+            id = draft.Campaign.Id;
+            revision = draft.Campaign.Revision;
+            title = draft.Campaign.Title;
+            kind = draft.Campaign.Kind;
+            inputs = UiLanguages.Supported.Select(language =>
+            {
+                var variant = draft.Variants.SingleOrDefault(x => x.Language == language.Code);
+                return new MarkdownMailInput(language, variant, variant is not null);
+            }).ToArray();
+        }
+        catch (KeyNotFoundException) { error = "Campaign does not exist."; }
+        finally { busy = false; }
+    }
+
+    private async Task Save()
+    {
+        if (busy || inputs is null)
+            return;
+        busy = true;
+        saved = false;
+        error = null;
+        try
+        {
+            var variants = MarkdownMailInput.ReadEnabled(inputs, operational: false);
+            await using var scope = Scopes.CreateAsyncScope();
+            var result = await scope.ServiceProvider.GetRequiredService<Campaigns>().Save(actor, id, revision, title, kind, variants);
+            revision = result.Revision;
+            saved = true;
+            await Load(1);
+        }
+        catch (ValidationException problem) { error = problem.Message; }
+        finally { busy = false; }
+    }
+}

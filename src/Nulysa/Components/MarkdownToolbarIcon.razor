@@ -1,0 +1,30 @@
+<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+    @switch (Name)
+    {
+        case "heading":
+            <path d="M5 5v14M19 5v14M5 12h14" />
+            break;
+        case "bold":
+            <path d="M7 12h7a3.5 3.5 0 0 1 0 7H7V5h6a3.5 3.5 0 0 1 0 7" />
+            break;
+        case "italic":
+            <path d="M11 5h8M5 19h8m2-14L9 19" />
+            break;
+        case "quote":
+            <path d="M5 5v14M10 7h9m-9 5h9m-9 5h5" />
+            break;
+        case "link":
+            <path d="m10 13 4-4m-2 8-2 2a4 4 0 0 1-5.7-5.7l4-4a4 4 0 0 1 5.7 0m-2-2 2-2a4 4 0 1 1 5.7 5.7l-4 4a4 4 0 0 1-5.7 0" />
+            break;
+        case "bullet":
+            <path d="M9 6h11M9 12h11M9 18h11" />
+            <circle cx="4" cy="6" r="1" fill="currentColor" stroke="none" />
+            <circle cx="4" cy="12" r="1" fill="currentColor" stroke="none" />
+            <circle cx="4" cy="18" r="1" fill="currentColor" stroke="none" />
+            break;
+    }
+</svg>
+
+@code {
+    [Parameter, EditorRequired] public string Name { get; set; } = "";
+}

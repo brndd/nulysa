@@ -1,0 +1,128 @@
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.JSInterop
+@using Nulysa.Communications
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+@inject IConfiguration Configuration
+
+<fieldset class="markdown-mail-editor">
+    <legend>@Input.Language.Name</legend>
+    <label><input type="checkbox" @bind="Input.Enabled" /> @T("Include this language")</label>
+    @if (Input.Enabled)
+    {
+        <label for="@FieldId("subject")">@T("Subject")</label>
+        <input id="@FieldId("subject")" @bind="Input.Subject" @bind:event="oninput" @bind:after="RefreshPreview" maxlength="200" />
+        <div class="markdown-panel">
+            <div class="markdown-header">
+                <div class="markdown-tabs" role="tablist" aria-label="@T("Message editor")" @ref="tabs">
+                    <button type="button" role="tab" id="@FieldId("write-tab")" aria-controls="@FieldId("write-panel")"
+                            aria-selected="@(!previewing)" tabindex="@(previewing ? -1 : 0)" @onclick="Write">@T("Write")</button>
+                    <button type="button" role="tab" id="@FieldId("preview-tab")" aria-controls="@FieldId("preview-panel")"
+                            aria-selected="@previewing" tabindex="@(previewing ? 0 : -1)" @onclick="Preview">@T("Preview")</button>
+                </div>
+                <markdown-toolbar class="markdown-formatting" for="@FieldId("body")" hidden="@previewing" aria-label="@T("Markdown formatting")">
+                    <md-header level="2" title="@T("Heading")" aria-label="@T("Heading")"><MarkdownToolbarIcon Name="heading" /></md-header>
+                    <md-bold title="@T("Bold")" aria-label="@T("Bold")"><MarkdownToolbarIcon Name="bold" /></md-bold>
+                    <md-italic title="@T("Italic")" aria-label="@T("Italic")"><MarkdownToolbarIcon Name="italic" /></md-italic>
+                    <span class="markdown-divider" aria-hidden="true"></span>
+                    <md-quote title="@T("Quote")" aria-label="@T("Quote")"><MarkdownToolbarIcon Name="quote" /></md-quote>
+                    <md-link title="@T("Link")" aria-label="@T("Link")"><MarkdownToolbarIcon Name="link" /></md-link>
+                    <md-unordered-list title="@T("Bullet list")" aria-label="@T("Bullet list")"><MarkdownToolbarIcon Name="bullet" /></md-unordered-list>
+                    @if (Operational)
+                    {
+                        <span class="markdown-divider" aria-hidden="true"></span>
+                        <button type="button" data-md-button @onclick="InsertDetails">@T("Insert operational details")</button>
+                    }
+                </markdown-toolbar>
+            </div>
+            <div class="markdown-body" id="@FieldId("write-panel")" role="tabpanel" aria-labelledby="@FieldId("write-tab")" hidden="@previewing">
+                <label class="visually-hidden" for="@FieldId("body")">@T("Message body (Markdown)")</label>
+                <textarea id="@FieldId("body")" @ref="body" @bind="Input.Source" @bind:event="oninput"
+                          placeholder="@T("Write your message in Markdown…")" rows="12" maxlength="@MailMarkdown.SourceLimit"></textarea>
+            </div>
+            <div class="markdown-body" id="@FieldId("preview-panel")" role="tabpanel" aria-labelledby="@FieldId("preview-tab")" hidden="@(!previewing)" tabindex="0">
+                @if (error is not null)
+                {
+                    <p role="alert">@ValidationText.Translate(error)</p>
+                }
+                else if (preview is not null)
+                {
+                    <p><strong>@T("Subject"):</strong> @preview.Subject</p>
+                    @* RichMail emits only fixed tags, encoded text and validated links. Inline rendering lets it inherit the page theme. *@
+                    <div class="markdown-preview">@((MarkupString)preview.Html)</div>
+                }
+            </div>
+        </div>
+    }
+</fieldset>
+
+@code {
+    [Parameter, EditorRequired] public MarkdownMailInput Input { get; set; } = null!;
+    [Parameter] public bool Operational { get; set; }
+    [Parameter] public bool Newsletter { get; set; }
+
+    private ElementReference body;
+    private ElementReference tabs;
+    private bool connected;
+    private IJSObjectReference? module;
+    private bool previewing;
+    private string? error;
+    private MailContent? preview;
+
+    private string FieldId(string field) => $"markdown-{Input.Language.Code}-{field}";
+    protected override void OnParametersSet() => RefreshPreview();
+
+    private void RefreshPreview()
+    {
+        if (previewing)
+            Preview();
+    }
+
+    private void Write() => previewing = false;
+
+    private void Preview()
+    {
+        previewing = true;
+        error = null;
+        preview = null;
+        try
+        {
+            var variant = Input.ReadPreview(Operational);
+            var culture = System.Globalization.CultureInfo.GetCultureInfo(variant.Language);
+            preview = MailMarkdown.Preview(variant, Newsletter,
+                Operational ? UiText.ForCulture("Required operational details appear here.", culture) : null,
+                Operational ? UiText.ForCulture("Original automatic mail subject", culture) : null,
+                Configuration["Association:Name"] ?? "Nulysa");
+        }
+        catch (ValidationException problem) { error = problem.Message; }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!Input.Enabled)
+        {
+            connected = false;
+            return;
+        }
+        if (connected)
+            return;
+
+        connected = true;
+        module ??= await JS.InvokeAsync<IJSObjectReference>("import", "./scripts/mail-markdown.js");
+        await module.InvokeVoidAsync("connectEditor", tabs, body);
+    }
+
+    private async Task InsertDetails()
+    {
+        if (module is not null)
+            await module.InvokeVoidAsync("insertOperationalDetails", body, MailMarkdown.OperationalDetails);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (module is null)
+            return;
+        try { await module.DisposeAsync(); }
+        catch (JSDisconnectedException) { }
+    }
+}

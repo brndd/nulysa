@@ -2673,4 +2673,115 @@
   <data name="Choose a supported language." xml:space="preserve">
     <value>Choose a supported language.</value>
   </data>
+  <data name="Campaign drafts" xml:space="preserve">
+    <value>Campaign drafts</value>
+  </data>
+  <data name="New draft" xml:space="preserve">
+    <value>New draft</value>
+  </data>
+  <data name="Draft title" xml:space="preserve">
+    <value>Draft title</value>
+  </data>
+  <data name="Draft saved." xml:space="preserve">
+    <value>Draft saved.</value>
+  </data>
+  <data name="Campaign pages" xml:space="preserve">
+    <value>Campaign pages</value>
+  </data>
+  <data name="Message type" xml:space="preserve">
+    <value>Message type</value>
+  </data>
+  <data name="Newsletter" xml:space="preserve">
+    <value>Newsletter</value>
+  </data>
+  <data name="Official notice" xml:space="preserve">
+    <value>Official notice</value>
+  </data>
+  <data name="Save draft" xml:space="preserve">
+    <value>Save draft</value>
+  </data>
+  <data name="Automatic mail templates" xml:space="preserve">
+    <value>Automatic mail templates</value>
+  </data>
+  <data name="Each automatic template includes the required operational details. Preview shows a placeholder for those details." xml:space="preserve">
+    <value>Each automatic template includes the required operational details. Preview shows a placeholder for those details.</value>
+  </data>
+  <data name="Fallback language" xml:space="preserve">
+    <value>Fallback language</value>
+  </data>
+  <data name="Save template" xml:space="preserve">
+    <value>Save template</value>
+  </data>
+  <data name="Template saved." xml:space="preserve">
+    <value>Template saved.</value>
+  </data>
+  <data name="Include this language" xml:space="preserve">
+    <value>Include this language</value>
+  </data>
+  <data name="Message editor" xml:space="preserve">
+    <value>Message editor</value>
+  </data>
+  <data name="Write" xml:space="preserve">
+    <value>Write</value>
+  </data>
+  <data name="Preview" xml:space="preserve">
+    <value>Preview</value>
+  </data>
+  <data name="Markdown formatting" xml:space="preserve">
+    <value>Markdown formatting</value>
+  </data>
+  <data name="Bold" xml:space="preserve">
+    <value>Bold</value>
+  </data>
+  <data name="Italic" xml:space="preserve">
+    <value>Italic</value>
+  </data>
+  <data name="Link" xml:space="preserve">
+    <value>Link</value>
+  </data>
+  <data name="Heading" xml:space="preserve">
+    <value>Heading</value>
+  </data>
+  <data name="Bullet list" xml:space="preserve">
+    <value>Bullet list</value>
+  </data>
+  <data name="Quote" xml:space="preserve">
+    <value>Quote</value>
+  </data>
+  <data name="Subject" xml:space="preserve">
+    <value>Subject</value>
+  </data>
+  <data name="Insert operational details" xml:space="preserve">
+    <value>Insert operational details</value>
+  </data>
+  <data name="Message body (Markdown)" xml:space="preserve">
+    <value>Message body (Markdown)</value>
+  </data>
+  <data name="Email preview" xml:space="preserve">
+    <value>Email preview</value>
+  </data>
+  <data name="Required operational details appear here." xml:space="preserve">
+    <value>Required operational details appear here.</value>
+  </data>
+  <data name="Original automatic mail subject" xml:space="preserve">
+    <value>Original automatic mail subject</value>
+  </data>
+  <data name="Unsupported Markdown or link on line {0}." xml:space="preserve">
+    <value>Unsupported Markdown or link on line {0}.</value>
+  </data>
+  <data name="The Markdown source is too long." xml:space="preserve">
+    <value>The Markdown source is too long.</value>
+  </data>
+  <data name="Include the operational details block once." xml:space="preserve">
+    <value>Include the operational details block once.</value>
+  </data>
+  <data name="This campaign has been queued. Copy it to write a new draft." xml:space="preserve">
+    <value>This campaign has been queued. Copy it to write a new draft.</value>
+  </data>
+  <data name="Choose a saved fallback language with operational translations." xml:space="preserve">
+    <value>Choose a saved fallback language with operational translations.</value>
+  </data>
+  <data name="Write your message in Markdown…" xml:space="preserve">
+    <value>Write your message in Markdown…</value>
+  </data>
 </root>
