@@ -1132,6 +1132,9 @@ namespace Nulysa.Data.Migrations
                     b.Property<int>("QueueVersion")
                         .HasColumnType("integer");
 
+                    b.Property<DateTimeOffset?>("RetryNotBefore")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTimeOffset?>("StartedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -1248,6 +1251,9 @@ namespace Nulysa.Data.Migrations
 
                     b.Property<int>("Attempts")
                         .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("ProviderPausedUntil")
+                        .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTimeOffset>("StartedAt")
                         .HasColumnType("timestamp with time zone");

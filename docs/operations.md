@@ -134,10 +134,12 @@ Checks include:
 - missing cleanup or cleanup older than 26 hours (including the initial period
   before its first midnight run);
 - absent/paused/error/complete schedules, or next-fire time over two minutes late;
-- original one-shot work age over five minutes, even across recovery/crash loops;
+- original one-shot work age over five minutes, even across recovery/crash loops,
+  excluding campaign jobs;
 - unreadable enqueue metadata and recorded final failures, independently of history.
 - missing/stale membership scan, stale deletion batch after its first run, and
-  pending/failed/uncertain mail independently of Quartz execution history.
+  pending/failed/uncertain operational mail independently of Quartz execution history.
+  Campaign delivery results are tracked in campaign progress.
 
 All one-shot application work belongs to Quartz group `work` and stamps its original
 UTC `enqueued_at` on the job detail. The synthetic worker harness demonstrates the

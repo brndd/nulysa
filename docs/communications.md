@@ -3,7 +3,7 @@
 Communications is a set of application services for the server-side UI. It uses
 the existing SMTP transport, worker and PostgreSQL Quartz store. Resolve these
 services in a fresh scope per operation in a long-lived editor circuit. Apply the
-`Communications` EF migration before starting web and worker.
+EF migrations before starting web and worker.
 
 - `Campaigns` lists, saves and copies newsletters and official notices. A
   draft's revision guards edits. Copy a previous campaign to reuse its content.
@@ -28,16 +28,19 @@ services in a fresh scope per operation in a long-lived editor circuit. Apply th
   rechecks membership and pending deletion. It rechecks newsletter opt-outs
   separately; official notices ignore newsletter and invoice preferences.
   Language content stays as approved in the preview. SMTP sends both MIME
-  alternatives. Local rate exhaustion or SMTP throttling defers the delivery;
-  automatic SMTP retries are bounded. Operational mail has higher Quartz
-  trigger priority than bulk mail when due together.
+  alternatives. A temporary SMTP rejection records the next attempt time before
+  scheduling the retry. Due-work maintenance can replace missing jobs. SMTP 421
+  pauses new sends across workers for one minute. Other temporary SMTP rejections
+  delay only the affected delivery. Operational mail has higher Quartz trigger
+  priority than bulk mail when due together.
 - `Progress` reports recipient states and attempts, with test sends identified
   separately. `RetryFailed` accepts selected definite failures, confirmation
   and a reason. It records who retried them and creates a new job generation so
   a stale job cannot dispatch the retry. Accepted, cancelled and uncertain
   deliveries are excluded. Recipient records follow existing erasure and
   terminal delivery retention rules (30 days); progress exposes how many are
-  no longer retained.
+  no longer retained. Campaign outcomes appear in progress. Campaign delivery
+  failures and backlog age are excluded from the operational mail alarms.
 - `OperationalTemplates` lists, saves and resets automatic mail overrides.
   Every saved override requires a fallback variant. The subject can use
   `{{subject}}` and `{{association}}`. The required operational details block

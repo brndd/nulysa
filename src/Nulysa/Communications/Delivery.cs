@@ -22,6 +22,7 @@ public sealed class Delivery
     public string? PreferredLanguage { get; set; }
     public string? OutgoingLanguage { get; set; }
     public string? ProtectedTestMessage { get; set; }
+    public DateTimeOffset? RetryNotBefore { get; set; }
     public int QueueVersion { get; set; }
     public int AttemptLimit { get; set; } = MailQueue.AttemptsPerRound;
 }
@@ -41,13 +42,14 @@ public sealed class MailOptions
 }
 
 public sealed record OutgoingMail(string To, string Subject, string Text, byte[]? Pdf = null, string? FileName = null, string? Html = null, string? UnsubscribeUrl = null);
-public enum SendOutcome { Accepted, Throttled, Rejected, Uncertain }
+public enum SendOutcome { Accepted, Throttled, ProviderThrottled, Rejected, Uncertain }
 public sealed record SendResult(SendOutcome Outcome, string? ProviderId = null);
 
 public sealed class MailRateWindow
 {
     public int Id { get; set; } = 1;
     public DateTimeOffset StartedAt { get; set; }
+    public DateTimeOffset? ProviderPausedUntil { get; set; }
     public int Attempts { get; set; }
 }
 

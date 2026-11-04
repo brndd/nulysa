@@ -51,6 +51,7 @@ public sealed class MailTransportTests
     }
 
     [Theory]
+    [InlineData("421 service unavailable", SendOutcome.ProviderThrottled)]
     [InlineData("450 mailbox busy", SendOutcome.Throttled)]
     [InlineData("550 mailbox unavailable", SendOutcome.Rejected)]
     public async Task Smtp_classifies_transient_and_permanent_rejections(string reply, SendOutcome expected)
@@ -257,7 +258,7 @@ public sealed class MailTests : MembershipTest
     }
 
     [Fact]
-    public async Task Provider_throttling_has_three_total_attempts_and_global_rate_limiting_defers_without_sending()
+    public async Task Recipient_throttling_has_three_total_attempts_and_global_rate_limiting_defers_without_sending()
     {
         Settings["Mail:MaxPerMinute"] = "2";
         var board = await Board();
@@ -265,11 +266,13 @@ public sealed class MailTests : MembershipTest
         await using var app = CommandsApp(transport);
         var id = await Verified(app);
         await Run(app, sp => sp.GetRequiredService<MembershipCommands>().Reject(board, id, null));
-        for (var attempt = 0; attempt < 2; attempt++)
-            Assert.Equal(TimeSpan.FromSeconds(30), await Run(app, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(id)));
-        Assert.Equal(TimeSpan.FromMinutes(1), await Run(app, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(id)));
-        Assert.Equal(2, transport.Sent.Count); // Retrying the SAME recipient still consumes provider rate capacity.
-        Clock.Now = Clock.Now.AddMinutes(1);
+        Assert.Equal(TimeSpan.FromSeconds(30), await Run(app, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(id)));
+        Assert.Equal(TimeSpan.FromSeconds(30), await Run(app, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(id)));
+        Assert.Single(transport.Sent);
+        Clock.Now = Clock.Now.AddSeconds(30);
+        Assert.Equal(TimeSpan.FromSeconds(30), await Run(app, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(id)));
+        Assert.Equal(2, transport.Sent.Count); // Retrying the same recipient still consumes provider rate capacity.
+        Clock.Now = Clock.Now.AddSeconds(30);
         await Run(app, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(id));
         await Run(app, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(id));
 

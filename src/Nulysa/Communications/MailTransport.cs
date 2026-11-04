@@ -51,6 +51,10 @@ public sealed class SmtpMailTransport(IOptions<MailOptions> options, IConfigurat
             await client.SendMailAsync(message, deadline.Token);
             return new(SendOutcome.Accepted);
         }
+        catch (SmtpException error) when (error.StatusCode == SmtpStatusCode.ServiceNotAvailable)
+        {
+            return new(SendOutcome.ProviderThrottled);
+        }
         catch (SmtpException error) when ((int)error.StatusCode is >= 400 and < 500)
         {
             return new(SendOutcome.Throttled);

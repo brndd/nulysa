@@ -26,7 +26,7 @@ public sealed class BoardQueries(AppDbContext db, MembershipQueries members, Ass
         var applications = await db.Applications.CountAsync(application => application.VerifiedAt != null && application.RejectedAt == null, ct);
         var payments = await db.Receipts.CountAsync(receipt => receipt.State == ReceiptState.New || receipt.State == ReceiptState.Review, ct);
         var deletions = await db.Users.CountAsync(user => user.PendingDeletionAt != null && db.Members.Any(member => member.UserId == user.Id), ct);
-        var mail = await db.Deliveries.CountAsync(delivery => delivery.Kind != MailKind.Invoice &&
+        var mail = await db.Deliveries.CountAsync(delivery => delivery.CampaignId == null && delivery.Kind != MailKind.Invoice &&
             (delivery.State == DeliveryState.Review || delivery.State == DeliveryState.Failed), ct);
         var recorded = await db.BankSyncStates.AsNoTracking().ToListAsync(ct);
         var connections = bank.Value.Enabled && bank.Value.Provider == BankProvider.EnableBanking

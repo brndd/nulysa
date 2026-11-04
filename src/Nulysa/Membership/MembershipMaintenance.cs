@@ -53,17 +53,31 @@ public sealed class MembershipMaintenance(AppDbContext db, AssociationClock cloc
             var oldDeliveries = await terminal.OrderBy(x => x.CreatedAt).Select(x => x.Id).Take(100).ToListAsync(ct);
             await terminal.Where(x => oldDeliveries.Contains(x.Id)).ExecuteDeleteAsync(ct);
 
+            // A batch of healthy campaign jobs must not hide a missing job farther down the queue.
+            const int repairLimit = 50;
+            const int lookupSize = 200;
+            var missing = new List<Delivery>();
+            var now = clock.Now;
+            var pending = db.Deliveries.AsNoTracking()
+                .Where(x => x.State == DeliveryState.Pending && (x.RetryNotBefore == null || x.RetryNotBefore <= now))
+                .OrderBy(x => x.CampaignId != null).ThenBy(x => x.CreatedAt).ThenBy(x => x.Id);
+            for (var offset = 0; missing.Count < repairLimit; offset += lookupSize)
+            {
+                var batch = await pending.Skip(offset).Take(lookupSize).ToListAsync(ct);
+                if (batch.Count == 0)
+                    break;
+                var scheduled = await scheduler.GetJobDetails(batch.Select(x => MailQueue.JobKey(x.Id, x.QueueVersion)).ToArray(), ct);
+                var scheduledKeys = scheduled.Select(x => x.Key).ToHashSet();
+                missing.AddRange(batch.Where(x => !scheduledKeys.Contains(MailQueue.JobKey(x.Id, x.QueueVersion)))
+                    .Take(repairLimit - missing.Count));
+                if (batch.Count < lookupSize)
+                    break;
+            }
+
             // Keep application/delivery row mutations ahead of scheduler writes.
             if (obsoleteJobs.Count > 0)
                 await scheduler.DeleteJobs(obsoleteJobs, ct);
-            var pending = await db.Deliveries.AsNoTracking()
-                .Where(x => x.State == DeliveryState.Pending)
-                .OrderBy(x => x.CampaignId != null).ThenBy(x => x.CreatedAt).ThenBy(x => x.Id)
-                .Take(50)
-                .ToListAsync(ct);
-            var scheduled = await scheduler.GetJobDetails(pending.Select(x => MailQueue.JobKey(x.Id, x.QueueVersion)).ToArray(), ct);
-            var scheduledKeys = scheduled.Select(x => x.Key).ToHashSet();
-            await MailQueue.ScheduleBatch(scheduler, pending.Where(x => !scheduledKeys.Contains(MailQueue.JobKey(x.Id, x.QueueVersion))).ToArray(), ct);
+            await MailQueue.ScheduleBatch(scheduler, missing, ct);
             await tx.CommitAsync(ct);
         }
 

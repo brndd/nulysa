@@ -9,6 +9,7 @@ namespace Nulysa.Communications;
 public sealed class MailQueue(AppDbContext db, TimeProvider clock)
 {
     public const int AttemptsPerRound = 3;
+    internal const string CampaignJobDataKey = "campaign";
     public static JobKey JobKey(Guid id, int version = 0) => new(
         "mail-" + id.ToString("N") + (version == 0 ? "" : "-" + version.ToString(CultureInfo.InvariantCulture)), "work");
 
@@ -31,13 +32,7 @@ public sealed class MailQueue(AppDbContext db, TimeProvider clock)
             CreatedAt = clock.GetUtcNow(), InvoiceId = invoiceId, InvoiceRevision = invoiceRevision };
         db.Deliveries.Add(delivery);
         await db.SaveChangesAsync(ct);
-        await Schedule(scheduler, delivery, ct);
-    }
-
-    internal static async Task Schedule(IScheduler scheduler, Delivery delivery, CancellationToken ct)
-    {
-        var job = CreateJob(delivery);
-        await scheduler.ScheduleJob(job, Trigger(job.Key, Priority(delivery.Kind)).StartNow().Build(), cancellationToken: ct);
+        await ScheduleBatch(scheduler, [delivery], ct);
     }
 
     internal static async Task ScheduleBatch(IScheduler scheduler, IReadOnlyCollection<Delivery> deliveries, CancellationToken ct)
@@ -65,6 +60,8 @@ public sealed class MailQueue(AppDbContext db, TimeProvider clock)
         var job = JobBuilder.Create<MailDeliveryJob>().WithIdentity(JobKey(delivery.Id, delivery.QueueVersion)).RequestRecovery()
             .UsingJobData("delivery_id", delivery.Id.ToString("D"))
             .UsingJobData("enqueued_at", delivery.CreatedAt.ToString("O", CultureInfo.InvariantCulture));
+        if (delivery.CampaignId is not null)
+            job.UsingJobData(CampaignJobDataKey, "true");
         if (delivery.QueueVersion != 0)
             job.UsingJobData("queue_version", delivery.QueueVersion.ToString(CultureInfo.InvariantCulture));
         return job.Build();
@@ -78,8 +75,26 @@ public sealed class MailQueue(AppDbContext db, TimeProvider clock)
         foreach (var delivery in pending)
             delivery.State = DeliveryState.Cancelled;
         await db.SaveChangesAsync(ct);
-        foreach (var delivery in pending)
-            await scheduler.DeleteJob(JobKey(delivery.Id, delivery.QueueVersion), ct);
+        await DeletePendingJobs(scheduler, pending, ct);
+    }
+
+    public async Task EraseForUser(IScheduler scheduler, long id, CancellationToken ct)
+    {
+        // A campaign retry locks a Failed delivery before writing to Quartz.
+        // Erasure must finish all delivery writes before taking the Quartz lock too.
+        var deliveries = await db.Deliveries.FromSqlInterpolated($"""
+            SELECT * FROM "Deliveries" WHERE "UserId" = {id} ORDER BY "Id" FOR UPDATE
+            """).ToListAsync(ct);
+        var pending = deliveries.Where(x => x.State == DeliveryState.Pending).ToArray();
+        db.Deliveries.RemoveRange(deliveries);
+        await db.SaveChangesAsync(ct);
+        await DeletePendingJobs(scheduler, pending, ct);
+    }
+
+    private static async Task DeletePendingJobs(IScheduler scheduler, IReadOnlyCollection<Delivery> pending, CancellationToken ct)
+    {
+        if (pending.Count > 0)
+            await scheduler.DeleteJobs(pending.Select(delivery => JobKey(delivery.Id, delivery.QueueVersion)).ToArray(), ct);
     }
 }
 

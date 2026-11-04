@@ -39,6 +39,8 @@ public sealed class MailDispatcher(AppDbContext db, MailRenderer renderer, IMail
             }
             if (delivery.State != DeliveryState.Pending)
                 return null;
+            if (delivery.RetryNotBefore is { } retryAt && retryAt > clock.GetUtcNow())
+                return await Defer(tx, retryAt, ct);
 
             try
             {
@@ -76,24 +78,20 @@ public sealed class MailDispatcher(AppDbContext db, MailRenderer renderer, IMail
                 window = new() { StartedAt = clock.GetUtcNow() };
                 db.MailRateWindows.Add(window);
             }
-            if (window.StartedAt.AddMinutes(1) <= clock.GetUtcNow())
+            var now = clock.GetUtcNow();
+            if (window.ProviderPausedUntil is { } pausedUntil && pausedUntil > now)
+                return await Defer(tx, pausedUntil, ct);
+            if (window.StartedAt.AddMinutes(1) <= now)
             {
-                window.StartedAt = clock.GetUtcNow();
+                window.StartedAt = now;
                 window.Attempts = 0;
             }
             if (window.Attempts >= options.Value.MaxPerMinute)
-            {
-                var delay = TimeSpan.FromSeconds(Math.Max(1, (window.StartedAt.AddMinutes(1) - clock.GetUtcNow()).TotalSeconds));
-                if (defer is not null)
-                {
-                    await defer(tx.GetDbTransaction(), delay, ct);
-                    await tx.CommitAsync(ct);
-                }
-                return delay;
-            }
+                return await Defer(tx, window.StartedAt.AddMinutes(1), ct);
             window.Attempts++;
 
             delivery.State = DeliveryState.Sending;
+            delivery.RetryNotBefore = null;
             delivery.StartedAt = clock.GetUtcNow();
             attempt = ++delivery.Attempts;
             rejectedApplication = delivery.Kind == MailKind.Rejection ? delivery.ApplicationId : null;
@@ -113,8 +111,7 @@ public sealed class MailDispatcher(AppDbContext db, MailRenderer renderer, IMail
         }
 
         // Record acceptance/ambiguity even when shutdown cancelled the transport operation.
-        var retryDelay = TimeSpan.FromSeconds(30);
-        var deferred = false;
+        DateTimeOffset? retryNotBefore = null;
         using var finish = new CancellationTokenSource(TimeSpan.FromSeconds(20));
         await using (var tx = await db.Database.BeginTransactionAsync(finish.Token))
         {
@@ -124,18 +121,38 @@ public sealed class MailDispatcher(AppDbContext db, MailRenderer renderer, IMail
                 await db.Database.ExecuteSqlInterpolatedAsync($"SELECT 1 FROM \"Applications\" WHERE \"Id\" = {applicationId} FOR UPDATE", finish.Token);
 
             var delivery = await Lock(id, finish.Token);
+            var now = clock.GetUtcNow();
+            DateTimeOffset? providerPause = null;
+            if (result.Outcome == SendOutcome.ProviderThrottled)
+            {
+                // Apply the pause even if the recipient was erased during the SMTP exchange.
+                await DatabaseLocks.Acquire(db, DatabaseLock.MailDispatchRate, finish.Token);
+                var window = await db.MailRateWindows.SingleAsync(finish.Token);
+                providerPause = now.AddMinutes(1);
+                if (window.ProviderPausedUntil is null || window.ProviderPausedUntil < providerPause)
+                    window.ProviderPausedUntil = providerPause;
+                providerPause = window.ProviderPausedUntil;
+            }
             if (delivery is null || delivery.QueueVersion != queueVersion || delivery.Attempts != attempt)
+            {
+                if (providerPause is not null)
+                {
+                    await db.SaveChangesAsync(finish.Token);
+                    await tx.CommitAsync(finish.Token);
+                }
                 return null;
+            }
 
             delivery.State = result.Outcome switch
             {
                 SendOutcome.Accepted => DeliveryState.Accepted,
-                SendOutcome.Throttled when attempt < delivery.AttemptLimit => DeliveryState.Pending,
-                SendOutcome.Rejected or SendOutcome.Throttled => DeliveryState.Failed,
+                SendOutcome.Throttled or SendOutcome.ProviderThrottled when attempt < delivery.AttemptLimit => DeliveryState.Pending,
+                SendOutcome.Rejected or SendOutcome.Throttled or SendOutcome.ProviderThrottled => DeliveryState.Failed,
                 _ => DeliveryState.Review
             };
-            deferred = delivery.State == DeliveryState.Pending;
-            if (!deferred)
+            if (delivery.State == DeliveryState.Pending)
+                retryNotBefore = delivery.RetryNotBefore = providerPause ?? now.AddSeconds(30);
+            else
                 delivery.ProtectedTestMessage = null;
             if (result.Outcome == SendOutcome.Accepted)
             {
@@ -146,11 +163,36 @@ public sealed class MailDispatcher(AppDbContext db, MailRenderer renderer, IMail
                     await db.Applications.Where(x => x.Id == appId && x.RejectedAt != null).ExecuteDeleteAsync(finish.Token);
             }
             await db.SaveChangesAsync(finish.Token);
-            if (deferred && defer is not null)
-                await defer(tx.GetDbTransaction(), retryDelay, finish.Token);
             await tx.CommitAsync(finish.Token);
         }
-        return deferred ? retryDelay : null;
+
+        if (retryNotBefore is null)
+            return null;
+        if (defer is null)
+            return retryNotBefore.Value - clock.GetUtcNow();
+
+        // The known SMTP result is durable before touching Quartz. A failed trigger write
+        // can be retried by Quartz or repaired from the Pending delivery after its delay.
+        db.ChangeTracker.Clear();
+        await using (var tx = await db.Database.BeginTransactionAsync(finish.Token))
+        {
+            var delivery = await Lock(id, finish.Token);
+            if (delivery is null || delivery.State != DeliveryState.Pending || delivery.QueueVersion != queueVersion ||
+                delivery.Attempts != attempt || delivery.RetryNotBefore is not { } persistedRetryAt)
+                return null;
+            return await Defer(tx, persistedRetryAt, finish.Token);
+        }
+
+        async Task<TimeSpan> Defer(IDbContextTransaction transaction, DateTimeOffset until, CancellationToken token)
+        {
+            var delay = TimeSpan.FromSeconds(Math.Max(1, (until - clock.GetUtcNow()).TotalSeconds));
+            if (defer is not null)
+            {
+                await defer(transaction.GetDbTransaction(), delay, token);
+                await transaction.CommitAsync(token);
+            }
+            return delay;
+        }
     }
 
     private Task<Delivery?> Lock(Guid id, CancellationToken ct)

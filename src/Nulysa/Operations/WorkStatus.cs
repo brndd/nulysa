@@ -48,24 +48,32 @@ public static class WorkStatus
         var keys = await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("work"), ct);
         var jobs = await scheduler.GetJobDetails(keys, ct);
         DateTimeOffset? oldest = null;
+        DateTimeOffset? oldestOperational = null;
         foreach (var job in jobs)
         {
             if (!DateTimeOffset.TryParse(job.JobDataMap.GetString("enqueued_at"), CultureInfo.InvariantCulture,
                 DateTimeStyles.AssumeUniversal, out var created))
                 issues.Add("unreadable_work");
-            else if (oldest is null || created < oldest)
-                oldest = created;
+            else
+            {
+                if (oldest is null || created < oldest)
+                    oldest = created;
+                if (job.JobDataMap.GetString(MailQueue.CampaignJobDataKey) != "true" &&
+                    (oldestOperational is null || created < oldestOperational))
+                    oldestOperational = created;
+            }
         }
         var age = oldest is { } at ? (double?)(now - at).TotalSeconds : null;
-        if (age > 300)
+        if (oldestOperational < now.AddMinutes(-5))
             issues.Add("aged_work");
 
         var failures = await db.FailureObservations.CountAsync(ct);
         if (failures > 0)
             issues.Add("failed_work");
-        if (await db.Deliveries.AnyAsync(x => x.State == DeliveryState.Review || x.State == DeliveryState.Failed, ct))
+        var operationalMail = db.Deliveries.Where(x => x.CampaignId == null);
+        if (await operationalMail.AnyAsync(x => x.State == DeliveryState.Review || x.State == DeliveryState.Failed, ct))
             issues.Add("mail_requires_review");
-        if (await db.Deliveries.AnyAsync(x => x.State == DeliveryState.Pending && x.CreatedAt < now.AddMinutes(-5), ct))
+        if (await operationalMail.AnyAsync(x => x.State == DeliveryState.Pending && x.CreatedAt < now.AddMinutes(-5), ct))
             issues.Add("aged_mail");
 
         return new(issues.Count == 0, [.. issues.Order()], keys.Count, failures, age);

@@ -290,8 +290,7 @@ public sealed class MembershipCommands(AppDbContext db, UserManager<User> users,
         if (!isEligible)
             return false;
 
-        await mail.CancelForUser(scheduler, id, ct);
-        db.Deliveries.RemoveRange(await db.Deliveries.Where(x => x.UserId == id).ToListAsync(ct));
+        await mail.EraseForUser(scheduler, id, ct);
         await foreach (var token in tokens.FindBySubjectAsync(user.OidcSubject, ct))
             await tokens.DeleteAsync(token, ct);
         await foreach (var authorization in authorizations.FindBySubjectAsync(user.OidcSubject, ct))

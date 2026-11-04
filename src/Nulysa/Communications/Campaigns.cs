@@ -141,7 +141,7 @@ public sealed class Campaigns(AppDbContext db, ISchedulerFactory schedulers, IDa
         using var enlistment = scheduler.EnlistTransaction(tx.GetDbTransaction());
         db.Deliveries.Add(delivery);
         await db.SaveChangesAsync(ct);
-        await MailQueue.Schedule(scheduler, delivery, ct);
+        await MailQueue.ScheduleBatch(scheduler, [delivery], ct);
         await tx.CommitAsync(ct);
         return delivery.Id;
     }
@@ -189,6 +189,7 @@ public sealed class Campaigns(AppDbContext db, ISchedulerFactory schedulers, IDa
             delivery.QueueVersion++;
             delivery.State = DeliveryState.Pending;
             delivery.StartedAt = null;
+            delivery.RetryNotBefore = null;
             delivery.AttemptLimit = delivery.Attempts + MailQueue.AttemptsPerRound;
             db.MailDeliveryRetries.Add(new()
             {

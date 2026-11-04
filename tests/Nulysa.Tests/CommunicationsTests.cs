@@ -7,7 +7,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Nulysa.Accounts;
 using Nulysa.Communications;
 using Nulysa.Membership;
+using Nulysa.Operations;
 using Quartz;
+using Quartz.Extensibility;
+using Quartz.Impl;
 
 namespace Nulysa.Tests;
 
@@ -21,6 +24,155 @@ public sealed class CommunicationsTests : MembershipTest
     private static NewsletterPreferences Preferences(IServiceProvider sp) => sp.GetRequiredService<NewsletterPreferences>();
     private static Task Dispatch(WebApplication app, Guid deliveryId, int queueVersion = 0) =>
         Run(app, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(deliveryId, queueVersion: queueVersion));
+
+    [Fact]
+    public async Task Campaign_failures_and_old_backlog_do_not_raise_operational_mail_alarms()
+    {
+        var board = await Board();
+        var transport = new RecordingMail { Outcome = SendOutcome.Rejected };
+        await using var app = CommandsApp(transport);
+        var id = Guid.NewGuid();
+        var draft = await Run(app, sp => Campaign(sp).Save(board, id, null, "Monitoring", CampaignKind.Newsletter, [Variant("en")]));
+        var failed = await Run(app, sp => Campaign(sp).SendTest(board, id, draft.Revision, "en", "bad@example.test"));
+        await Run(app, sp => Campaign(sp).SendTest(board, id, draft.Revision, "en", "pending@example.test"));
+        await Dispatch(app, failed);
+
+        Clock.Now = Clock.Now.AddMinutes(10);
+        await Schedules.Install(Scheduler, Clock, TimeZoneInfo.Utc);
+        await using var db = Context();
+        foreach (var schedule in Schedules.Names)
+            await Observations.Record(db, schedule, Clock.Now, CancellationToken.None);
+        var status = await WorkStatus.Read(db, Scheduler, Clock);
+        Assert.True(status.Healthy, string.Join(", ", status.Issues));
+        Assert.True(status.OldestWorkAgeSeconds >= 600);
+        var attention = await Run(app, sp => sp.GetRequiredService<BoardQueries>().Attention(board, 30));
+        Assert.Equal(0, attention.EssentialMailProblems);
+        var mail = await Run(app, sp => sp.GetRequiredService<MembershipQueries>().MailFailures(board, essentialOnly: false));
+        Assert.Equal(0, mail.Total);
+        var progress = await Run(app, sp => Campaign(sp).Progress(board, id));
+        Assert.Contains(progress.Recipients, row => row.Id == failed && row.State == DeliveryState.Failed);
+    }
+
+    [Fact]
+    public async Task Definite_rejection_survives_a_failed_retry_trigger_write()
+    {
+        var transport = new RecordingMail { Outcome = SendOutcome.Throttled };
+        // PostgreSQL stores microseconds, while the application clock can report 100 ns ticks.
+        Clock.Now = Clock.Now.AddTicks(1);
+        await using var app = CommandsApp(transport);
+        var application = Guid.NewGuid();
+        await Run(app, sp => sp.GetRequiredService<MembershipCommands>().Apply(application, Input()));
+        await using var db = Context();
+        var id = await db.Deliveries.Where(x => x.ApplicationId == application).Select(x => x.Id).SingleAsync();
+        var key = MailQueue.JobKey(id);
+        var detail = (await Scheduler.GetJobDetail(key))!;
+        var trigger = TriggerBuilder.Create<MailDeliveryJob>().ForJob(key).StartNow().Build();
+        var bundle = new TriggerFiredBundle
+        {
+            JobDetail = detail, Trigger = (IOperableTrigger)trigger, Calendar = null, Recovering = false,
+            FireTimeUtc = Clock.Now, ScheduledFireTimeUtc = Clock.Now, PreviousFireTimeUtc = null, NextFireTimeUtc = null
+        };
+        await db.Database.ExecuteSqlRawAsync("""
+            ALTER TABLE qrtz_triggers ADD CONSTRAINT test_reject_retry_trigger
+            CHECK (job_group <> 'work') NOT VALID
+            """);
+        await Assert.ThrowsAnyAsync<SchedulerException>(() => Run(app, async sp =>
+        {
+            var job = new MailDeliveryJob(sp.GetRequiredService<MailDispatcher>());
+            using var context = new JobExecutionContextImpl(Scheduler, bundle, job);
+            await job.Execute(context);
+        }));
+
+        var pending = await db.Deliveries.AsNoTracking().SingleAsync(x => x.Id == id);
+        Assert.Equal(DeliveryState.Pending, pending.State);
+        Assert.Equal(1, pending.Attempts);
+        Assert.Equal(Clock.Now.AddSeconds(30).AddTicks(-1), pending.RetryNotBefore);
+        await Dispatch(app, id);
+        Assert.Single(transport.Sent);
+
+        await db.Database.ExecuteSqlRawAsync("ALTER TABLE qrtz_triggers DROP CONSTRAINT test_reject_retry_trigger");
+        await Scheduler.DeleteJob(key);
+        Clock.Now = Clock.Now.AddSeconds(30);
+        await Run(app, sp => sp.GetRequiredService<MembershipMaintenance>().Scan());
+        Assert.NotNull(await Scheduler.GetJobDetail(key));
+        transport.Outcome = SendOutcome.Accepted;
+        await Dispatch(app, id);
+        Assert.Equal(2, transport.Sent.Count);
+        Assert.Equal(DeliveryState.Accepted, (await db.Deliveries.AsNoTracking().SingleAsync(x => x.Id == id)).State);
+    }
+
+    [Fact]
+    public async Task Erasure_waiting_for_a_failed_delivery_leaves_the_quartz_lock_available()
+    {
+        var board = await Board();
+        var transport = new RecordingMail { Outcome = SendOutcome.Rejected };
+        await using var app = CommandsApp(transport);
+        var member = await Admit(app, board);
+        var campaign = Guid.NewGuid();
+        await Run(app, sp => Campaign(sp).Save(board, campaign, null, "Notice", CampaignKind.OfficialNotice, [Variant("fi")]));
+        var preview = await Run(app, sp => Campaign(sp).Preview(board, campaign, NoFallbacks));
+        await Run(app, sp => Campaign(sp).Send(board, campaign, NoFallbacks, preview.Confirmation!));
+        await using var db = Context();
+        var delivery = await db.Deliveries.Where(x => x.CampaignId == campaign).Select(x => x.Id).SingleAsync();
+        await Dispatch(app, delivery);
+        var warning = Guid.NewGuid();
+        await Run(app, sp => sp.GetRequiredService<MembershipCommands>().BeginDeletion(board, member, warning, "Resignation"));
+        Clock.Now = Clock.Now.AddDays(15);
+
+        // Hold the same delivery row lock a campaign retry holds before entering Quartz.
+        await using var tx = await db.Database.BeginTransactionAsync();
+        await db.Database.ExecuteSqlInterpolatedAsync($"SELECT 1 FROM \"Deliveries\" WHERE \"Id\" = {delivery} FOR UPDATE");
+        var blocker = await db.Database.SqlQueryRaw<int>("SELECT pg_backend_pid() AS \"Value\"").SingleAsync();
+        var erase = Run(app, sp => sp.GetRequiredService<MembershipCommands>().Erase(member));
+        try
+        {
+            await using var observer = Context();
+            await Until(() => observer.Database.SqlQuery<bool>($"""
+                SELECT EXISTS (
+                    SELECT 1 FROM pg_stat_activity WHERE datname = current_database()
+                    AND {blocker} = ANY(pg_blocking_pids(pid))
+                ) AS "Value"
+                """).SingleAsync(), seconds: 5);
+            var schedulerLock = await db.Database.SqlQuery<int>($"""
+                SELECT 1 AS "Value" FROM qrtz_locks WHERE sched_name = {Scheduler.SchedulerName}
+                AND lock_name = 'TRIGGER_ACCESS' FOR UPDATE NOWAIT
+                """).ToListAsync();
+            Assert.Single(schedulerLock);
+        }
+        finally
+        {
+            await tx.RollbackAsync();
+        }
+        Assert.True(await erase.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.False(await db.Deliveries.AnyAsync(x => x.UserId == member));
+        Assert.Null(await Scheduler.GetJobDetail(MailQueue.JobKey(warning)));
+    }
+
+    [Fact]
+    public async Task Provider_throttle_pauses_other_deliveries_without_spending_their_attempts()
+    {
+        var transport = new RecordingMail { Outcome = SendOutcome.ProviderThrottled };
+        await using var app = CommandsApp(transport);
+        var first = Guid.NewGuid();
+        var second = Guid.NewGuid();
+        await Run(app, sp => sp.GetRequiredService<MembershipCommands>().Apply(first, Input()));
+        await Run(app, sp => sp.GetRequiredService<MembershipCommands>().Apply(second, Input("other@example.test")));
+        await using var db = Context();
+        var firstId = await db.Deliveries.Where(x => x.ApplicationId == first).Select(x => x.Id).SingleAsync();
+        var secondId = await db.Deliveries.Where(x => x.ApplicationId == second).Select(x => x.Id).SingleAsync();
+
+        await Dispatch(app, firstId);
+        transport.Outcome = SendOutcome.Accepted;
+        await Dispatch(app, secondId);
+        Assert.Single(transport.Sent);
+        Assert.Equal(0, (await db.Deliveries.AsNoTracking().SingleAsync(x => x.Id == secondId)).Attempts);
+        Assert.Equal(Clock.Now.AddMinutes(1), (await db.MailRateWindows.SingleAsync()).ProviderPausedUntil);
+
+        Clock.Now = Clock.Now.AddMinutes(1);
+        await Dispatch(app, secondId);
+        Assert.Equal(2, transport.Sent.Count);
+        Assert.Equal(DeliveryState.Accepted, (await db.Deliveries.AsNoTracking().SingleAsync(x => x.Id == secondId)).State);
+    }
 
     [Fact]
     public async Task Newsletter_confirmation_binds_the_preview_and_dispatch_rechecks_the_audience()
@@ -83,7 +235,7 @@ public sealed class CommunicationsTests : MembershipTest
         Assert.Equal(3, deliveries.Length);
         var queued = await Scheduler.GetJobDetail(MailQueue.JobKey(deliveries.Single(x => x.UserId == inactive).Id));
         Assert.NotNull(queued);
-        Assert.Equal(new[] { "delivery_id", "enqueued_at" }, queued.JobDataMap.Keys.Order());
+        Assert.Equal(new[] { "campaign", "delivery_id", "enqueued_at" }, queued.JobDataMap.Keys.Order());
         foreach (var delivery in deliveries)
             await Dispatch(app, delivery.Id);
         var sent = Assert.Single(transport.Sent);
