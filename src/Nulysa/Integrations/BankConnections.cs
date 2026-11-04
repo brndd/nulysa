@@ -83,15 +83,22 @@ public sealed class BankConnections(HttpClient http, IOptions<BankOptions> optio
             ?? throw new ValidationException("Choose an available bank.");
         var attempt = new BankConsentAttempt
         {
-            Id = Guid.NewGuid(), AdministratorId = Authority.Id(actor), ApplicationId = Settings.ApplicationId,
-            Bank = choice.Name, ImportFrom = firstDate, RenewalId = renewalId, PreviousSessionId = renewal?.SessionId,
+            Id = Guid.NewGuid(),
+            AdministratorId = Authority.Id(actor),
+            ApplicationId = Settings.ApplicationId,
+            Bank = choice.Name,
+            ImportFrom = firstDate,
+            RenewalId = renewalId,
+            PreviousSessionId = renewal?.SessionId,
             ExpiresAt = clock.Now.AddMinutes(20)
         };
         var data = await Request(HttpMethod.Post, "auth", new
         {
             access = new { valid_until = clock.Now.AddSeconds(choice.MaximumConsentSeconds), transactions = true, balances = false },
-            aspsp = new { name = choice.Name, country = "FI" }, state = attempt.Id,
-            redirect_url = Settings.CallbackUrl, psu_type = "business"
+            aspsp = new { name = choice.Name, country = "FI" },
+            state = attempt.Id,
+            redirect_url = Settings.CallbackUrl,
+            psu_type = "business"
         }, ct);
         if (!Uri.TryCreate(data.GetProperty("url").GetString(), UriKind.Absolute, out var target) ||
             target.Scheme != Uri.UriSchemeHttps ||
@@ -178,9 +185,15 @@ public sealed class BankConnections(HttpClient http, IOptions<BankOptions> optio
             throw new ValidationException("Bank authorization expired or was already used. Start again.");
         db.BankConnections.Add(new()
         {
-            Id = Guid.NewGuid(), ApplicationId = attempt.ApplicationId, Bank = attempt.Bank, Label = account.Label,
-            IdentificationHash = account.Hash, AccountUid = account.Uid, SessionId = attempt.SessionId.Value,
-            ImportFrom = attempt.ImportFrom, ValidUntil = expiry
+            Id = Guid.NewGuid(),
+            ApplicationId = attempt.ApplicationId,
+            Bank = attempt.Bank,
+            Label = account.Label,
+            IdentificationHash = account.Hash,
+            AccountUid = account.Uid,
+            SessionId = attempt.SessionId.Value,
+            ImportFrom = attempt.ImportFrom,
+            ValidUntil = expiry
         });
         try
         {

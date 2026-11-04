@@ -33,12 +33,16 @@ internal static class EnableBankingTransactions
         var now = clock.GetUtcNow();
         var header = WebEncoders.Base64UrlEncode(JsonSerializer.SerializeToUtf8Bytes(new
         {
-            typ = "JWT", alg = "RS256", kid = settings.ApplicationId
+            typ = "JWT",
+            alg = "RS256",
+            kid = settings.ApplicationId
         }));
         var claims = WebEncoders.Base64UrlEncode(JsonSerializer.SerializeToUtf8Bytes(new
         {
-            iss = "enablebanking.com", aud = "api.enablebanking.com",
-            iat = now.ToUnixTimeSeconds(), exp = now.AddMinutes(5).ToUnixTimeSeconds()
+            iss = "enablebanking.com",
+            aud = "api.enablebanking.com",
+            iat = now.ToUnixTimeSeconds(),
+            exp = now.AddMinutes(5).ToUnixTimeSeconds()
         }));
         var message = $"{header}.{claims}";
         var signature = rsa.SignData(Encoding.ASCII.GetBytes(message), HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);

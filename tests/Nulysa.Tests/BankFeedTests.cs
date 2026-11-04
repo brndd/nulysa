@@ -177,9 +177,15 @@ public sealed class BankFeedTests : BoardTest
             var connectionId = Guid.NewGuid();
             db.BankConnections.Add(new()
             {
-                Id = connectionId, ApplicationId = appId, AccountUid = uid, SessionId = Guid.NewGuid(),
-                Bank = "Mock ASPSP", Label = "Test account", IdentificationHash = "fixture-hash",
-                ImportFrom = cutoff, ValidUntil = Clock.Now.AddDays(30)
+                Id = connectionId,
+                ApplicationId = appId,
+                AccountUid = uid,
+                SessionId = Guid.NewGuid(),
+                Bank = "Mock ASPSP",
+                Label = "Test account",
+                IdentificationHash = "fixture-hash",
+                ImportFrom = cutoff,
+                ValidUntil = Clock.Now.AddDays(30)
             });
             await db.SaveChangesAsync();
             await Assert.ThrowsAsync<InvalidOperationException>(Sync);
@@ -282,7 +288,8 @@ public sealed class BankFeedTests : BoardTest
                             Assert.Equal(HttpMethod.Post, request.Method);
                             return Reply(HttpStatusCode.OK, new
                             {
-                                session_id = sessionId, access = new { valid_until = Clock.Now.AddDays(160) },
+                                session_id = sessionId,
+                                access = new { valid_until = Clock.Now.AddDays(160) },
                                 aspsp = new { name = bank, country = "FI" },
                                 accounts = new[] { new { uid, identification_hash = hash, name = "Synthetic account",
                                     account_id = new { iban = "FI2112345600000785" } } }
@@ -329,7 +336,9 @@ public sealed class BankFeedTests : BoardTest
             Assert.Contains("Save bank connection", chooser);
             var connect = new Dictionary<string, string>
             {
-                ["selection"] = state.ToString(), ["account"] = uid.ToString(), ["__RequestVerificationToken"] = Token(chooser)
+                ["selection"] = state.ToString(),
+                ["account"] = uid.ToString(),
+                ["__RequestVerificationToken"] = Token(chooser)
             };
             Assert.Equal(page, (await client.PostAsync(page + "/connect", new FormUrlEncodedContent(connect))).Headers.Location!.OriginalString);
             await using var db = Context();
@@ -349,7 +358,8 @@ public sealed class BankFeedTests : BoardTest
 
             var renew = new Dictionary<string, string>
             {
-                ["renewalId"] = original.Id.ToString(), ["__RequestVerificationToken"] = Token(await client.GetStringAsync(page))
+                ["renewalId"] = original.Id.ToString(),
+                ["__RequestVerificationToken"] = Token(await client.GetStringAsync(page))
             };
             uid = Guid.NewGuid();
             sessionId = Guid.NewGuid();
