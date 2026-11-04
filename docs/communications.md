@@ -63,10 +63,10 @@ EF migrations before starting web and worker.
 - `NewsletterPreferences` reads and changes the signed-in member's own
   preference. Newsletter email includes an opaque, 90-day unsubscribe token
   tied to the address used at dispatch. Anonymous
-  `POST /communications/newsletter/unsubscribe?token=...` applies the opt-out;
-  a GET does not change it. Add the browser confirmation screen at that path
-  during the UI pass. SMTP includes the one-click headers for HTTPS links; for
-  mail clients to offer the action, configure the provider to DKIM-sign both
+  `POST /communications/newsletter/unsubscribe?token=...` applies the opt-out.
+  In a browser, the same URL opens a confirmation form. Submitting it applies
+  the opt-out. SMTP includes the one-click headers for HTTPS links. For mail
+  clients to offer the action, configure the provider to DKIM-sign both
   headers as described in [RFC 8058](https://www.rfc-editor.org/rfc/rfc8058.html#section-4).
 
 Open **Review and send saved draft** after saving a campaign to preview the
@@ -76,7 +76,7 @@ administrators can view the frozen content, copy it into a new draft, and retry
 definite failures with a reason. A campaign is complete when no deliveries are
 queued or sending. Its sent count records provider acceptance and survives retention or
 erasure of individual delivery records.
-Member preferences and browser unsubscribe confirmation are separate UI work.
+The signed-in member preferences screen is separate UI work.
 
 Automatic templates use Fluid to parse and render a subset of Liquid. Fields use
 `{{field_name}}` in text and

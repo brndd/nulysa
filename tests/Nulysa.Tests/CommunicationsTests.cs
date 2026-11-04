@@ -2,7 +2,9 @@ using System.ComponentModel.DataAnnotations;
 using System.Data.Common;
 using System.Net;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
@@ -497,7 +499,7 @@ public sealed class CommunicationsTests : MembershipTest
     }
 
     [Fact]
-    public async Task Newsletter_unsubscribe_uses_a_signed_post_and_does_not_change_invoice_preference()
+    public async Task Newsletter_unsubscribe_supports_browser_confirmation_and_one_click()
     {
         var board = await Board();
         var transport = new RecordingMail();
@@ -516,9 +518,35 @@ public sealed class CommunicationsTests : MembershipTest
 
         await using var web = await StartWeb();
         using var client = new HttpClient { BaseAddress = new Uri(Settings["Oidc:Issuer"]!) };
-        await client.GetAsync(unsubscribe.PathAndQuery); // Link scanners may fetch it; GET never opts anyone out.
+        client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("en");
+        using var confirmation = await client.GetAsync(unsubscribe.PathAndQuery);
+        Assert.Equal(HttpStatusCode.OK, confirmation.StatusCode);
+        Assert.True(confirmation.Headers.CacheControl?.NoStore);
+        Assert.Equal("no-referrer", Assert.Single(confirmation.Headers.GetValues("Referrer-Policy")));
+        var html = await confirmation.Content.ReadAsStringAsync();
+        Assert.Contains("Confirm that you want to stop receiving newsletters.", html);
+        var action = WebUtility.HtmlDecode(Regex.Match(html, """<form method="post" action="([^"]+\?handler=Confirm)"[^>]*>""").Groups[1].Value);
+        Assert.Equal(unsubscribe.AbsolutePath + "?handler=Confirm", action);
+        var token = QueryHelpers.ParseQuery(unsubscribe.Query)["token"].ToString();
+        Assert.Contains($"name=\"token\" value=\"{token}\"", html);
         Assert.True(await Run(app, sp => Preferences(sp).Get(Actor(user))));
+
+        using var invalid = await client.GetAsync(unsubscribe.AbsolutePath + "?token=forged");
+        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+        Assert.Contains("This newsletter unsubscribe link is invalid or has expired.", await invalid.Content.ReadAsStringAsync());
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsync(unsubscribe.AbsolutePath + "?token=forged", null)).StatusCode);
+        using var forgedForm = new FormUrlEncodedContent(new Dictionary<string, string> { ["token"] = "forged" });
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsync(action, forgedForm)).StatusCode);
+        Assert.True(await Run(app, sp => Preferences(sp).Get(Actor(user))));
+        using var form = new FormUrlEncodedContent(new Dictionary<string, string> { ["token"] = token });
+        using var confirmed = await client.PostAsync(action, form);
+        Assert.Equal(HttpStatusCode.OK, confirmed.StatusCode);
+        Assert.True(confirmed.Headers.CacheControl?.NoStore);
+        Assert.Contains("Your newsletter unsubscribe request is complete.", await confirmed.Content.ReadAsStringAsync());
+        Assert.False(await Run(app, sp => Preferences(sp).Get(Actor(user))));
+        Assert.True((await db.BillingAccounts.SingleAsync(x => x.UserId == user)).EmailInvoices);
+
+        await Run(app, sp => Preferences(sp).Set(Actor(user), true));
         using var request = new FormUrlEncodedContent(new Dictionary<string, string> { ["List-Unsubscribe"] = "One-Click" });
         Assert.Equal(HttpStatusCode.NoContent, (await client.PostAsync(unsubscribe.PathAndQuery, request)).StatusCode);
         Assert.False(await Run(app, sp => Preferences(sp).Get(Actor(user))));

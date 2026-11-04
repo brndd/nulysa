@@ -3135,4 +3135,13 @@
   <data name="Oldest campaign work age (seconds)" xml:space="preserve">
     <value>Vanhimman kampanjatyön ikä (sekuntia)</value>
   </data>
+  <data name="Your newsletter unsubscribe request is complete." xml:space="preserve">
+    <value>Uutiskirjeiden peruutuspyyntö on käsitelty.</value>
+  </data>
+  <data name="Confirm that you want to stop receiving newsletters." xml:space="preserve">
+    <value>Vahvista, että haluat lopettaa uutiskirjeiden vastaanottamisen.</value>
+  </data>
+  <data name="This newsletter unsubscribe link is invalid or has expired." xml:space="preserve">
+    <value>Uutiskirjeiden peruutuslinkki on virheellinen tai vanhentunut.</value>
+  </data>
 </root>

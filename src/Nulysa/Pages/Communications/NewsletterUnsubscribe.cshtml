@@ -1,0 +1,23 @@
+@page "/communications/newsletter/unsubscribe"
+@model Nulysa.Pages.Communications.NewsletterUnsubscribeModel
+@{
+    ViewData["Title"] = T("Unsubscribe from newsletters");
+}
+
+<h1>@ViewData["Title"]</h1>
+@if (Model.Complete)
+{
+    <p role="status">@T("Your newsletter unsubscribe request is complete.")</p>
+}
+else if (Model.Token is { } token)
+{
+    <p>@T("Confirm that you want to stop receiving newsletters.")</p>
+    <form method="post" asp-page-handler="Confirm" asp-antiforgery="false">
+        <input type="hidden" name="token" value="@token" />
+        <button type="submit">@T("Unsubscribe from newsletters")</button>
+    </form>
+}
+else
+{
+    <p role="alert">@T("This newsletter unsubscribe link is invalid or has expired.")</p>
+}

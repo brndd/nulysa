@@ -3135,4 +3135,13 @@
   <data name="Oldest campaign work age (seconds)" xml:space="preserve">
     <value>Oldest campaign work age (seconds)</value>
   </data>
+  <data name="Your newsletter unsubscribe request is complete." xml:space="preserve">
+    <value>Your newsletter unsubscribe request is complete.</value>
+  </data>
+  <data name="Confirm that you want to stop receiving newsletters." xml:space="preserve">
+    <value>Confirm that you want to stop receiving newsletters.</value>
+  </data>
+  <data name="This newsletter unsubscribe link is invalid or has expired." xml:space="preserve">
+    <value>This newsletter unsubscribe link is invalid or has expired.</value>
+  </data>
 </root>

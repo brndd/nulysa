@@ -88,7 +88,6 @@ public static class FoundationHost
             return Results.File(System.Text.Encoding.UTF8.GetBytes(await queries.ExportReceipts(context.User, start, end, context.RequestAborted)), "text/csv; charset=utf-8", "bank-transactions.csv");
         }).RequireAuthorization("Administrator");
         app.MapBankConnections();
-        NewsletterPreferences.MapUnsubscribe(app);
         app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
         if (builder.Configuration.GetValue<bool>("Oidc:Enabled"))
             app.MapControllers();

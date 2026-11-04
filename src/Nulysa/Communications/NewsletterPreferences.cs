@@ -39,20 +39,11 @@ public sealed class NewsletterPreferences(AppDbContext db, IDataProtectionProvid
         return QueryHelpers.AddQueryString(url, "token", token);
     }
 
+    internal bool IsValidUnsubscribeToken(string? token) => ReadSubscription(token) is not null;
+
     public async Task<bool> Unsubscribe(string? token, CancellationToken ct = default)
     {
-        if (string.IsNullOrEmpty(token) || token.Length > 2048)
-            return false;
-        Subscription? subscription;
-        try
-        {
-            subscription = JsonSerializer.Deserialize<Subscription>(Tokens.Unprotect(token));
-        }
-        catch (CryptographicException)
-        {
-            return false;
-        }
-        if (subscription is null)
+        if (ReadSubscription(token) is not { } subscription)
             return false;
 
         // Match the verified address from the send; an old address cannot change a new address's preference.
@@ -62,16 +53,19 @@ public sealed class NewsletterPreferences(AppDbContext db, IDataProtectionProvid
         return true;
     }
 
-    private sealed record Subscription(long UserId, string Address);
-
-    public static void MapUnsubscribe(WebApplication app)
+    private Subscription? ReadSubscription(string? token)
     {
-        app.MapPost(UnsubscribePath, async (HttpContext context, NewsletterPreferences preferences) =>
+        if (string.IsNullOrEmpty(token) || token.Length > 2048)
+            return null;
+        try
         {
-            context.Response.Headers.CacheControl = "no-store";
-            // The signed capability authorizes this single preference change without a session.
-            return await preferences.Unsubscribe(context.Request.Query["token"].ToString(), context.RequestAborted)
-                ? Results.NoContent() : Results.BadRequest();
-        }).AllowAnonymous().RequireRateLimiting("newsletter-unsubscribe");
+            return JsonSerializer.Deserialize<Subscription>(Tokens.Unprotect(token));
+        }
+        catch (CryptographicException)
+        {
+            return null;
+        }
     }
+
+    private sealed record Subscription(long UserId, string Address);
 }
