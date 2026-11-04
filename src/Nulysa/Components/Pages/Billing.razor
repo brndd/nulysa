@@ -74,16 +74,8 @@ else if (subject is null) { <AdminPageHeader Title="@Title" /> }
     @if (ShowServices)
     {
     <div class="status-panel">
-        <strong>@T("Membership: {0}", view.Membership.Description)</strong>
+        <strong>@(view.Membership.State == StandingState.MembershipInactive ? T("Membership inactive") : T("Membership: {0}", T(view.Membership.Description)))</strong>
         @if (view.Membership.ActiveUntilExclusive is not null) { <p><StandingThroughDate Standing="view.Membership" /></p> }
-        @if (!view.Membership.Active)
-        {
-            @if (UserId is not null)
-            {
-                <p>@T("Membership billing is paused. Already-purchased service time keeps expiring normally. Review return options below; pending deletion must be cancelled before a return can be requested.")</p>
-            }
-            else { <p>@T("You are still a member. Membership billing is paused. Already-purchased service time keeps expiring normally.") <a href="/services">@T("Review your membership return options")</a>.</p> }
-        }
     </div>
     }
     @if (ShowBillingDetails)
@@ -101,7 +93,7 @@ else if (subject is null) { <AdminPageHeader Title="@Title" /> }
                 <p>@T("These bills need your attention. Each has its own payment reference. Unpaid requests expire; they are not debt.")</p>
                 @foreach (var invoice in OutstandingBills) { <Nulysa.Components.BillSummary Invoice="invoice" DetailsUrl="@InvoiceUrl(invoice.Invoice.Id)" /> }
             }
-            @if (!view.Membership.Active) { <p>@T("Membership is inactive, but you are still a member. Review return options instead of paying expired bills.") <a href="@OverviewUrl">@T("Review membership return options")</a></p> }
+            @if (!view.Membership.Active) { <p>@T("You do not need to pay expired bills.") <a href="@OverviewUrl">@T("Review membership return options")</a></p> }
         </section>
     }
     @if (ShowBalances)
@@ -232,7 +224,7 @@ else if (subject is null) { <AdminPageHeader Title="@Title" /> }
         if (isSubscribed) { continue; }
 
         <section class="service-row"><h3>@service.Name</h3>
-            @if (servicePrices.GetValueOrDefault(service.Id) is { } price) { <p>@T("Base price: {0:0.00} EUR/month before discounts and proration. Initial free days: {1}, only if eligible; returning subscriptions do not automatically receive them again.", price, service.InitialFreeDays)</p> }
+            @if (servicePrices.GetValueOrDefault(service.Id) is { } price) { <p>@T("Standard price: {0:0.00} EUR/month.", price)</p> }
             @if ((service.SelfSubscriptionAllowed || board) && view.Membership.Active && servicePrices.GetValueOrDefault(service.Id) is not null)
             {
                 <EditForm Model="Action" method="post" FormName="@($"subscribe-{service.Id}")" OnSubmit="Submit">
@@ -270,7 +262,6 @@ else if (subject is null) { <AdminPageHeader Title="@Title" /> }
     <h2>@T("Forecasts — not issued invoices")</h2>
     <ul>@foreach (var forecast in view.Forecasts) { <li>@T("{0} · {1} · {2} EUR · {3} months", forecast.Description, BillingDateText.Period(forecast.Start, forecast.EndExclusive), Money(forecast.Amount), forecast.Months)</li> }</ul>
     <details><summary>@T("Coverage history")</summary><ul>@foreach (var coverage in view.Coverage.OrderByDescending(x => x.StartsOn)) { <li>@T(coverage.Benefit.ToString()) @(view.Services.SingleOrDefault(x => x.Id == coverage.ServiceDefinitionId)?.Name) · @BillingDateText.Period(coverage.StartsOn, coverage.EndExclusive) · @(coverage.Source == CoverageSource.Purchase ? T("Purchased coverage") : T("Granted coverage"))</li> }</ul></details>
-    <p>@T("Coverage history and forecasts include both displayed dates. Forecasts are estimates, not payment requests.")</p>
     }
     @if (ShowBillingDetails)
     {
@@ -305,7 +296,7 @@ else if (subject is null) { <AdminPageHeader Title="@Title" /> }
         <table tabindex="0" aria-label="@T(StatementTitle(statement.Balance))"><thead><tr><th scope="col">@T("Date")</th><th scope="col">@T("Transaction")</th><th scope="col">@T("Amount EUR")</th><th scope="col">@T("Running balance EUR")</th><th scope="col">@T("Details")</th></tr></thead><tbody>
         @foreach (var line in statement.Lines)
         {
-            <tr id="movement-@line.MovementId"><td>@line.EffectiveOn.ToString("d MMM yyyy")</td><td>@T(MovementTitle(line.Kind))
+            <tr id="movement-@line.MovementId"><td>@UiText.Date(line.EffectiveOn)</td><td>@T(MovementTitle(line.Kind))
                     @if (line.InvoiceId is { } billId) { <br /><a href="@InvoiceUrl(billId)">@T("Bill #{0}", billId)</a> }
                 </td><td>@Money(line.Amount)</td><td>@Money(line.RunningBalance)</td>
                 <td>

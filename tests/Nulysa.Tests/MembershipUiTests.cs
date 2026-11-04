@@ -125,7 +125,7 @@ public sealed class MembershipFormTests : MembershipTest
 
         Assert.Contains("<h3>Retired door</h3>", html);
         Assert.Contains("Service Retired door", html);
-        Assert.Contains("Stop renewal; keep remaining covered time", html);
+        Assert.Contains("Stop renewal", html);
         Assert.DoesNotContain($"subscribe-{service}", html);
         Assert.DoesNotContain("Remove immediately", html);
         using var administrator = Client();
@@ -294,7 +294,7 @@ public sealed class MembershipBrowserTests : MembershipTest
         await memberPage.GetByLabel("Message to administrators").FillAsync("Synthetic browser application");
         await memberPage.GetByLabel("I accept the association's").CheckAsync();
         await memberPage.GetByRole(AriaRole.Button, new() { Name = "Submit application" }).ClickAsync();
-        await Assertions.Expect(memberPage.GetByRole(AriaRole.Status)).ToContainTextAsync("verification email has been queued");
+        await Assertions.Expect(memberPage.GetByRole(AriaRole.Status)).ToContainTextAsync("Check your email to verify your application");
         await using var db = Context();
         var application = await db.Applications.AsNoTracking().SingleAsync();
         var verification = await db.Deliveries.Where(x => x.ApplicationId == application.Id).Select(x => x.Id).SingleAsync();
@@ -304,7 +304,7 @@ public sealed class MembershipBrowserTests : MembershipTest
 
         Assert.Null((await db.Applications.AsNoTracking().SingleAsync()).VerifiedAt); // Mail-scanner GET is not confirmation.
         await memberPage.GetByRole(AriaRole.Button, new() { Name = "Verify my email address" }).ClickAsync();
-        await Assertions.Expect(memberPage.GetByRole(AriaRole.Status)).ToContainTextAsync("awaiting administrator review");
+        await Assertions.Expect(memberPage.GetByRole(AriaRole.Status)).ToContainTextAsync("Email verified");
 
         async Task LoginPage(IPage page, string email)
         {
@@ -315,7 +315,7 @@ public sealed class MembershipBrowserTests : MembershipTest
         }
         await LoginPage(boardPage, "board@example.test");
         await boardPage.GotoAsync(root + "admin/applications");
-        await Assertions.Expect(boardPage.GetByText("Under 18 — check consent outside the portal")).ToBeVisibleAsync();
+        await Assertions.Expect(boardPage.GetByRole(AriaRole.Img, new() { Name = "Applicant is underage" })).ToBeVisibleAsync();
         await boardPage.GetByRole(AriaRole.Link, new() { Name = "Browser Member — " + Email }).ClickAsync();
         await boardPage.GetByRole(AriaRole.Button, new() { Name = "Approve membership", Exact = true }).ClickAsync();
         await boardPage.GetByRole(AriaRole.Button, new() { Name = "Confirm membership", Exact = true }).ClickAsync();
@@ -342,17 +342,17 @@ public sealed class MembershipBrowserTests : MembershipTest
         await memberPage.GetByRole(AriaRole.Button, new() { Name = "Save details" }).ClickAsync();
         await Assertions.Expect(memberPage.GetByLabel("Name", new() { Exact = true })).ToHaveValueAsync("Changed Browser Name");
         await Assertions.Expect(memberPage.GetByRole(AriaRole.Status)).ToHaveTextAsync("Personal details saved.");
-        await memberPage.GetByLabel("Email invoice PDFs").UncheckAsync();
+        await memberPage.GetByLabel("Send invoices via email").UncheckAsync();
         await memberPage.GetByRole(AriaRole.Button, new() { Name = "Save communication preferences" }).ClickAsync();
-        await Assertions.Expect(memberPage.GetByRole(AriaRole.Status)).ToContainTextAsync("Communication preferences saved");
-        await Assertions.Expect(memberPage.GetByLabel("Email invoice PDFs")).Not.ToBeCheckedAsync();
+        await Assertions.Expect(memberPage.GetByRole(AriaRole.Status)).ToContainTextAsync("Email preferences saved");
+        await Assertions.Expect(memberPage.GetByLabel("Send invoices via email")).Not.ToBeCheckedAsync();
         await memberPage.SetViewportSizeAsync(375, 812);
         Assert.True(await memberPage.EvaluateAsync<bool>("document.documentElement.scrollWidth <= innerWidth"));
         await memberPage.SetViewportSizeAsync(1280, 800);
         await memberPage.GetByLabel("New email", new() { Exact = true }).FillAsync("browser-changed@example.test");
-        await memberPage.GetByRole(AriaRole.Button, new() { Name = "Send verification to new address" }).ClickAsync();
+        await memberPage.GetByRole(AriaRole.Button, new() { Name = "Send verification" }).ClickAsync();
         await Assertions.Expect(memberPage.GetByText("Awaiting verification: browser-changed@example.test")).ToBeVisibleAsync();
-        await Assertions.Expect(memberPage.GetByRole(AriaRole.Status)).ToContainTextAsync("Verification email queued");
+        await Assertions.Expect(memberPage.GetByRole(AriaRole.Status)).ToContainTextAsync("Check your new email for a verification link");
         var change = await db.Deliveries.Where(x => x.UserId == id && x.Kind == MailKind.EmailChange).Select(x => x.Id).SingleAsync();
         await Run(commands, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(change));
         await memberPage.GotoAsync(Regex.Match(transport.Sent[^1].Text, @"https?://\S+").Value);
@@ -364,7 +364,7 @@ public sealed class MembershipBrowserTests : MembershipTest
         await memberPage.GotoAsync(root + "Account/ForgotPassword");
         await memberPage.GetByLabel("Email", new() { Exact = true }).FillAsync("browser-changed@example.test");
         await memberPage.GetByRole(AriaRole.Button, new() { Name = "Send reset link" }).ClickAsync();
-        await Assertions.Expect(memberPage.GetByRole(AriaRole.Status)).ToContainTextAsync("reset email has been queued");
+        await Assertions.Expect(memberPage.GetByRole(AriaRole.Status)).ToContainTextAsync("password reset link");
         var reset = await db.Deliveries.Where(x => x.UserId == id && x.Kind == MailKind.PasswordReset).Select(x => x.Id).SingleAsync();
         await Run(commands, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(reset));
         await memberPage.GotoAsync(Regex.Match(transport.Sent[^1].Text, @"https?://\S+").Value);

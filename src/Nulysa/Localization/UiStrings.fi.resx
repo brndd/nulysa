@@ -16,10 +16,10 @@
     <value> {0:0.00} EUR ostosaldosta, tällä hetkellä käytettävissä {1:0.00} EUR.</value>
   </data>
   <data name=" {0} months; covered through {1:d MMM yyyy}." xml:space="preserve">
-    <value> {0} kuukautta, voimassa asti {1:d MMM yyyy}.</value>
+    <value> {0} kuukautta, voimassa asti {1:d.M.yyyy}.</value>
   </data>
   <data name=" {0}: {1} {2}, {3:d MMM yyyy} through {4:d MMM yyyy}." xml:space="preserve">
-    <value> {0}: {1} {2}, {3:d MMM yyyy} – {4:d MMM yyyy}.</value>
+    <value> {0}: {1} {2}, {3:d.M.yyyy} – {4:d.M.yyyy}.</value>
   </data>
   <data name="#{0} · fee #{1} · {2} {3} · {4} · {5}" xml:space="preserve">
     <value>#{0} · maksu #{1} · {2} {3} · {4} · {5}</value>
@@ -40,16 +40,16 @@
     <value>Keston pidentäminen edellyttää voimassa olevaa maksettua tai myönnettyä jäsenyysjaksoa.</value>
   </data>
   <data name="A last success more than {0} hours ago is shown as stale. Times below are UTC." xml:space="preserve">
-    <value>Yli {0} tuntia vanha onnistuminen näytetään vanhentuneena. Alla olevat ajat ovat UTC-ajassa.</value>
+    <value>Yli {0} tuntia vanhat päivitykset on tarkistettava. Ajat ovat UTC-aikaa.</value>
   </data>
   <data name="A price already exists for this date. Add a new dated price; issued quotes remain unchanged." xml:space="preserve">
     <value>Tälle päivälle on jo hinta. Lisää uusi hinta alkamispäivineen. Jo laadittujen laskujen hinnat säilyvät.</value>
   </data>
   <data name="A return-period request is already available." xml:space="preserve">
-    <value>Paluujakson maksupyyntö on jo saatavilla.</value>
+    <value>Jäsenyyden aktivointilasku on valmis.</value>
   </data>
   <data name="A service's code is permanent. A returning subscriber gets free days only when an administrator explicitly selects that grant." xml:space="preserve">
-    <value>Palvelun tunnusta ei voi muuttaa. Palaava tilaaja saa maksuttomia päiviä vain ylläpitäjän erillisellä päätöksellä.</value>
+    <value>Koodia ei voi muuttaa myöhemmin. Ilmaiset päivät koskevat uusia tilaajia. Ylläpitäjä voi myöntää niitä myös palaaville tilaajille.</value>
   </data>
   <data name="A service's stable code cannot change." xml:space="preserve">
     <value>Palvelun pysyvää tunnusta ei voi muuttaa.</value>
@@ -85,19 +85,19 @@
     <value>Voimassa</value>
   </data>
   <data name="Active (including grace)" xml:space="preserve">
-    <value>Voimassa (myös lisäajalla)</value>
+    <value>Aktiiviset</value>
   </data>
   <data name="Active and upcoming discounts" xml:space="preserve">
     <value>Voimassa olevat ja tulevat alennukset</value>
   </data>
   <data name="Active during grace" xml:space="preserve">
-    <value>Voimassa lisäajalla</value>
+    <value>Jäsenmaksu myöhässä</value>
   </data>
   <data name="Active membership is required to subscribe." xml:space="preserve">
     <value>Tilaaminen edellyttää voimassa olevaa jäsenyyttä.</value>
   </data>
   <data name="Active membership is required to subscribe. Restore membership first." xml:space="preserve">
-    <value>Tilaaminen edellyttää voimassa olevaa jäsenyyttä. Palauta jäsenyys ensin voimaan.</value>
+    <value>Aktivoi jäsenyytesi, jotta voit tilata palvelun.</value>
   </data>
   <data name="Add a dated price" xml:space="preserve">
     <value>Lisää hinta alkamispäivineen</value>
@@ -112,13 +112,13 @@
     <value>Lisää ostosaldoa</value>
   </data>
   <data name="Adjust threshold" xml:space="preserve">
-    <value>Muuta tarkastelurajaa</value>
+    <value>Muuta suodatusta</value>
   </data>
   <data name="Administration" xml:space="preserve">
     <value>Ylläpito</value>
   </data>
   <data name="After final deletion, rejoining requires a fresh application. Old credentials, qualifications and subscriptions are not restored." xml:space="preserve">
-    <value>Lopullisen poiston jälkeen liittyminen edellyttää uutta hakemusta. Vanhoja tunnuksia, pätevyyksiä tai tilauksia ei palauteta.</value>
+    <value>Poistamisen jälkeen liittyminen vaatii uuden hakemuksen. Vanhoja kirjautumistietoja, pätevyyksiä tai tilauksia ei palauteta.</value>
   </data>
   <data name="All mail, including invoices" xml:space="preserve">
     <value>Kaikki viestit, myös laskut</value>
@@ -133,7 +133,7 @@
     <value>Laskuihin varatut varat</value>
   </data>
   <data name="Allocated to unfinished bills: {0} EUR — not included above or available to transfer." xml:space="preserve">
-    <value>Keskeneräisiin laskuihin varattu: {0} EUR — ei sisälly yllä oleviin saldoihin eikä ole siirrettävissä.</value>
+    <value>Varattu laskuihin: {0} EUR (ei sisälly saldoon).</value>
   </data>
   <data name="Already subscribed." xml:space="preserve">
     <value>Palvelu on jo tilattu.</value>
@@ -181,7 +181,7 @@
     <value>Hae jäseneksi</value>
   </data>
   <data name="Approval establishes membership and login before payment and creates the initial membership bill." xml:space="preserve">
-    <value>Hyväksyminen aloittaa jäsenyyden, sallii kirjautumisen ennen maksua ja luo ensimmäisen jäsenmaksulaskun.</value>
+    <value>Hyväksymisen jälkeen jäsen voi kirjautua. Samalla luodaan ensimmäinen jäsenmaksulasku.</value>
   </data>
   <data name="Approve membership" xml:space="preserve">
     <value>Hyväksy jäsenyys</value>
@@ -190,10 +190,10 @@
     <value>Ylläpitäjä #{1} hyväksyi {0}.</value>
   </data>
   <data name="Ask the system operator to check the feed and provider authorization. Review confirmed bank transactions before changing member funds." xml:space="preserve">
-    <value>Pyydä järjestelmän ylläpitäjää tarkistamaan pankkiyhteys ja sen valtuutus. Tarkista vahvistetut pankkitapahtumat ennen jäsenen varojen muuttamista.</value>
+    <value>Pyydä järjestelmän ylläpitäjää tarkistamaan pankkiyhteys. Tarkista pankkitapahtumat ennen saldojen korjaamista.</value>
   </data>
   <data name="Assign a known member and purpose explicitly. Ignoring preserves source facts and keeps donations/outgoing transactions out of member funds. Pending-deletion receipts require manual repair after restoration." xml:space="preserve">
-    <value>Valitse jäsen ja käyttötarkoitus erikseen. Ohittaminen säilyttää lähdetiedot eikä lisää lahjoituksia tai lähteviä maksuja jäsenen varoihin. Poistoa odottavan jäsenen maksut on korjattava käsin tilin palauttamisen jälkeen.</value>
+    <value>Valitse jäsen ja maksun kohde. Ohita lahjoitukset ja lähtevät maksut.</value>
   </data>
   <data name="Association default" xml:space="preserve">
     <value>Yhdistyksen oletus</value>
@@ -214,7 +214,7 @@
     <value>Käytetään automaattisesti toistuviin laskuihin.</value>
   </data>
   <data name="Available balances and funds already allocated to bills are separate. Transfers appear in both affected balances; they are not extra bank payments." xml:space="preserve">
-    <value>Käytettävissä olevat saldot ja laskuihin jo varatut varat ovat erillisiä. Sisäiset siirrot näkyvät molemmilla saldoilla, eivätkä ne ole uusia pankkimaksuja.</value>
+    <value>Saldojen väliset siirrot näkyvät kummankin historiassa.</value>
   </data>
   <data name="Available billing credit" xml:space="preserve">
     <value>Käytettävissä oleva laskutussaldo</value>
@@ -226,7 +226,7 @@
     <value>Käytettävissä oleva laskutussaldo: {0} EUR · ostosaldo: {1} EUR · varattu: {2} EUR</value>
   </data>
   <data name="Available billing credit: {0} EUR. Valid bills may use this automatically. Prices and eligibility are checked again when you confirm." xml:space="preserve">
-    <value>Käytettävissä oleva laskutussaldo: {0} EUR. Voimassa olevat laskut voivat käyttää sitä automaattisesti. Hinnat ja kelpoisuus tarkistetaan uudelleen vahvistettaessa.</value>
+    <value>Käytettävissä oleva laskutussaldo: {0} EUR. Se käytetään laskuihisi automaattisesti.</value>
   </data>
   <data name="Available purchase balance" xml:space="preserve">
     <value>Käytettävissä oleva ostosaldo</value>
@@ -238,7 +238,7 @@
     <value>Odottaa maksua</value>
   </data>
   <data name="Awaiting payment — no current coverage" xml:space="preserve">
-    <value>Odottaa maksua — ei voimassa</value>
+    <value>Odottaa maksua</value>
   </data>
   <data name="Awaiting verification: {0}" xml:space="preserve">
     <value>Odottaa vahvistamista: {0}</value>
@@ -277,22 +277,22 @@
     <value>Pankkiviesti</value>
   </data>
   <data name="Bank payments appear after confirmation and processing. A bill can remain open for an optional service even when membership is paid." xml:space="preserve">
-    <value>Pankkimaksut näkyvät vahvistamisen ja käsittelyn jälkeen. Lasku voi jäädä avoimeksi lisäpalvelun vuoksi, vaikka jäsenmaksu on maksettu.</value>
+    <value>Pankkimaksun näkymisessä voi kestää muutama päivä. Maksamattomat palvelut eivät vaikuta maksettuun jäsenyyteen.</value>
   </data>
   <data name="Bank receipt / booked date" xml:space="preserve">
     <value>Pankkimaksu / kirjauspäivä</value>
   </data>
   <data name="Bank synchronization" xml:space="preserve">
-    <value>Pankkisynkronointi</value>
+    <value>Pankkiyhteys</value>
   </data>
   <data name="Bank synchronization alert" xml:space="preserve">
-    <value>Pankkisynkronoinnin hälytys</value>
+    <value>Pankkiyhteyden häiriö</value>
   </data>
   <data name="Bank transaction imported. Review its matching result in Payment review." xml:space="preserve">
-    <value>Pankkitapahtuma tuotu. Tarkista kohdistuksen tulos maksujen käsittelystä.</value>
+    <value>Tapahtuma tuotu. Tarkista maksujen tarkistuslista.</value>
   </data>
-  <data name="Base price: {0:0.00} EUR/month before discounts and proration. Initial free days: {1}, only if eligible; returning subscriptions do not automatically receive them again." xml:space="preserve">
-    <value>Perushinta: {0:0.00} EUR/kk ennen alennuksia ja suhteutusta. Alun maksuttomat päivät: {1}, vain ehtojen täyttyessä. Palaavat tilaajat eivät saa niitä automaattisesti uudelleen.</value>
+  <data name="Standard price: {0:0.00} EUR/month." xml:space="preserve">
+    <value>Normaalihinta: {0:0.00} EUR/kk.</value>
   </data>
   <data name="Before" xml:space="preserve">
     <value>Ennen</value>
@@ -301,10 +301,10 @@
     <value>Ennen vahvistamista</value>
   </data>
   <data name="Benefits available through" xml:space="preserve">
-    <value>Edut käytettävissä asti</value>
+    <value>Käytettävissä asti</value>
   </data>
   <data name="Benefits available through {0:d MMM yyyy}" xml:space="preserve">
-    <value>Edut käytettävissä asti {0:d MMM yyyy}</value>
+    <value>Käytettävissä {0:d.M.yyyy} asti</value>
   </data>
   <data name="Bill #{0}" xml:space="preserve">
     <value>Lasku #{0}</value>
@@ -355,13 +355,13 @@
     <value>Maksuohje ei ole saatavilla.</value>
   </data>
   <data name="Billing interval saved for the next unissued period." xml:space="preserve">
-    <value>Laskutusväli tallennettu seuraavalle laskuttamattomalle jaksolle.</value>
+    <value>Laskutuskausi tallennettu.</value>
   </data>
   <data name="Billing intervals" xml:space="preserve">
-    <value>Laskutusvälit</value>
+    <value>Laskutuskaudet</value>
   </data>
   <data name="Billing months" xml:space="preserve">
-    <value>Laskutuskuukaudet</value>
+    <value>Laskutuskausi (kuukautta)</value>
   </data>
   <data name="Billing settings" xml:space="preserve">
     <value>Laskutusasetukset</value>
@@ -379,7 +379,7 @@
     <value>Sijainti</value>
   </data>
   <data name="Calculate the remaining credit for a completed purchase's unused future discounted time. Credit can immediately fund valid recurring bills." xml:space="preserve">
-    <value>Laske hyvitys valmiin oston käyttämättömän tulevan ajan alennuksesta. Hyvitys voi maksaa voimassa olevia toistuvia laskuja heti.</value>
+    <value>Hyvitä alennus käyttämättömästä maksetusta ajasta. Hyvitys voidaan käyttää avoimiin laskuihin heti.</value>
   </data>
   <data name="Cancel" xml:space="preserve">
     <value>Peruuta</value>
@@ -394,10 +394,10 @@
     <value>Peru odottava poisto</value>
   </data>
   <data name="Cancel unfinished bill" xml:space="preserve">
-    <value>Peru keskeneräinen lasku</value>
+    <value>Peru maksamattomat laskurivit</value>
   </data>
   <data name="Cancel unfinished lines and release their held funds. Completed purchases remain unchanged; cancellation may affect standing." xml:space="preserve">
-    <value>Peru keskeneräiset rivit ja vapauta niihin varatut varat. Valmiit ostot säilyvät. Peruminen voi vaikuttaa jäsenyyden tai palvelun tilaan.</value>
+    <value>Peru maksamattomat laskurivit ja vapauta varatut rahat. Tämä voi vaikuttaa jäsenyyteen tai palvelujen käyttöön. Maksetut rivit eivät muutu.</value>
   </data>
   <data name="Cancelled" xml:space="preserve">
     <value>Peruttu</value>
@@ -406,19 +406,19 @@
     <value>Luokka</value>
   </data>
   <data name="Change login email" xml:space="preserve">
-    <value>Vaihda kirjautumissähköposti</value>
+    <value>Vaihda sähköposti</value>
   </data>
   <data name="Change next unissued period" xml:space="preserve">
-    <value>Muuta seuraavaa laskuttamatonta jaksoa</value>
+    <value>Muuta laskutuskautta</value>
   </data>
   <data name="Change password" xml:space="preserve">
     <value>Vaihda salasana</value>
   </data>
   <data name="Changes affect the next unissued invoice. Issued requests and their references stay valid." xml:space="preserve">
-    <value>Muutokset koskevat seuraavaa vielä laatimatonta laskua. Jo laaditut maksupyynnöt ja niiden viitteet säilyvät voimassa.</value>
+    <value>Muutos koskee tulevia laskuja.</value>
   </data>
   <data name="Changes future pricing and may complete already funded requests. Completed purchases keep their original facts." xml:space="preserve">
-    <value>Muuttaa tulevaa hinnoittelua ja voi saada jo rahoitetut pyynnöt valmiiksi. Valmiiden ostojen alkuperäiset tiedot säilyvät.</value>
+    <value>Koskee maksamattomia ja tulevia laskuja. Käytettävissä oleva saldo voi maksaa laskut automaattisesti.</value>
   </data>
   <data name="Charge EUR" xml:space="preserve">
     <value>Veloitus EUR</value>
@@ -499,13 +499,13 @@
     <value>Valitse olemassa olevan taloustilin tunniste.</value>
   </data>
   <data name="Choose how this portal looks on this browser. Your choice does not change association identity or account permissions." xml:space="preserve">
-    <value>Valitse portaalin ulkoasu tälle selaimelle. Valinta ei muuta yhdistyksen tietoja tai käyttäjätilin oikeuksia.</value>
+    <value>Valitse tämän selaimen teema.</value>
   </data>
   <data name="Choose purpose / search" xml:space="preserve">
     <value>Valitse käyttötarkoitus / hae</value>
   </data>
   <data name="Choose the language used on this browser. Automatic uses your account's preferred language, then your browser language, then the association default." xml:space="preserve">
-    <value>Valitse tämän selaimen kieli. Automaattinen valinta käyttää käyttäjätilisi asiointikieltä, sitten selaimen kieltä ja lopuksi yhdistyksen oletuskieltä.</value>
+    <value>Valitse tämän selaimen kieli. Automaattinen valinta käyttää tilisi tai selaimesi kieliasetusta.</value>
   </data>
   <data name="Choose the one-off request action." xml:space="preserve">
     <value>Valitse kertamaksupyynnön luominen.</value>
@@ -529,7 +529,7 @@
     <value>Viestintäasetukset</value>
   </data>
   <data name="Communication preferences saved. Required notices remain enabled." xml:space="preserve">
-    <value>Viestintäasetukset tallennettu. Pakolliset ilmoitukset säilyvät käytössä.</value>
+    <value>Sähköpostiasetukset tallennettu.</value>
   </data>
   <data name="Communications" xml:space="preserve">
     <value>Viestintä</value>
@@ -550,7 +550,7 @@
     <value>Toteutuneen palautuksen summa EUR</value>
   </data>
   <data name="Completed, closed and other bills that do not currently request payment. Showing up to {0} per page." xml:space="preserve">
-    <value>Valmiit, suljetut ja muut laskut, joille ei tällä hetkellä pyydetä maksua. Näytetään enintään {0} laskua sivulla.</value>
+    <value>{0} laskua sivulla.</value>
   </data>
   <data name="Completed: {0} EUR · Allocated: {1} EUR · Remaining:" xml:space="preserve">
     <value>Valmis: {0} EUR · Varattu: {1} EUR · Jäljellä:</value>
@@ -558,14 +558,11 @@
   <data name="Configure a price effective before this billing period first." xml:space="preserve">
     <value>Määritä ensin ennen tätä laskutuskautta voimaan tuleva hinta.</value>
   </data>
-  <data name="Configure the membership price before approving applicants. Prices are EUR per month. Issued lines keep their quoted prices." xml:space="preserve">
-    <value>Määritä jäsenmaksu ennen hakijoiden hyväksymistä. Hinnat ovat euroja kuukaudessa. Laadittujen laskurivien hinnat säilyvät.</value>
-  </data>
   <data name="Confirm adjustment" xml:space="preserve">
     <value>Vahvista muutos</value>
   </data>
   <data name="Confirm disposition" xml:space="preserve">
-    <value>Vahvista kohdistus</value>
+    <value>Vahvista maksu</value>
   </data>
   <data name="Confirm email change" xml:space="preserve">
     <value>Vahvista sähköpostin vaihto</value>
@@ -580,7 +577,7 @@
     <value>Uusi salasana uudelleen</value>
   </data>
   <data name="Confirm one-off request" xml:space="preserve">
-    <value>Vahvista kertamaksupyyntö</value>
+    <value>Luo lasku</value>
   </data>
   <data name="Confirm password" xml:space="preserve">
     <value>Salasana uudelleen</value>
@@ -607,7 +604,7 @@
     <value>Lähdetapahtuma on ristiriitainen. Selvitä tiedot palveluntarjoajalta, älä korvaa tapahtumaa.</value>
   </data>
   <data name="Contact an administrator to request a membership return period." xml:space="preserve">
-    <value>Pyydä jäsenyyden paluujaksoa ylläpitäjältä.</value>
+    <value>Ota yhteyttä ylläpitäjään aktivoidaksesi jäsenyytesi.</value>
   </data>
   <data name="Counterparty (recipient for outgoing transfers)" xml:space="preserve">
     <value>Vastapuoli (lähtevän maksun saaja)</value>
@@ -616,10 +613,7 @@
     <value>Voimassaolo on muuttunut. Tarkista myönnettävä jakso uudelleen.</value>
   </data>
   <data name="Coverage history" xml:space="preserve">
-    <value>Voimassaolohistoria</value>
-  </data>
-  <data name="Coverage history and forecasts include both displayed dates. Forecasts are estimates, not payment requests." xml:space="preserve">
-    <value>Voimassaolohistoriassa ja ennusteissa molemmat näytetyt päivät sisältyvät jaksoon. Ennusteet ovat arvioita, eivät maksupyyntöjä.</value>
+    <value>Jäsenyys- ja palveluhistoria</value>
   </data>
   <data name="Covered" xml:space="preserve">
     <value>Voimassa</value>
@@ -628,7 +622,7 @@
     <value>Voimassa asti</value>
   </data>
   <data name="Covered through {0:d MMM yyyy}" xml:space="preserve">
-    <value>Voimassa asti {0:d MMM yyyy}</value>
+    <value>Voimassa {0:d.M.yyyy} asti</value>
   </data>
   <data name="Create service" xml:space="preserve">
     <value>Luo palvelu</value>
@@ -649,7 +643,7 @@
     <value>Nykyinen sähköposti:</value>
   </data>
   <data name="Current facts and authority will be rechecked when confirmed." xml:space="preserve">
-    <value>Ajantasaiset tiedot ja oikeudet tarkistetaan uudelleen vahvistettaessa.</value>
+    <value>Tarkista muutokset ennen vahvistamista.</value>
   </data>
   <data name="Current monthly price EUR" xml:space="preserve">
     <value>Nykyinen kuukausihinta EUR</value>
@@ -676,13 +670,13 @@
     <value>Syntymäaika</value>
   </data>
   <data name="Dated price saved. Issued bills retain their quoted prices." xml:space="preserve">
-    <value>Hinta alkamispäivineen tallennettu. Jo laadittujen laskujen hinnat säilyvät.</value>
+    <value>Hinta tallennettu.</value>
   </data>
   <data name="Default" xml:space="preserve">
     <value>Oletus</value>
   </data>
   <data name="Deletion normally happens {0}–{1} calendar days after resignation, potentially later if a batch is delayed. It never happens before the waiting period." xml:space="preserve">
-    <value>Poistaminen tapahtuu yleensä {0}–{1} kalenteripäivän kuluttua eroamisesta, mahdollisesti myöhemmin jos poistoajo viivästyy. Poistamista ei tehdä ennen odotusajan päättymistä.</value>
+    <value>Tilisi poistetaan yleensä {0}–{1} päivän kuluttua eroamisesta. Käsittelyviiveet voivat pidentää aikaa.</value>
   </data>
   <data name="Deletion warning" xml:space="preserve">
     <value>Poistovaroitus</value>
@@ -700,7 +694,7 @@
     <value>Tiedot</value>
   </data>
   <data name="Diagnostic observations, not business history. A later successful occurrence can clear them." xml:space="preserve">
-    <value>Diagnostiikkahavaintoja, ei toimintahistoriaa. Myöhempi onnistunut suoritus voi poistaa havainnot.</value>
+    <value>Viimeisimmät virheet. Ne voivat poistua onnistuneen uuden yrityksen jälkeen.</value>
   </data>
   <data name="Discount" xml:space="preserve">
     <value>Alennus</value>
@@ -724,10 +718,10 @@
     <value>Näyttöasetukset</value>
   </data>
   <data name="Disposition / purpose" xml:space="preserve">
-    <value>Kohdistus / käyttötarkoitus</value>
+    <value>Maksun tarkoitus</value>
   </data>
   <data name="Download current PDF" xml:space="preserve">
-    <value>Lataa ajantasainen PDF</value>
+    <value>Lataa PDF</value>
   </data>
   <data name="Due today" xml:space="preserve">
     <value>Eräpäivä tänään</value>
@@ -751,10 +745,10 @@
     <value>Sähköpostin vaihto</value>
   </data>
   <data name="Email invoice PDFs" xml:space="preserve">
-    <value>Laskut PDF-tiedostoina sähköpostiin</value>
+    <value>Lähetä laskut sähköpostiin</value>
   </data>
   <data name="Email verified. Your application is now awaiting administrator review. Verification alone does not grant login access." xml:space="preserve">
-    <value>Sähköposti vahvistettu. Hakemuksesi odottaa nyt ylläpitäjän käsittelyä. Pelkkä vahvistaminen ei salli kirjautumista.</value>
+    <value>Sähköposti vahvistettu. Ilmoitamme sähköpostitse, kun jäsenyytesi on hyväksytty.</value>
   </data>
   <data name="End your membership" xml:space="preserve">
     <value>Päätä jäsenyytesi</value>
@@ -769,7 +763,7 @@
     <value>Syötä kelvollinen sähköpostiosoite.</value>
   </data>
   <data name="Enter an amount using the selected language's decimal separator, without thousands separators." xml:space="preserve">
-    <value>Syötä summa valitun kielen desimaalierottimella ilman tuhaterottimia.</value>
+    <value>Syötä summa ilman tuhaterottimia (esimerkiksi 12,50).</value>
   </data>
   <data name="Enter your current password and a new password of at most 256 characters." xml:space="preserve">
     <value>Syötä nykyinen salasanasi ja enintään 256 merkin pituinen uusi salasana.</value>
@@ -778,10 +772,10 @@
     <value>Välttämättömät viestit</value>
   </data>
   <data name="Essential mail includes verification, welcome, security, membership and deletion notices. Invoice emails are optional and can be included below." xml:space="preserve">
-    <value>Välttämättömiin viesteihin kuuluvat vahvistus-, tervetulo-, tietoturva-, jäsenyys- ja poistoilmoitukset. Laskusähköpostit ovat valinnaisia, ja ne voi sisällyttää alla.</value>
+    <value>Saat aina tärkeät tiliä ja jäsenyyttä koskevat viestit. Laskujen sähköpostitus on vapaaehtoista.</value>
   </data>
   <data name="Essential mail problems" xml:space="preserve">
-    <value>Välttämättömien viestien ongelmat</value>
+    <value>tärkeiden sähköpostien ongelmaa</value>
   </data>
   <data name="Expired" xml:space="preserve">
     <value>Vanhentunut</value>
@@ -796,7 +790,7 @@
     <value>Vie tapahtumakirja CSV-tiedostoon</value>
   </data>
   <data name="Extend current paid or granted membership coverage by whole months, releasing holds for newly covered days." xml:space="preserve">
-    <value>Pidennä nykyistä maksettua tai myönnettyä jäsenyyttä kokonaisilla kuukausilla ja vapauta uuden jakson päiville varatut maksut.</value>
+    <value>Pidennä aktiivista jäsenyyttä täysillä kuukausilla ilman maksua. Näille kuukausille varatut rahat vapautetaan.</value>
   </data>
   <data name="External transaction ID" xml:space="preserve">
     <value>Ulkoinen tapahtumatunniste</value>
@@ -806,9 +800,6 @@
   </data>
   <data name="Failed and uncertain" xml:space="preserve">
     <value>Epäonnistuneet ja epävarmat</value>
-  </data>
-  <data name="Failed means delivery was not confirmed. Rejected applicant payloads are erased at their configured deadline even if sending failed. A queued message is not proof of delivery." xml:space="preserve">
-    <value>Epäonnistuminen tarkoittaa, ettei toimitusta vahvistettu. Hylätyn hakijan viestitiedot poistetaan määräajassa, vaikka lähetys epäonnistui. Jonossa oleva viesti ei todista toimitusta.</value>
   </data>
   <data name="Failed — delivery not confirmed" xml:space="preserve">
     <value>Epäonnistunut — toimitusta ei vahvistettu</value>
@@ -841,7 +832,7 @@
     <value>Taloushallinnon toimi</value>
   </data>
   <data name="Financial action saved. Review updated balances and coverage." xml:space="preserve">
-    <value>Taloushallinnon toimi tallennettu. Tarkista päivitetyt saldot ja voimassaolo.</value>
+    <value>Muutokset tallennettu.</value>
   </data>
   <data name="Financial actions" xml:space="preserve">
     <value>Taloushallinnon toimet</value>
@@ -856,19 +847,19 @@
     <value>Taloushistoria ja saldoerittelyt</value>
   </data>
   <data name="Find a member to maintain their details, review membership and services, or manage payments. Standing uses current membership coverage and grace; unpaid optional services do not make membership inactive." xml:space="preserve">
-    <value>Hae jäsen muokataksesi tietoja, tarkistaaksesi jäsenyyden ja palvelut tai käsitelläksesi maksuja. Jäsenyyden tila perustuu voimassaoloon ja lisäaikaan. Maksamattomat lisäpalvelut eivät muuta jäsenyyttä passiiviseksi.</value>
+    <value>Etsi jäsen katsoaksesi tiliä tai muokataksesi tietoja.</value>
   </data>
   <data name="Find member by name, email or member number" xml:space="preserve">
     <value>Hae nimellä, sähköpostilla tai jäsennumerolla</value>
   </data>
   <data name="For explicit purchases; not automatically used for bills." xml:space="preserve">
-    <value>Erikseen tehtäviin ostoihin. Ei käytetä automaattisesti laskuihin.</value>
+    <value>Ostoihin, kuten varastopaikan vuokraan.</value>
   </data>
   <data name="For personal-data access, correction or erasure requests, contact the association's administrators." xml:space="preserve">
     <value>Ota yhteyttä yhdistyksen ylläpitäjiin henkilötietojen tarkastus-, korjaus- tai poistopyynnöissä.</value>
   </data>
   <data name="Forecasts — not issued invoices" xml:space="preserve">
-    <value>Ennusteet — eivät laadittuja laskuja</value>
+    <value>Tulevat laskut</value>
   </data>
   <data name="Forgot password?" xml:space="preserve">
     <value>Unohditko salasanasi?</value>
@@ -892,7 +883,7 @@
     <value>Maksujärjestys jäsenmaksun jälkeen (pienempi ensin)</value>
   </data>
   <data name="Grace days" xml:space="preserve">
-    <value>Lisäajan päivät</value>
+    <value>Maksun lisäaika päivinä</value>
   </data>
   <data name="GraceDays" xml:space="preserve">
     <value>Lisäajan päivät</value>
@@ -901,13 +892,13 @@
     <value>Myönnä 1–120 kokonaista kuukautta.</value>
   </data>
   <data name="Grant configured free days ({0}) to a returning subscriber" xml:space="preserve">
-    <value>Myönnä määritetyt maksuttomat päivät ({0}) palaavalle tilaajalle</value>
+    <value>Myönnä {0} ilmaista päivää</value>
   </data>
   <data name="Grant membership months" xml:space="preserve">
     <value>Myönnä jäsenyyskuukausia</value>
   </data>
   <data name="Granted coverage" xml:space="preserve">
-    <value>Myönnetty jakso</value>
+    <value>Maksuton aika</value>
   </data>
   <data name="Healthy" xml:space="preserve">
     <value>Toiminnassa</value>
@@ -922,7 +913,7 @@
     <value>Hyväksyn yhdistyksen jäsenehdot.</value>
   </data>
   <data name="I confirm admission before payment and creation of the initial bill." xml:space="preserve">
-    <value>Vahvistan jäseneksi hyväksymisen ennen maksua sekä ensimmäisen laskun luomisen.</value>
+    <value>Hyväksy jäsenyys ja luo ensimmäinen lasku.</value>
   </data>
   <data name="I understand and want to resign now." xml:space="preserve">
     <value>Ymmärrän seuraukset ja haluan erota nyt.</value>
@@ -934,43 +925,40 @@
     <value>Tunniste / vastaanotettu</value>
   </data>
   <data name="If an eligible application exists, a new email has been queued. Requests are limited to once every minute." xml:space="preserve">
-    <value>Jos sopiva hakemus on olemassa, uusi sähköposti on lisätty lähetysjonoon. Pyynnön voi tehdä kerran minuutissa.</value>
+    <value>Jos hakemuksesi odottaa vahvistusta, saat uuden sähköpostin. Odota minuutti ennen uutta yritystä.</value>
   </data>
   <data name="If this address has an eligible account, a reset email has been queued. Requests are limited to once every minute." xml:space="preserve">
-    <value>Jos osoitteeseen liittyy sopiva käyttäjätili, palautusviesti on lisätty lähetysjonoon. Pyynnön voi tehdä kerran minuutissa.</value>
+    <value>Jos osoitteella on tili, saat salasanan palautuslinkin. Odota minuutti ennen uutta yritystä.</value>
   </data>
   <data name="If this address is eligible, a verification email has been queued. Check your email before administrator review. You cannot log in until approval." xml:space="preserve">
-    <value>Jos osoite soveltuu hakemukseen, vahvistusviesti on lisätty lähetysjonoon. Vahvista sähköpostisi ennen ylläpitäjän käsittelyä. Voit kirjautua vasta hyväksymisen jälkeen.</value>
+    <value>Vahvista hakemuksesi sähköpostiin lähetetystä linkistä. Voit kirjautua, kun jäsenyytesi on hyväksytty.</value>
   </data>
   <data name="Import a confirmed bank transaction manually" xml:space="preserve">
     <value>Tuo vahvistettu pankkitapahtuma käsin</value>
   </data>
   <data name="Import source fact and match" xml:space="preserve">
-    <value>Tuo ja kohdista tapahtuma</value>
+    <value>Tuo tapahtuma</value>
   </data>
   <data name="Inactive" xml:space="preserve">
-    <value>Passiivinen</value>
+    <value>Epäaktiivinen</value>
   </data>
   <data name="Inactive for at least {0} days" xml:space="preserve">
-    <value>Passiivisena vähintään {0} päivää</value>
+    <value>Jäsenyys epäaktiivinen vähintään {0} päivää</value>
   </data>
   <data name="Inactive members" xml:space="preserve">
-    <value>Passiiviset jäsenet</value>
+    <value>Epäaktiiviset jäsenet</value>
   </data>
   <data name="Inactive since {0}" xml:space="preserve">
-    <value>Passiivinen alkaen {0}</value>
-  </data>
-  <data name="Inactive — membership continues; billing paused" xml:space="preserve">
-    <value>Passiivinen — jäsenyys jatkuu, laskutus keskeytetty</value>
+    <value>Epäaktiivinen alkaen {0}</value>
   </data>
   <data name="Inactivity review threshold (days)" xml:space="preserve">
-    <value>Passiivisuuden tarkasteluraja (päivää)</value>
+    <value>Epäaktiivisia päiviä</value>
   </data>
   <data name="Incorrect password." xml:space="preserve">
     <value>Nykyinen salasana on virheellinen.</value>
   </data>
   <data name="Initial free calendar days" xml:space="preserve">
-    <value>Alun maksuttomat kalenteripäivät</value>
+    <value>Ilmaiset päivät uusille tilaajille</value>
   </data>
   <data name="Invalid application key." xml:space="preserve">
     <value>Virheellinen hakemustunniste.</value>
@@ -1000,7 +988,7 @@
     <value>Lasku #{0}</value>
   </data>
   <data name="Invoice #{0} funding · periods include both displayed dates" xml:space="preserve">
-    <value>Laskun #{0} rahoitus · molemmat näytetyt päivät sisältyvät jaksoihin</value>
+    <value>Laskun #{0} maksutiedot</value>
   </data>
   <data name="Invoice #{0} — {1}" xml:space="preserve">
     <value>Lasku #{0} — {1}</value>
@@ -1012,16 +1000,16 @@
     <value>Lasku kuuluu toiselle tilille.</value>
   </data>
   <data name="Invoice email preference saved." xml:space="preserve">
-    <value>Laskusähköpostiasetus tallennettu.</value>
+    <value>Sähköpostiasetus tallennettu.</value>
   </data>
   <data name="Invoice funding details" xml:space="preserve">
     <value>Laskun rahoituserittely</value>
   </data>
   <data name="Issue a separate advance request with its own reference. No subscription, reservation or debt is created." xml:space="preserve">
-    <value>Luo erillinen ennakkomaksupyyntö omalla viitteellään. Tämä ei luo tilausta, varausta tai velkaa.</value>
+    <value>Luo kertalasku omalla viitenumerolla.</value>
   </data>
   <data name="Issue one-off request" xml:space="preserve">
-    <value>Luo kertamaksupyyntö</value>
+    <value>Luo kertalasku</value>
   </data>
   <data name="Issue {0} ({1}): {2} EUR, pay by {3}." xml:space="preserve">
     <value>Luo {0} ({1}): {2} EUR, maksa viimeistään {3}.</value>
@@ -1054,10 +1042,10 @@
     <value>Viimeisin onnistuminen</value>
   </data>
   <data name="Last successful sync:" xml:space="preserve">
-    <value>Viimeisin onnistunut synkronointi:</value>
+    <value>Päivitetty viimeksi:</value>
   </data>
   <data name="Latest 100 posted receipts. Completed purchases and spent money cannot be reversed here." xml:space="preserve">
-    <value>Viimeisimmät 100 kirjattua maksua. Valmiita ostoja ja käytettyjä varoja ei voi perua täällä.</value>
+    <value>Viimeisimmät 100 kohdistettua maksua. Vain käyttämättömiä rahoja voi kohdistaa uudelleen.</value>
   </data>
   <data name="Latest essential mail deliveries (up to 50)" xml:space="preserve">
     <value>Viimeisimmät välttämättömät viestit (enintään 50)</value>
@@ -1075,7 +1063,7 @@
     <value>Rivi / jakso</value>
   </data>
   <data name="Links expire with the unverified application (24 hours by default). Resending does not extend retention. After expiry, submit a fresh application." xml:space="preserve">
-    <value>Linkit vanhenevat vahvistamattoman hakemuksen mukana (oletuksena 24 tunnissa). Uudelleenlähetys ei pidennä säilytysaikaa. Lähetä vanhenemisen jälkeen uusi hakemus.</value>
+    <value>Linkki vanhenee hakemuksesi mukana, yleensä 24 tunnissa. Uudelleenlähetys ei pidennä aikaa. Tee uusi hakemus, jos aika on päättynyt.</value>
   </data>
   <data name="Log in" xml:space="preserve">
     <value>Kirjaudu sisään</value>
@@ -1162,13 +1150,10 @@
     <value>Jäsenyys ja palvelut</value>
   </data>
   <data name="Membership approved. Welcome email queued; delivery is not yet confirmed." xml:space="preserve">
-    <value>Jäsenyys hyväksytty. Tervetuloviesti on lähetysjonossa, eikä toimitusta ole vielä vahvistettu.</value>
-  </data>
-  <data name="Membership billing is paused. Already-purchased service time keeps expiring normally. Review return options below; pending deletion must be cancelled before a return can be requested." xml:space="preserve">
-    <value>Jäsenmaksujen laskutus on keskeytetty. Ostetut palvelujaksot kuluvat normaalisti. Tarkista paluuvaihtoehdot alta. Odottava poisto on peruttava ennen paluupyyntöä.</value>
+    <value>Jäsenyys hyväksytty. Tervetuloviesti lähetetään sähköpostitse.</value>
   </data>
   <data name="Membership grace notice" xml:space="preserve">
-    <value>Jäsenyyden lisäaikailmoitus</value>
+    <value>Jäsenmaksumuistutus</value>
   </data>
   <data name="Membership grants" xml:space="preserve">
     <value>Myönnetyt jäsenyysjaksot</value>
@@ -1177,25 +1162,19 @@
     <value>Jäsenyyshistoria</value>
   </data>
   <data name="Membership inactive" xml:space="preserve">
-    <value>Jäsenyys passiivinen</value>
+    <value>Jäsenyys epäaktiivinen</value>
   </data>
   <data name="Membership inactivity notice" xml:space="preserve">
-    <value>Jäsenyyden passiivisuusilmoitus</value>
+    <value>Jäsenyyden epäaktiivisuusilmoitus</value>
   </data>
   <data name="Membership is active or already has a return request." xml:space="preserve">
     <value>Jäsenyys on voimassa tai sille on jo paluupyyntö.</value>
   </data>
-  <data name="Membership is inactive, but you are still a member." xml:space="preserve">
-    <value>Jäsenyys on passiivinen, mutta olet edelleen jäsen.</value>
-  </data>
-  <data name="Membership is inactive, but you are still a member. Review return options instead of paying expired bills." xml:space="preserve">
-    <value>Jäsenyys on passiivinen, mutta olet edelleen jäsen. Tarkista paluuvaihtoehdot vanhentuneiden laskujen maksamisen sijaan.</value>
+  <data name="You do not need to pay expired bills." xml:space="preserve">
+    <value>Vanhentuneita laskuja ei tarvitse maksaa.</value>
   </data>
   <data name="Membership lifecycle" xml:space="preserve">
     <value>Jäsenyyden elinkaari</value>
-  </data>
-  <data name="Membership on this bill is covered, even if other items remain unfinished." xml:space="preserve">
-    <value>Tämän laskun jäsenyys on maksettu, vaikka muita rivejä on keskeneräisenä.</value>
   </data>
   <data name="Membership or service fee" xml:space="preserve">
     <value>Jäsen- tai palvelumaksu</value>
@@ -1204,7 +1183,7 @@
     <value>Jäsenyys pysyy voimassa lisäajan aikana.</value>
   </data>
   <data name="Membership remains active during grace. Review your membership payment before grace ends." xml:space="preserve">
-    <value>Jäsenyys pysyy voimassa lisäajan aikana. Tarkista jäsenmaksusi ennen lisäajan päättymistä.</value>
+    <value>Jäsenyytesi on vielä aktiivinen. Maksa jäsenmaksu ennen lisäajan päättymistä.</value>
   </data>
   <data name="Membership terminated and account deletion started. Login and services are blocked." xml:space="preserve">
     <value>Jäsenyys päätetty ja käyttäjätilin poistaminen aloitettu. Kirjautuminen ja palvelut on estetty.</value>
@@ -1231,10 +1210,10 @@
     <value>Viesti ylläpitäjille</value>
   </data>
   <data name="Minimum days applies to the Inactive members filter. Use 0 for all inactive members, including those without a known inactivity date. This filter never terminates membership or starts deletion." xml:space="preserve">
-    <value>Päiväraja koskee passiivisten jäsenten rajausta. Arvo 0 näyttää kaikki passiiviset jäsenet, myös ne, joiden passiivisuuden alkamispäivä ei ole tiedossa. Rajaus ei päätä jäsenyyttä tai aloita poistamista.</value>
+    <value>Arvo 0 näyttää kaikki epäaktiiviset jäsenet.</value>
   </data>
   <data name="Minimum days inactive" xml:space="preserve">
-    <value>Vähintään päiviä passiivisena</value>
+    <value>Vähintään päiviä epäaktiivisena</value>
   </data>
   <data name="Monthly EUR" xml:space="preserve">
     <value>Kuukausihinta EUR</value>
@@ -1261,10 +1240,10 @@
     <value>Siirrä {0:0.00} EUR ostosaldosta laskutussaldoon.</value>
   </data>
   <data name="Moving money into billing credit immediately funds valid recurring bills. Allocated or spent money cannot be transferred back. This is an internal transfer, not a bank payment." xml:space="preserve">
-    <value>Laskutussaldoon siirretyt varat käytetään heti voimassa oleviin toistuviin laskuihin. Varattuja tai käytettyjä varoja ei voi siirtää takaisin. Tämä on sisäinen siirto, ei pankkimaksu.</value>
+    <value>Laskutussaldo käytetään laskuihin automaattisesti. Laskuihin varattua tai jo käytettyä rahaa ei voi siirtää takaisin.</value>
   </data>
   <data name="Moving money into billing credit immediately funds valid recurring bills. Held or spent money cannot be transferred back." xml:space="preserve">
-    <value>Laskutussaldoon siirretyt varat käytetään heti voimassa oleviin toistuviin laskuihin. Varattuja tai käytettyjä varoja ei voi siirtää takaisin.</value>
+    <value>Laskutussaldo käytetään laskuihin automaattisesti. Laskuihin varattua tai jo käytettyä rahaa ei voi siirtää takaisin.</value>
   </data>
   <data name="Municipality" xml:space="preserve">
     <value>Kotikunta</value>
@@ -1288,7 +1267,7 @@
     <value>Ei koskaan</value>
   </data>
   <data name="Never — no successful sync recorded" xml:space="preserve">
-    <value>Ei koskaan — onnistunutta synkronointia ei ole kirjattu</value>
+    <value>Ei koskaan</value>
   </data>
   <data name="New email" xml:space="preserve">
     <value>Uusi sähköposti</value>
@@ -1306,7 +1285,7 @@
     <value>Uusi salasana</value>
   </data>
   <data name="Newest transactions first. Showing up to {0} changes to the selected balance per page." xml:space="preserve">
-    <value>Uusimmat tapahtumat ensin. Näytetään enintään {0} valitun saldon muutosta sivulla.</value>
+    <value>Uusimmat ensin, {0} tapahtumaa sivulla.</value>
   </data>
   <data name="Next" xml:space="preserve">
     <value>Seuraava</value>
@@ -1327,16 +1306,16 @@
     <value>Seuraavat tapahtumat</value>
   </data>
   <data name="Nickname" xml:space="preserve">
-    <value>Kutsumanimi</value>
+    <value>Nimimerkki</value>
   </data>
   <data name="Nickname (optional)" xml:space="preserve">
-    <value>Kutsumanimi (valinnainen)</value>
+    <value>Nimimerkki (valinnainen)</value>
   </data>
   <data name="No automatic refund of purchased time." xml:space="preserve">
     <value>Ostettua aikaa ei palauteta automaattisesti.</value>
   </data>
   <data name="No bank synchronization recorded. Configure the GoCardless feed before relying on automatic payment status." xml:space="preserve">
-    <value>Pankkisynkronointia ei ole kirjattu. Määritä GoCardless-yhteys ennen automaattiseen maksutilanteeseen luottamista.</value>
+    <value>Pankkimaksuja ei ole vielä tuotu. Pyydä järjestelmän ylläpitäjää määrittämään pankkiyhteys.</value>
   </data>
   <data name="No billing account is available." xml:space="preserve">
     <value>Laskutustiliä ei ole saatavilla.</value>
@@ -1345,10 +1324,10 @@
     <value>Tälle tilille ei ole saatavilla laskusähköpostiasetusta.</value>
   </data>
   <data name="No bills currently request payment." xml:space="preserve">
-    <value>Maksettavia laskuja ei ole.</value>
+    <value>Ei maksamattomia laskuja.</value>
   </data>
   <data name="No known mail problems match these filters. This does not establish that mail delivery is healthy." xml:space="preserve">
-    <value>Näillä rajauksilla ei löydy tiedossa olevia viestiongelmia. Tämä ei osoita viestien toimituksen toimivuutta.</value>
+    <value>Sähköpostiongelmia ei löytynyt.</value>
   </data>
   <data name="No members match these filters. Try a broader search or clear the filters." xml:space="preserve">
     <value>Jäseniä ei löytynyt näillä rajauksilla. Laajenna hakua tai tyhjennä rajaukset.</value>
@@ -1369,7 +1348,7 @@
     <value>Ei aiempia laskuja.</value>
   </data>
   <data name="No successful bank synchronization has been recorded. An empty payment-review queue does not establish that payments are up to date." xml:space="preserve">
-    <value>Onnistunutta pankkisynkronointia ei ole kirjattu. Tyhjä maksujen käsittelyjono ei osoita maksutietojen ajantasaisuutta.</value>
+    <value>Pankkimaksuja ei ole vielä tuotu.</value>
   </data>
   <data name="No transactions on this page." xml:space="preserve">
     <value>Tällä sivulla ei ole tapahtumia.</value>
@@ -1390,13 +1369,13 @@
     <value>Ei tilattu</value>
   </data>
   <data name="Not subscribed. An administrator must add this service." xml:space="preserve">
-    <value>Ei tilattu. Ylläpitäjän on lisättävä tämä palvelu.</value>
+    <value>Ota yhteyttä ylläpitäjään aktivoidaksesi.</value>
   </data>
   <data name="Not supplied" xml:space="preserve">
     <value>Ei annettu</value>
   </data>
   <data name="Oldest 100 unresolved transactions. Processing these reveals the next items in the queue." xml:space="preserve">
-    <value>Vanhimmat 100 käsittelemätöntä tapahtumaa. Käsittelyn jälkeen jonon seuraavat tapahtumat tulevat näkyviin.</value>
+    <value>Näytetään 100 vanhinta tarkistettavaa maksua.</value>
   </data>
   <data name="Oldest pending work age (seconds)" xml:space="preserve">
     <value>Vanhimman odottavan työn ikä (sekuntia)</value>
@@ -1423,7 +1402,7 @@
     <value>Vain vahvistetun, päätöstä odottavan hakemuksen voi hyväksyä.</value>
   </data>
   <data name="Only email-verified applications awaiting a decision appear here (up to 100)." xml:space="preserve">
-    <value>Tässä näkyvät vain sähköpostiltaan vahvistetut, päätöstä odottavat hakemukset (enintään 100).</value>
+    <value>Enintään 100 hakemusta, joiden sähköpostiosoite on vahvistettu.</value>
   </data>
   <data name="Only incoming EUR receipts can be assigned to a live member." xml:space="preserve">
     <value>Vain saapuvia euromääräisiä maksuja voi kohdistaa nykyiselle jäsenelle.</value>
@@ -1447,13 +1426,13 @@
     <value>Avaa maksut ja kirjanpito</value>
   </data>
   <data name="Optional rejection explanation (emailed, then erased with the application)" xml:space="preserve">
-    <value>Hylkäysperustelu (valinnainen, lähetetään sähköpostitse ja poistetaan hakemuksen mukana)</value>
+    <value>Viesti hakijalle (vapaaehtoinen)</value>
   </data>
   <data name="Original reference" xml:space="preserve">
     <value>Alkuperäinen viite</value>
   </data>
   <data name="Original source facts" xml:space="preserve">
-    <value>Alkuperäiset lähdetiedot</value>
+    <value>Pankkitapahtuman tiedot</value>
   </data>
   <data name="Other application details" xml:space="preserve">
     <value>Hakemuksen muut tiedot</value>
@@ -1462,7 +1441,7 @@
     <value>Avoimet laskut</value>
   </data>
   <data name="Outstanding bills needing payment: {0}." xml:space="preserve">
-    <value>Maksua vaativia avoimia laskuja: {0}.</value>
+    <value>Maksamattomia laskuja: {0}.</value>
   </data>
   <data name="Overview" xml:space="preserve">
     <value>Etusivu</value>
@@ -1483,7 +1462,7 @@
     <value>Salasana vaihdettu</value>
   </data>
   <data name="Password changed. A notification email has been queued." xml:space="preserve">
-    <value>Salasana vaihdettu. Ilmoitusviesti on lisätty lähetysjonoon.</value>
+    <value>Salasana vaihdettu. Saat vahvistuksen sähköpostitse.</value>
   </data>
   <data name="Password must not exceed 256 characters." xml:space="preserve">
     <value>Salasana saa olla enintään 256 merkkiä pitkä.</value>
@@ -1516,7 +1495,7 @@
     <value>Maksa tilisiirrolla</value>
   </data>
   <data name="Pay by {0:d MMM yyyy}" xml:space="preserve">
-    <value>Maksa viimeistään {0:d MMM yyyy}</value>
+    <value>Maksa viimeistään {0:d.M.yyyy}</value>
   </data>
   <data name="Pay by {0}" xml:space="preserve">
     <value>Maksa viimeistään {0}</value>
@@ -1531,13 +1510,13 @@
     <value>Maksun kohdistus peruttu</value>
   </data>
   <data name="Payment exceptions" xml:space="preserve">
-    <value>Maksujen poikkeukset</value>
+    <value>käsittelemätöntä maksua</value>
   </data>
   <data name="Payment review" xml:space="preserve">
     <value>Maksujen käsittely</value>
   </data>
   <data name="Payment standing depends on confirmed transactions imported manually. Contact the system operator to configure the feed." xml:space="preserve">
-    <value>Maksutilanne perustuu käsin tuotuihin vahvistettuihin tapahtumiin. Pyydä järjestelmän ylläpitäjää määrittämään pankkiyhteys.</value>
+    <value>Tuo maksut käsin tai pyydä järjestelmän ylläpitäjää määrittämään automaattinen tuonti.</value>
   </data>
   <data name="Payment standing, invoices, coverage and services" xml:space="preserve">
     <value>Maksutilanne, laskut, voimassaolo ja palvelut</value>
@@ -1552,16 +1531,16 @@
     <value>Odottaa poistamista tai ei saatavilla</value>
   </data>
   <data name="Pending deletion, then longest inactive" xml:space="preserve">
-    <value>Poistoa odottavat, sitten pisimpään passiiviset</value>
+    <value>Poistoa odottavat, sitten pisimpään epäaktiiviset</value>
   </data>
   <data name="Pending deletion. Login and services are blocked. Eligible for a fortnightly deletion batch from {0} (UTC)." xml:space="preserve">
-    <value>Odottaa poistamista. Kirjautuminen ja palvelut on estetty. Voidaan poistaa kahden viikon välein ajettavassa poistossa alkaen {0} (UTC).</value>
+    <value>Tili voidaan poistaa {0} alkaen (UTC). Kirjautuminen ja palvelut on estetty.</value>
   </data>
   <data name="Pending deletion; login and services blocked." xml:space="preserve">
     <value>Odottaa poistamista. Kirjautuminen ja palvelut on estetty.</value>
   </data>
   <data name="Pending deletions" xml:space="preserve">
-    <value>Odottavat poistot</value>
+    <value>poistoa odottavaa tiliä</value>
   </data>
   <data name="Pending one-shot jobs" xml:space="preserve">
     <value>Odottavat kertatyöt</value>
@@ -1636,7 +1615,7 @@
     <value>Maksun {0} hinnat</value>
   </data>
   <data name="Pricing is not available. Contact an administrator before subscribing." xml:space="preserve">
-    <value>Hintaa ei ole saatavilla. Ota yhteyttä ylläpitäjään ennen tilaamista.</value>
+    <value>Kysy hinta ylläpitäjältä.</value>
   </data>
   <data name="Priority" xml:space="preserve">
     <value>Järjestys</value>
@@ -1645,7 +1624,7 @@
     <value>Anna kuvaus, luokka, positiivinen sentintarkka summa ja tuleva maksun määräpäivä.</value>
   </data>
   <data name="Provider acceptance is not inbox delivery. Review/failed sends require investigation, not arbitrary job replay. Recipient addresses and token-bearing bodies are not retained here." xml:space="preserve">
-    <value>Palveluntarjoajan hyväksyntä ei takaa viestin saapumista postilaatikkoon. Epävarmat tai epäonnistuneet lähetykset vaativat selvitystä. Vastaanottajan osoitteita tai tunnisteita sisältäviä viestirunkoja ei säilytetä täällä.</value>
+    <value>Tarkista epäonnistuneet ja epävarmat toimitukset sähköpostipalvelusta ennen uudelleenlähetystä.</value>
   </data>
   <data name="Provider reference" xml:space="preserve">
     <value>Palveluntarjoajan viite</value>
@@ -1672,7 +1651,7 @@
     <value>Ostosaldo → laskutussaldo</value>
   </data>
   <data name="Purchase completed" xml:space="preserve">
-    <value>Osto valmis</value>
+    <value>Osto suoritettu</value>
   </data>
   <data name="Purchase deposits are unavailable or conflict with a group selection." xml:space="preserve">
     <value>Ostosaldon talletukset eivät ole käytettävissä tai ne ovat ristiriidassa ryhmävalinnan kanssa.</value>
@@ -1681,10 +1660,10 @@
     <value>Ostosaldon talletusviite</value>
   </data>
   <data name="Purchased coverage" xml:space="preserve">
-    <value>Ostettu jakso</value>
+    <value>Maksettu aika</value>
   </data>
   <data name="Read / ignore without allocation" xml:space="preserve">
-    <value>Luettu / ohita kohdistamatta</value>
+    <value>Ohita maksu</value>
   </data>
   <data name="Read membership terms" xml:space="preserve">
     <value>Lue jäsenehdot</value>
@@ -1720,13 +1699,13 @@
     <value>Maksu #{0} · {1} / {2} / {3} · tuotu {4}</value>
   </data>
   <data name="Recent successful synchronization" xml:space="preserve">
-    <value>Tuore onnistunut synkronointi</value>
+    <value>Ajan tasalla</value>
   </data>
   <data name="Recipient" xml:space="preserve">
     <value>Saaja</value>
   </data>
   <data name="Reconcile failed or uncertain delivery" xml:space="preserve">
-    <value>Selvitä epäonnistunut tai epävarma toimitus</value>
+    <value>Tarkista epäonnistuneet ja epävarmat sähköpostit</value>
   </data>
   <data name="Reconciliation above is lifetime-to-date. CSV ranges use movement effective dates or bank booked dates, not processing timestamps. Bank export includes ignored/outgoing transactions and review dispositions." xml:space="preserve">
     <value>Yllä oleva täsmäytys kattaa koko historian. CSV-viennin rajaukset käyttävät tapahtumien arvopäiviä tai pankin kirjauspäiviä, eivät käsittelyaikoja. Pankkivienti sisältää myös ohitetut ja lähtevät tapahtumat sekä kohdistuspäätökset.</value>
@@ -1735,7 +1714,7 @@
     <value>Kirjaa toteutunut palautus</value>
   </data>
   <data name="Record money already sent through the bank. This form does not send money. Only available funds can be refunded." xml:space="preserve">
-    <value>Kirjaa pankin kautta jo lähetetyt varat. Tämä lomake ei lähetä rahaa. Vain käytettävissä olevia varoja voi palauttaa.</value>
+    <value>Kirjaa pankissa jo maksettu palautus. Vain käytettävissä olevia varoja voi palauttaa.</value>
   </data>
   <data name="Record only a confirmed refund within the available balance; held and spent funds are unavailable." xml:space="preserve">
     <value>Kirjaa vain vahvistettu palautus käytettävissä olevan saldon rajoissa. Varattuja tai käytettyjä varoja ei voi palauttaa.</value>
@@ -1780,10 +1759,10 @@
     <value>Hylkää hakijan {0} hakemus</value>
   </data>
   <data name="Rejection email queued. Delivery is not yet confirmed; applicant data will be erased after sending or at its retention deadline." xml:space="preserve">
-    <value>Hylkäysviesti lisätty lähetysjonoon. Toimitusta ei ole vielä vahvistettu. Hakijan tiedot poistetaan lähetyksen jälkeen tai säilytysajan päättyessä.</value>
+    <value>Hakemus hylätty. Hakijalle lähetetään sähköposti ja hänen tietonsa poistetaan.</value>
   </data>
   <data name="Rejection queues an email, then permanently erases the application and applicant details. Queued does not mean delivered." xml:space="preserve">
-    <value>Hylkääminen lisää sähköpostin lähetysjonoon ja poistaa sitten hakemuksen ja hakijan tiedot pysyvästi. Jonotus ei tarkoita toimitusta.</value>
+    <value>Hakijalle lähetetään sähköposti ja hakemus poistetaan.</value>
   </data>
   <data name="Remaining EUR" xml:space="preserve">
     <value>Jäljellä EUR</value>
@@ -1801,31 +1780,31 @@
     <value>Poista heti</value>
   </data>
   <data name="Renewal grace" xml:space="preserve">
-    <value>Uusimisen lisäaika</value>
+    <value>Maksun lisäaika</value>
   </data>
   <data name="Renewal grace days after the due date (zero allowed)" xml:space="preserve">
-    <value>Uusimisen lisäaika eräpäivän jälkeen (päivää, 0 sallittu)</value>
+    <value>Maksun lisäaika eräpäivän jälkeen</value>
   </data>
   <data name="Renewal stopped — covered" xml:space="preserve">
     <value>Uusiminen lopetettu — voimassa</value>
   </data>
   <data name="Renewal stopped. Remaining coverage keeps its original dates." xml:space="preserve">
-    <value>Uusiminen lopetettu. Jäljellä oleva voimassaolo säilyttää alkuperäiset päivämääränsä.</value>
+    <value>Uusiminen lopetettu. Maksettu aika on edelleen käytettävissä.</value>
   </data>
   <data name="Renewal stopped. Remaining covered time keeps its original dates and still requires active membership." xml:space="preserve">
-    <value>Uusiminen lopetettu. Jäljellä oleva käyttöaika säilyttää alkuperäiset päivämääränsä ja edellyttää voimassa olevaa jäsenyyttä.</value>
+    <value>Uusiminen lopetettu. Voit käyttää palvelua yllä olevaan päivään asti, kun jäsenyytesi on aktiivinen.</value>
   </data>
   <data name="Replacement monthly price" xml:space="preserve">
     <value>Korvaava kuukausihinta</value>
   </data>
   <data name="Request a prorated membership return period on your existing schedule. This does not require paying expired bills or inactive months. Available credit may fund it immediately." xml:space="preserve">
-    <value>Pyydä suhteutettua jäsenyyden paluujaksoa nykyisen aikataulusi mukaan. Tämä ei edellytä vanhentuneiden laskujen tai passiivisten kuukausien maksamista. Käytettävissä oleva saldo voi maksaa jakson heti.</value>
+    <value>Aktivoi jäsenyys laskutuskautesi loppuajaksi. Epäaktiivisista kuukausista ei veloiteta. Käytettävissä oleva saldo käytetään automaattisesti.</value>
   </data>
   <data name="Request membership return period" xml:space="preserve">
-    <value>Pyydä jäsenyyden paluujaksoa</value>
+    <value>Aktivoi jäsenyys</value>
   </data>
   <data name="Required security, membership, grace and deletion notices cannot be disabled. Bills remain available in the portal even if you turn off invoice emails." xml:space="preserve">
-    <value>Pakollisia tietoturva-, jäsenyys-, lisäaika- ja poistoilmoituksia ei voi poistaa käytöstä. Laskut säilyvät portaalissa, vaikka poistaisit laskusähköpostit käytöstä.</value>
+    <value>Tärkeät tiliä ja jäsenyyttä koskevat viestit lähetetään aina.</value>
   </data>
   <data name="Resend verification" xml:space="preserve">
     <value>Lähetä vahvistus uudelleen</value>
@@ -1846,7 +1825,7 @@
     <value>Eroa jäsenyydestä</value>
   </data>
   <data name="Resignation immediately blocks login and member services, even if you have paid for future time. It starts account erasure after the configured waiting period and a fortnightly batch. There is no automatic refund for unused membership time. Only an administrator can cancel pending deletion before actual erasure." xml:space="preserve">
-    <value>Eroaminen estää kirjautumisen ja jäsenpalvelut heti, vaikka olisit maksanut tulevasta ajasta. Tili poistetaan määritetyn odotusajan jälkeen kahden viikon välein ajettavassa poistossa. Käyttämätöntä jäsenyysaikaa ei hyvitetä automaattisesti. Vain ylläpitäjä voi perua odottavan poiston ennen lopullista poistamista.</value>
+    <value>Eroaminen estää kirjautumisen ja palvelujen käytön heti, myös maksetulta ajalta. Tilisi poistetaan odotusajan jälkeen. Käyttämätöntä aikaa ei hyvitetä automaattisesti. Ota yhteyttä ylläpitäjään peruaksesi poistamisen ennen sen toteutumista.</value>
   </data>
   <data name="Resignation immediately blocks login and services and starts account deletion, even if you have paid for future time." xml:space="preserve">
     <value>Eroaminen estää kirjautumisen ja palvelut heti ja aloittaa käyttäjätilin poistamisen, vaikka olisit maksanut tulevasta ajasta.</value>
@@ -1861,7 +1840,7 @@
     <value>Säilytetyt saldot</value>
   </data>
   <data name="Retained financial account #{0}. The member account was erased. Only financial evidence and any unspent claim remain." xml:space="preserve">
-    <value>Säilytetty taloustili #{0}. Jäsenen käyttäjätili on poistettu. Vain taloustositteet ja mahdollinen käyttämätön saatava ovat jäljellä.</value>
+    <value>Tili #{0}: jäsen poistettu. Maksutiedot ja mahdollinen saldo on säilytetty.</value>
   </data>
   <data name="Retained invoice evidence" xml:space="preserve">
     <value>Säilytetyt laskutositteet</value>
@@ -1876,7 +1855,7 @@
     <value>Käytöstä poistaminen</value>
   </data>
   <data name="Return an eligible unspent receipt to payment review for reassignment. Source facts remain unchanged; purchased coverage cannot be clawed back." xml:space="preserve">
-    <value>Palauta soveltuva käyttämätön maksu käsittelyyn uudelleenkohdistusta varten. Lähdetiedot säilyvät. Ostettua voimassaoloa ei voi ottaa takaisin.</value>
+    <value>Palauta käyttämätön maksu tarkistettavaksi ja uudelleen kohdistettavaksi. Maksettu jäsenyys- ja palveluaika ei muutu.</value>
   </data>
   <data name="Return to portal" xml:space="preserve">
     <value>Palaa portaaliin</value>
@@ -1885,16 +1864,16 @@
     <value>Palaa jäsenportaaliin</value>
   </data>
   <data name="Return-period request processed. Review current bills and membership standing." xml:space="preserve">
-    <value>Paluujaksopyyntö käsitelty. Tarkista nykyiset laskut ja jäsenyyden tila.</value>
+    <value>Aktivointia pyydetty. Tarkista laskut alta.</value>
   </data>
   <data name="Reverse receipt allocation" xml:space="preserve">
-    <value>Peru maksun kohdistus</value>
+    <value>Kohdista maksu uudelleen</value>
   </data>
   <data name="Review adjustment" xml:space="preserve">
     <value>Tarkista muutos</value>
   </data>
   <data name="Review admission decisions" xml:space="preserve">
-    <value>Käsittele jäseneksi hyväksyminen</value>
+    <value>Käsittele jäsenhakemuksia</value>
   </data>
   <data name="Review application" xml:space="preserve">
     <value>Tarkista hakemus</value>
@@ -1903,37 +1882,28 @@
     <value>Tarkista pankkitapahtuma</value>
   </data>
   <data name="Review before the erasure batch" xml:space="preserve">
-    <value>Tarkista ennen poistoajoa</value>
+    <value>Tarkastele poistetuksi merkittyjä tilejä</value>
   </data>
   <data name="Review disposition" xml:space="preserve">
-    <value>Tarkista kohdistus</value>
+    <value>Tarkista maksu</value>
   </data>
   <data name="Review email change" xml:space="preserve">
     <value>Tarkista sähköpostin vaihto</value>
   </data>
-  <data name="Review means a send may have been accepted. Check the delivery ID and provider reference with the mail provider before taking further action. Do not blindly resend." xml:space="preserve">
-    <value>Epävarma tila tarkoittaa, että lähetys on saatettu hyväksyä. Tarkista lähetystunniste ja palveluntarjoajan viite viestipalvelusta ennen jatkotoimia. Älä lähetä uudelleen tarkistamatta tilannetta.</value>
-  </data>
-  <data name="Review members, longest inactive first" xml:space="preserve">
-    <value>Tarkista jäsenet, pisimpään passiiviset ensin</value>
-  </data>
-  <data name="Review membership and payment queues, then check the operational warnings below. An empty queue means no known items; it does not establish that integrations are healthy." xml:space="preserve">
-    <value>Käsittele jäsenyys- ja maksujonot ja tarkista sitten alla olevat toiminnalliset varoitukset. Tyhjä jono tarkoittaa, ettei tiedossa ole käsiteltävää. Se ei osoita integraatioiden toimivuutta.</value>
-  </data>
   <data name="Review membership return options" xml:space="preserve">
-    <value>Tarkista jäsenyyden paluuvaihtoehdot</value>
+    <value>Aktivoi jäsenyys</value>
   </data>
   <data name="Review membership standing, coverage and service renewals." xml:space="preserve">
-    <value>Tarkista jäsenyyden tila, voimassaolo ja palveluiden uusiminen.</value>
+    <value>Katso jäsenyytesi ja palvelusi.</value>
   </data>
   <data name="Review one-off request" xml:space="preserve">
-    <value>Tarkista kertamaksupyyntö</value>
+    <value>Tarkista lasku</value>
   </data>
   <data name="Review outstanding bills and transaction history." xml:space="preserve">
-    <value>Tarkista avoimet laskut ja tapahtumahistoria.</value>
+    <value>Katso laskut ja maksut.</value>
   </data>
   <data name="Review proposed disposition" xml:space="preserve">
-    <value>Tarkista ehdotettu kohdistus</value>
+    <value>Tarkista maksu</value>
   </data>
   <data name="Review proposed effect" xml:space="preserve">
     <value>Tarkista ehdotettu vaikutus</value>
@@ -1951,22 +1921,22 @@
     <value>Tarkista siirto</value>
   </data>
   <data name="Review unmatched bank transactions" xml:space="preserve">
-    <value>Käsittele kohdistamattomat pankkitapahtumat</value>
+    <value>Tarkastele käsittelemättömiä maksuja</value>
   </data>
   <data name="Review your membership payment before grace ends" xml:space="preserve">
     <value>Tarkista jäsenmaksusi ennen lisäajan päättymistä</value>
   </data>
   <data name="Review your membership return options" xml:space="preserve">
-    <value>Tarkista jäsenyytesi paluuvaihtoehdot</value>
+    <value>Aktivoi jäsenyys</value>
   </data>
   <data name="Review your return-period bill" xml:space="preserve">
-    <value>Tarkista paluujaksosi lasku</value>
+    <value>Katso aktivointilasku</value>
   </data>
   <data name="Running balance EUR" xml:space="preserve">
     <value>Saldo tapahtuman jälkeen EUR</value>
   </data>
   <data name="Running statements are derived from the immutable journal." xml:space="preserve">
-    <value>Saldoerittelyt johdetaan muuttumattomasta tapahtumakirjasta.</value>
+    <value>Saldot lasketaan kirjatuista tapahtumista.</value>
   </data>
   <data name="Save appearance" xml:space="preserve">
     <value>Tallenna ulkoasu</value>
@@ -2002,7 +1972,7 @@
     <value>Hae nimellä, sähköpostilla tai jäsennumerolla</value>
   </data>
   <data name="Search returns up to 25 live members. Refine the search if needed. Pending-deletion accounts must be restored before assigning money." xml:space="preserve">
-    <value>Haku palauttaa enintään 25 nykyistä jäsentä. Tarkenna hakua tarvittaessa. Poistoa odottava käyttäjätili on palautettava ennen varojen kohdistamista.</value>
+    <value>Näytetään enintään 25 jäsentä. Tarkenna hakua tarvittaessa.</value>
   </data>
   <data name="Select a completed purchase." xml:space="preserve">
     <value>Valitse valmis osto.</value>
@@ -2023,13 +1993,13 @@
     <value>Lähetä palautuslinkki</value>
   </data>
   <data name="Send verification to new address" xml:space="preserve">
-    <value>Lähetä vahvistus uuteen osoitteeseen</value>
+    <value>Lähetä vahvistus</value>
   </data>
   <data name="Service" xml:space="preserve">
     <value>Palvelu</value>
   </data>
   <data name="Service change saved. Review coverage and current bills." xml:space="preserve">
-    <value>Palvelumuutos tallennettu. Tarkista voimassaolo ja nykyiset laskut.</value>
+    <value>Palvelu päivitetty.</value>
   </data>
   <data name="Service definition saved." xml:space="preserve">
     <value>Palvelumääritys tallennettu.</value>
@@ -2062,19 +2032,19 @@
     <value>Lähdepankkitilin tunniste</value>
   </data>
   <data name="Source facts are retained. Assignment can immediately fund valid purchases and change coverage. Availability and eligibility are checked again when confirmed." xml:space="preserve">
-    <value>Lähdetiedot säilyvät. Kohdistus voi maksaa voimassa olevia ostoja ja muuttaa voimassaoloa heti. Varojen saatavuus ja kelpoisuus tarkistetaan uudelleen vahvistettaessa.</value>
+    <value>Maksu voidaan käyttää avoimiin laskuihin heti.</value>
   </data>
   <data name="Source/provider" xml:space="preserve">
     <value>Lähde/palveluntarjoaja</value>
   </data>
   <data name="Stable code" xml:space="preserve">
-    <value>Pysyvä tunnus</value>
+    <value>Koodi</value>
   </data>
   <data name="Stale" xml:space="preserve">
     <value>Vanhentunut</value>
   </data>
   <data name="Stale — payment information may be incomplete" xml:space="preserve">
-    <value>Vanhentunut — maksutiedot voivat olla puutteellisia</value>
+    <value>Maksutiedot voivat olla vanhentuneita</value>
   </data>
   <data name="Starts on" xml:space="preserve">
     <value>Alkamispäivä</value>
@@ -2086,13 +2056,13 @@
     <value>Tila</value>
   </data>
   <data name="Stop renewal of {0}. Keep remaining paid/granted time; benefits are available through {1:d MMM yyyy}. No automatic refund of purchased time." xml:space="preserve">
-    <value>Lopeta palvelun {0} uusiminen. Jäljellä oleva maksettu tai myönnetty aika säilyy. Edut ovat käytettävissä asti {1:d MMM yyyy}. Ostettua aikaa ei palauteta automaattisesti.</value>
+    <value>Lopeta palvelun {0} uusiminen. Palvelu on käytettävissä {1:d.M.yyyy} asti. Käyttämätöntä aikaa ei hyvitetä automaattisesti.</value>
   </data>
   <data name="Stop renewal of {0}. Keep remaining paid/granted time; cancel only unfinished requests for this service and return their unused funding to billing credit. No automatic refund of purchased time." xml:space="preserve">
-    <value>Lopeta palvelun {0} uusiminen. Jäljellä oleva maksettu tai myönnetty aika säilyy. Peru vain tämän palvelun keskeneräiset pyynnöt ja palauta niiden käyttämätön rahoitus laskutussaldoon. Ostettua aikaa ei palauteta automaattisesti.</value>
+    <value>Lopeta palvelun {0} uusiminen. Maksettu aika pysyy käytettävissä. Maksamattomat palvelulaskut perutaan ja varatut rahat palautetaan laskutussaldoon. Käyttämätöntä aikaa ei hyvitetä automaattisesti.</value>
   </data>
   <data name="Stop renewal; keep remaining covered time" xml:space="preserve">
-    <value>Lopeta uusiminen, säilytä jäljellä oleva aika</value>
+    <value>Lopeta uusiminen</value>
   </data>
   <data name="Submit application" xml:space="preserve">
     <value>Lähetä hakemus</value>
@@ -2101,7 +2071,7 @@
     <value>Tilaa</value>
   </data>
   <data name="Subscribe to {0} with a {1}-month billing interval. Base monthly price: {2} EUR before discounts/proration. The bill will show the actual charge, including any free time, discount or prorated period. This starts recurring renewal until you stop it." xml:space="preserve">
-    <value>Tilaa {0} laskutusvälillä {1} kuukautta. Kuukausittainen perushinta: {2} EUR ennen alennuksia ja suhteutusta. Laskussa näkyy todellinen maksu, johon sisältyvät mahdollinen maksuton aika, alennus tai suhteutettu jakso. Tilaus uusiutuu, kunnes lopetat uusimisen.</value>
+    <value>Tilaa {0}, laskutus {1} kuukauden välein. Normaalihinta: {2} EUR/kk. Alennukset ja ilmaiset päivät huomioidaan laskulla. Tilaus uusiutuu automaattisesti, kunnes lopetat uusimisen.</value>
   </data>
   <data name="Subscription is no longer current." xml:space="preserve">
     <value>Tilaus ei ole enää voimassa.</value>
@@ -2122,7 +2092,7 @@
     <value>Vaihda vaalean ja tumman tilan välillä</value>
   </data>
   <data name="Synchronization needs attention" xml:space="preserve">
-    <value>Synkronointi vaatii huomiota</value>
+    <value>Tarkista pankkiyhteys</value>
   </data>
   <data name="System" xml:space="preserve">
     <value>Järjestelmä</value>
@@ -2134,7 +2104,7 @@
     <value>Järjestelmän ylläpito</value>
   </data>
   <data name="System follows your device's light or dark preference." xml:space="preserve">
-    <value>Järjestelmä seuraa laitteesi vaalean tai tumman tilan asetusta.</value>
+    <value>Käytä laitteesi asetusta.</value>
   </data>
   <data name="Tampere Hacklab" xml:space="preserve">
     <value>Tampere Hacklab</value>
@@ -2146,7 +2116,7 @@
     <value>Päätä jäsenyys ja poista käyttäjätili</value>
   </data>
   <data name="Termination immediately blocks login and starts erasure. Restoration cancels erasure only: it does not renew expired coverage, reverse separate removals, or repair payments. Do not put personal details in the audit reason." xml:space="preserve">
-    <value>Jäsenyyden päättäminen estää kirjautumisen heti ja aloittaa poistamisen. Palauttaminen peruu vain poistamisen. Se ei uusi vanhentunutta voimassaoloa, peru erillisiä poistoja tai korjaa maksuja. Älä kirjaa henkilötietoja lokin perusteluun.</value>
+    <value>Erottaminen estää kirjautumisen ja käynnistää tilin poistamisen. Tilin palauttaminen peruu poistamisen, mutta ei aktivoi jäsenyyttä tai palveluja eikä korjaa maksuja. Älä kirjoita syyhyn henkilötietoja.</value>
   </data>
   <data name="That address is unavailable. Request a new change from your profile." xml:space="preserve">
     <value>Osoite ei ole saatavilla. Pyydä uutta vaihtoa profiilistasi.</value>
@@ -2200,10 +2170,10 @@
     <value>Teema: {0}</value>
   </data>
   <data name="These bills need your attention. Each has its own payment reference. Unpaid requests expire; they are not debt." xml:space="preserve">
-    <value>Nämä laskut vaativat huomiotasi. Jokaisella on oma maksuviite. Maksamattomat pyynnöt vanhenevat, eivätkä ne ole velkaa.</value>
+    <value>Käytä kunkin laskun omaa viitenumeroa.</value>
   </data>
   <data name="These financial claims do not restore accounts or recognize returning applicants. Refunds require treasurer verification." xml:space="preserve">
-    <value>Nämä taloudelliset saatavat eivät palauta käyttäjätilejä tai tunnista palaavia hakijoita. Palautukset edellyttävät rahastonhoitajan tarkistusta.</value>
+    <value>Rahastonhoitajan on tarkistettava poistettujen jäsenten saldon palautukset.</value>
   </data>
   <data name="This account cannot purchase while unavailable or pending deletion." xml:space="preserve">
     <value>Tältä tililtä ei voi ostaa, kun se on estetty tai odottaa poistamista.</value>
@@ -2266,7 +2236,7 @@
     <value>Tapahtumasaldot</value>
   </data>
   <data name="Transaction disposition saved. Source facts were retained." xml:space="preserve">
-    <value>Tapahtuman kohdistus tallennettu. Lähdetiedot säilytettiin.</value>
+    <value>Maksu päivitetty.</value>
   </data>
   <data name="Transaction history" xml:space="preserve">
     <value>Tapahtumahistoria</value>
@@ -2278,7 +2248,7 @@
     <value>Siirrä käytettävissä olevia varoja</value>
   </data>
   <data name="Transfer completed. Current available and allocated balances are shown below." xml:space="preserve">
-    <value>Siirto valmis. Nykyiset vapaat ja varatut saldot näkyvät alla.</value>
+    <value>Siirto tehty.</value>
   </data>
   <data name="Transfer requires a positive cent amount within the available balance." xml:space="preserve">
     <value>Siirto edellyttää positiivista sentintarkkaa summaa käytettävissä olevan saldon rajoissa.</value>
@@ -2296,19 +2266,16 @@
     <value>Epävarma (selvitettävä)</value>
   </data>
   <data name="Uncertain delivery requires reconciliation." xml:space="preserve">
-    <value>Epävarma toimitus vaatii selvitystä.</value>
+    <value>Tarkista viestin saapuminen ennen uudelleenlähetystä.</value>
   </data>
   <data name="Uncertain — reconcile with provider" xml:space="preserve">
-    <value>Epävarma — selvitä palveluntarjoajalta</value>
-  </data>
-  <data name="Under 18 — check consent outside the portal" xml:space="preserve">
-    <value>Alle 18-vuotias — tarkista suostumus portaalin ulkopuolella</value>
+    <value>Epävarma — tarkista sähköpostipalvelusta</value>
   </data>
   <data name="Unexplained difference" xml:space="preserve">
     <value>Selittämätön erotus</value>
   </data>
   <data name="Unpaid requests expire; they are not debt. A paid membership line remains paid even if another item is unfinished." xml:space="preserve">
-    <value>Maksamattomat pyynnöt vanhenevat, eivätkä ne ole velkaa. Maksettu jäsenmaksurivi pysyy maksettuna, vaikka muu rivi on keskeneräinen.</value>
+    <value>Maksamattomat laskut vanhenevat eivätkä muodosta velkaa. Maksettu jäsenyys pysyy aktiivisena, vaikka muita rivejä olisi maksamatta.</value>
   </data>
   <data name="Unresolved bank transactions" xml:space="preserve">
     <value>Käsittelemättömät pankkitapahtumat</value>
@@ -2317,7 +2284,7 @@
     <value>Käyttämättömät varatut varat palautettu laskutussaldoon</value>
   </data>
   <data name="Unused purchased service time is not automatically refunded or credited. Unspent available/allocated funds are handled separately; contact the treasurer about any remaining credit." xml:space="preserve">
-    <value>Käyttämätöntä ostettua palveluaikaa ei palauteta tai hyvitetä automaattisesti. Käyttämättömät vapaat ja varatut varat käsitellään erikseen. Ota yhteyttä rahastonhoitajaan jäljellä olevasta saldosta.</value>
+    <value>Käyttämätöntä palveluaikaa ei hyvitetä automaattisesti. Kysy rahastonhoitajalta jäljellä olevasta saldosta.</value>
   </data>
   <data name="Upcoming" xml:space="preserve">
     <value>Tulossa</value>
@@ -2335,22 +2302,22 @@
     <value>Käytä laitteen väritilaa</value>
   </data>
   <data name="Use the bank's stable transaction ID and actual booked date. Reimporting the same source must not change its facts. Outgoing transactions use a negative amount and are retained for review." xml:space="preserve">
-    <value>Käytä pankin pysyvää tapahtumatunnistetta ja todellista kirjauspäivää. Saman lähteen tuominen uudelleen ei saa muuttaa sen tietoja. Lähtevät tapahtumat kirjataan negatiivisina ja säilytetään käsittelyä varten.</value>
+    <value>Käytä pankin tapahtumatunnusta ja kirjauspäivää. Syötä lähtevät maksut negatiivisina summina.</value>
   </data>
   <data name="Use this bill's reference, not your purchase-deposit reference. Bank transfers appear after confirmation and processing; access may not update immediately." xml:space="preserve">
-    <value>Käytä tämän laskun viitettä ostosaldon talletusviitteen sijaan. Tilisiirrot näkyvät vahvistamisen ja käsittelyn jälkeen. Käyttöoikeudet eivät välttämättä päivity heti.</value>
+    <value>Käytä tämän laskun viitenumeroa. Pankkimaksun näkymisessä voi kestää muutama päivä.</value>
   </data>
   <data name="Use this reference only for deliberate purchase deposits, not to pay a bill. Deposits become available after bank confirmation; they do not buy services or reserve storage automatically." xml:space="preserve">
-    <value>Käytä tätä viitettä vain ostosaldon talletuksiin, älä laskun maksamiseen. Talletukset tulevat käyttöön pankkivahvistuksen jälkeen. Ne eivät osta palveluita tai varaa säilytystilaa automaattisesti.</value>
+    <value>Käytä tätä viitettä saldon lisäämiseen. Maksa laskut niiden omilla viitteillä. Saldo päivittyy, kun pankkimaksu on vahvistettu.</value>
   </data>
   <data name="Used time is not automatically refundable; review future effective time only." xml:space="preserve">
     <value>Käytettyä aikaa ei palauteta automaattisesti. Tarkastele vain tulevaa voimassaoloaikaa.</value>
   </data>
   <data name="Verification email queued. Your current address stays in use until verification succeeds." xml:space="preserve">
-    <value>Vahvistusviesti lisätty lähetysjonoon. Nykyinen osoite pysyy käytössä vahvistamiseen asti.</value>
+    <value>Tarkista uuden osoitteesi sähköposti ja vahvista osoite linkistä.</value>
   </data>
   <data name="Verified applications" xml:space="preserve">
-    <value>Vahvistetut hakemukset</value>
+    <value>vahvistettua hakemusta</value>
   </data>
   <data name="Verify application email" xml:space="preserve">
     <value>Vahvista hakemuksen sähköposti</value>
@@ -2367,11 +2334,8 @@
   <data name="View bill and payment instructions" xml:space="preserve">
     <value>Näytä lasku ja maksuohjeet</value>
   </data>
-  <data name="View filter only; never terminates membership or starts deletion." xml:space="preserve">
-    <value>Vain näkymän rajaus. Ei koskaan päätä jäsenyyttä tai aloita poistamista.</value>
-  </data>
   <data name="View outstanding bills and payment instructions" xml:space="preserve">
-    <value>Näytä avoimet laskut ja maksuohjeet</value>
+    <value>Katso maksamattomat laskut</value>
   </data>
   <data name="View this service's fee prices" xml:space="preserve">
     <value>Näytä tämän palvelun hinnat</value>
@@ -2389,16 +2353,13 @@
     <value>Poista alennus</value>
   </data>
   <data name="Withdraw this discount and reprice unfinished requests. Completed purchases are preserved." xml:space="preserve">
-    <value>Poista alennus ja hinnoittele keskeneräiset pyynnöt uudelleen. Valmiit ostot säilyvät.</value>
+    <value>Poista alennus maksamattomista ja tulevista laskuista. Maksetut kaudet eivät muutu.</value>
   </data>
   <data name="Workspaces" xml:space="preserve">
     <value>Työtilat</value>
   </data>
-  <data name="You are still a member. Billing is paused; you do not owe fees for inactive months." xml:space="preserve">
-    <value>Olet edelleen jäsen. Laskutus on keskeytetty, etkä ole velkaa passiivisten kuukausien maksuja.</value>
-  </data>
-  <data name="You are still a member. Membership billing is paused. Already-purchased service time keeps expiring normally." xml:space="preserve">
-    <value>Olet edelleen jäsen. Jäsenmaksujen laskutus on keskeytetty. Jo ostetut palvelujaksot kuluvat normaalisti.</value>
+  <data name="You do not need to pay for inactive months." xml:space="preserve">
+    <value>Epäaktiivisilta kuukausilta ei tarvitse maksaa jäsenmaksua.</value>
   </data>
   <data name="You cannot view this bill." xml:space="preserve">
     <value>Et voi tarkastella tätä laskua.</value>
@@ -2452,7 +2413,7 @@
     <value>{0:0.00} {1} → {2}</value>
   </data>
   <data name="{0:d MMM yyyy} through {1:d MMM yyyy}" xml:space="preserve">
-    <value>{0:d MMM yyyy} – {1:d MMM yyyy}</value>
+    <value>{0:d.M.yyyy} – {1:d.M.yyyy}</value>
   </data>
   <data name="{0} (currently {1} months)" xml:space="preserve">
     <value>{0} (tällä hetkellä {1} kuukautta)</value>
@@ -2475,9 +2436,6 @@
   <data name="{0} prices" xml:space="preserve">
     <value>Maksun {0} hinnat</value>
   </data>
-  <data name="{0} · Born {1} (age {2})" xml:space="preserve">
-    <value>{0} · Syntynyt {1} (ikä {2})</value>
-  </data>
   <data name="{0} · Joined {1}" xml:space="preserve">
     <value>{0} · Liittynyt {1}</value>
   </data>
@@ -2488,7 +2446,7 @@
     <value>{0} · tili #{1} · {2} · tulos #{3} · {4}</value>
   </data>
   <data name="{0} · bill #{1} · {2:0.00} EUR remaining · pay by {3:d MMM yyyy}" xml:space="preserve">
-    <value>{0} · lasku #{1} · {2:0.00} EUR jäljellä · maksa viimeistään {3:d MMM yyyy}</value>
+    <value>{0} · lasku #{1} · {2:0.00} EUR jäljellä · maksa viimeistään {3:d.M.yyyy}</value>
   </data>
   <data name="{0} · {1} attempts" xml:space="preserve">
     <value>{0} · {1} yritystä</value>
@@ -2525,5 +2483,35 @@
   </data>
   <data name="· {0} · {1} · billing {2} EUR · purchase {3} EUR" xml:space="preserve">
     <value>· {0} · {1} · laskutussaldo {2} EUR · ostosaldo {3} EUR</value>
+  </data>
+  <data name="{0:d MMM yyyy}" xml:space="preserve">
+    <value>{0:d.M.yyyy}</value>
+  </data>
+  <data name="Members with unpaid membership fees" xml:space="preserve">
+    <value>jäsentä, joilla jäsenmaksu maksamatta</value>
+  </data>
+  <data name="Membership fee paid." xml:space="preserve">
+    <value>Jäsenmaksu maksettu.</value>
+  </data>
+  <data name="Verified application" xml:space="preserve">
+    <value>vahvistettu hakemus</value>
+  </data>
+  <data name="Payment to review" xml:space="preserve">
+    <value>käsittelemätön maksu</value>
+  </data>
+  <data name="Member with unpaid membership fees" xml:space="preserve">
+    <value>jäsen, jolla jäsenmaksu maksamatta</value>
+  </data>
+  <data name="Account marked for deletion" xml:space="preserve">
+    <value>poistoa odottava tili</value>
+  </data>
+  <data name="Important email problem" xml:space="preserve">
+    <value>tärkeiden sähköpostien ongelma</value>
+  </data>
+  <data name="Applicant is underage" xml:space="preserve">
+    <value>Hakija on alaikäinen</value>
+  </data>
+  <data name="Age: {0}" xml:space="preserve">
+    <value>Ikä: {0}</value>
   </data>
 </root>

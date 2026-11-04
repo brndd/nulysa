@@ -19,7 +19,7 @@
                 @foreach (var bill in overview.Bills)
                 {
                     <li><a href="@($"/billing/invoices/{bill.Id}")">@T("View bill #{0} and payment instructions", bill.Id)</a>
-                        @if (bill.DueOn is { } due) { <span> @T("· Pay by {0}", due.ToString("d MMM yyyy"))</span> }
+                        @if (bill.DueOn is { } due) { <span> @T("· Pay by {0}", UiText.Date(due))</span> }
                     </li>
                 }
             </ul>
@@ -32,9 +32,9 @@
     {
         <section class="status-panel" aria-labelledby="standing-heading">
             <h2 id="standing-heading">@T("Your membership")</h2>
-            <p><strong>@T(membership.Active ? T("Active") : "Inactive")</strong> — @T(membership.Description)</p>
+            <p><strong>@T(membership.State == StandingState.MembershipInactive ? "Membership inactive" : membership.Description)</strong></p>
             @if (membership.ActiveUntilExclusive is not null) { <p><StandingThroughDate Standing="membership" /></p> }
-            @if (!membership.Active) { <p>@T("You are still a member. Billing is paused; you do not owe fees for inactive months.") <a href="/services">@T("Review membership return options")</a>.</p> }
+            @if (!membership.Active) { <p>@T("You do not need to pay for inactive months.") <a href="/services">@T("Review membership return options")</a>.</p> }
             else if (membership.IsMembershipGrace) { <p>@T("Membership remains active during grace.") <a href="/billing">@T("Review your membership payment before grace ends")</a>.</p> }
         </section>
     }

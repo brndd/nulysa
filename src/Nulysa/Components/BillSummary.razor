@@ -4,8 +4,8 @@
     <div>
         <h3>@T("Invoice #{0} — {1}", Invoice.Invoice.Id, (Invoice.Invoice.ClosedAt is null ? "Open" : "Closed"))</h3>
         <p>@string.Join(" · ", Invoice.Lines.Where(line => line.Line.State is LineState.Open or LineState.Fulfilled).Select(line => line.Line.Description).Distinct())</p>
-        @if (Invoice.Invoice.ClosedAt is null && Invoice.Invoice.DueOn is { } due) { <p>@T("Pay by {0}", due.ToString("d MMM yyyy"))</p> }
-        @if (Invoice.Lines.Any(line => line.Line.State == LineState.Fulfilled && line.Line.Benefit == Benefit.Membership)) { <p>@T("Membership on this bill is covered, even if other items remain unfinished.")</p> }
+        @if (Invoice.Invoice.ClosedAt is null && Invoice.Invoice.DueOn is { } due) { <p>@T("Pay by {0}", UiText.Date(due))</p> }
+        @if (Invoice.Invoice.ClosedAt is null && Invoice.Lines.Any(line => line.Line.State == LineState.Fulfilled && line.Line.Benefit == Benefit.Membership) && Invoice.Lines.Any(line => line.Line.Benefit != Benefit.Membership && line.Line.State == LineState.Open && line.Remaining > 0)) { <p>@T("Membership fee paid.")</p> }
     </div>
     <div class="bill-summary-actions">
         <p>@T("Remaining:") <strong>@T("{0} EUR", Invoice.Remaining.ToString("0.00"))</strong></p>

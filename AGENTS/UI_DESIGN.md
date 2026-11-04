@@ -757,7 +757,8 @@ S3–S6 or change the single full-replacement cutover plan.
    is explicitly a view default, never a termination or deletion rule. Standing
    uses the existing evaluator and reduced membership facts, not the money journal.
 2. **Application-review polish — implemented.** Compact list entries show name,
-   email, municipality, birth date/age and message, with additional profile fields
+   email, municipality, current age and message. Underage applicants have a highlighted
+   age and an accessible warning icon; birth date and additional profile fields are
    in a disclosure. Inline approval requires a visibly armed second click after a
    short debounce; without JavaScript it uses explicit confirmation. Rejection
    opens a dialog with an optional message and cancel/confirm actions. Both routes

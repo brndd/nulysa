@@ -64,7 +64,7 @@ else
             <label for="due">@T("Pay by")</label><InputDate id="due" @bind-Value="OneOff.DueOn" />
             </fieldset>
             @if (reviewing) { @foreach (var pair in OneOffValues) { <input type="hidden" name="@pair.Key" value="@pair.Value" /> } }
-            @if (reviewing) { <p class="status-panel">@T("Issue {0} ({1}): {2} EUR, pay by {3}.", OneOff.Description, OneOff.Category, OneOff.Amount.ToString("0.00"), OneOff.DueOn.ToString("d MMM yyyy"))</p><button name="OneOff.Confirmed" value="true">@T("Confirm one-off request")</button> }
+            @if (reviewing) { <p class="status-panel">@T("Issue {0} ({1}): {2} EUR, pay by {3}.", OneOff.Description, OneOff.Category, OneOff.Amount.ToString("0.00"), UiText.Date(OneOff.DueOn))</p><button name="OneOff.Confirmed" value="true">@T("Confirm one-off request")</button> }
             else { <button name="OneOff.Confirmed" value="false">@T("Review one-off request")</button> }
         </EditForm>
     }

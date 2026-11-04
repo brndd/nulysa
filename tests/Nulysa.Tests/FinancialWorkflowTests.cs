@@ -152,7 +152,7 @@ public sealed class FinancialWorkflowTests : BoardTest
         url = $"admin/payments/{receipt}?purpose=billing&account={first.AccountId}";
         input["Input.Confirmed"] = "false";
         var preview = await client.PostAsync(url, new FormUrlEncodedContent(input));
-        Assert.Contains("Review proposed disposition", await preview.Content.ReadAsStringAsync());
+        Assert.Contains("Review payment", await preview.Content.ReadAsStringAsync());
         Assert.False(await db.MoneyMovements.AnyAsync(movement => movement.ReceiptId == receipt));
         var confirm = Hidden(await preview.Content.ReadAsStringAsync());
         confirm["_handler"] = "review-receipt";

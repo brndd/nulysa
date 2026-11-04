@@ -27,7 +27,7 @@ public sealed record Standing(StandingState State, DateOnly? ActiveUntilExclusiv
         StandingState.Unavailable => "Pending deletion or unavailable",
         StandingState.Covered => "Covered",
         StandingState.MembershipInitialGrace or StandingState.MembershipRenewalGrace => DueToday ? "Due today" : "Active during grace",
-        StandingState.MembershipInactive => "Inactive — membership continues; billing paused",
+        StandingState.MembershipInactive => "Inactive",
         StandingState.NotSubscribed => "Not subscribed",
         StandingState.ServiceBlockedByMembership => "Membership inactive",
         StandingState.CoveredWithRenewalStopped => "Renewal stopped — covered",

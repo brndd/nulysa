@@ -17,7 +17,6 @@
 @if (error is not null) { <p role="alert">@ValidationText.Translate(error)</p> }
 @if (Id is null)
 {
-    <p>@T("Configure the membership price before approving applicants. Prices are EUR per month. Issued lines keep their quoted prices.")</p>
     <table tabindex="0"><caption>@T("Fees and current prices")</caption><thead><tr><th scope="col">@T("Fee")</th><th scope="col">@T("Category")</th><th scope="col">@T("Current monthly price EUR")</th><th scope="col">@T("State")</th></tr></thead><tbody>
     @foreach (var fee in fees)
     {

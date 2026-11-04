@@ -98,7 +98,7 @@ public sealed class PasswordChangeTests : BoardTest
         Assert.Equal(HttpStatusCode.Redirect, changed.StatusCode);
         Assert.Equal("/profile#account", changed.Headers.Location!.ToString());
         var profile = await client.GetStringAsync("profile");
-        Assert.Contains("Password changed. A notification email has been queued", profile);
+        Assert.Contains("Password changed. You’ll receive an email confirmation", System.Net.WebUtility.HtmlDecode(profile));
         Assert.DoesNotContain(ChangedPassword, profile);
         await using var db = Context();
         Assert.Single(await db.Deliveries.Where(delivery => delivery.Kind == MailKind.PasswordChanged).ToListAsync());

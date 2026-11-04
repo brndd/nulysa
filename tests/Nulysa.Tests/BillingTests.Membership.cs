@@ -230,7 +230,9 @@ public sealed partial class BillingTests
         await Run(app, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(delivery.Id));
 
         Assert.Single(transport.Sent);
-        Assert.Contains("keskeytetty", transport.Sent[0].Subject, StringComparison.OrdinalIgnoreCase);
+        Assert.EndsWith(" — Jäsenyys epäaktiivinen", transport.Sent[0].Subject);
+        Assert.Contains("Jäsenmaksusi jäi maksamatta", transport.Sent[0].Text);
+        Assert.Contains("/services", transport.Sent[0].Text);
     }
 
     [Fact]

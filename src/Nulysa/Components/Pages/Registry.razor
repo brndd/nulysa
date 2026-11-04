@@ -55,7 +55,7 @@
                     <div>
                         <h2><a href="@RegistryNavigation.MemberUrl(member.Id, ListUrl(result.Page))">@member.Name <span>@T("Member #{0}", member.Id)</span></a></h2>
                         <p>@member.Email</p>
-                        <p class="field-help">@T("Joined {0}", member.JoinedOn.ToString("d MMM yyyy"))</p>
+                        <p class="field-help">@T("Joined {0}", UiText.Date(member.JoinedOn))</p>
                     </div>
                     <div class="registry-standing">
                         @if (member.PendingDeletionAt is not null)
@@ -65,7 +65,7 @@
                         else
                         {
                             <strong>@T(member.Standing!.Description)</strong>
-                            @if (member.Standing.InactiveSince is { } since) { <p>@T("Inactive since {0}", since.ToString("d MMM yyyy"))</p> }
+                            @if (member.Standing.InactiveSince is { } since) { <p>@T("Inactive since {0}", UiText.Date(since))</p> }
                             @if (member.Standing.ActiveUntilExclusive is not null) { <p><StandingThroughDate Standing="member.Standing" /></p> }
                         }
                     </div>

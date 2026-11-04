@@ -8,6 +8,36 @@ namespace Nulysa.Tests;
 
 public sealed class UiRefinementTests : BoardTest
 {
+    [Theory]
+    [InlineData("en", 11, 17, true)]
+    [InlineData("en", 12, 18, false)]
+    [InlineData("fi", 11, 17, true)]
+    [InlineData("fi", 12, 18, false)]
+    public async Task Application_age_warning_ends_on_eighteenth_birthday_and_birth_date_is_in_extra_details(
+        string language, int day, int age, bool underage)
+    {
+        Clock.Now = new(2028, 6, day, 10, 0, 0, TimeSpan.Zero);
+        await Board();
+        await using var commands = CommandsApp();
+        var id = await Verified(commands);
+        await using var web = await StartProvider();
+        using var administrator = Client(language: language);
+        await Login(administrator, "board@example.test");
+        foreach (var route in new[] { "admin/applications", $"admin/applications/{id}" })
+        {
+            var html = WebUtility.HtmlDecode(await administrator.GetStringAsync(route));
+            var header = html.Split("<article class=\"application-card\">")[1].Split("</header>")[0];
+            Assert.Contains(language == "fi" ? $"Ikä: {age}" : $"Age: {age}", header);
+            var warning = language == "fi" ? "Hakija on alaikäinen" : "Applicant is underage";
+            Assert.Equal(underage, header.Contains($"aria-label=\"{warning}\"", StringComparison.Ordinal));
+            Assert.Equal(underage, header.Contains("applicant-age underage", StringComparison.Ordinal));
+            Assert.DoesNotContain("2010", header);
+            var extra = html.Split("<details class=\"application-extra\">")[1].Split("</details>")[0];
+            Assert.Contains(language == "fi" ? "12.6.2010" : "12 Jun 2010", extra);
+            Assert.Contains(language == "fi" ? "Nimimerkki" : "Nickname", extra);
+        }
+    }
+
     [Fact]
     public async Task Inline_application_decisions_require_confirmation_and_target_only_the_selected_verified_application()
     {
@@ -22,7 +52,7 @@ public sealed class UiRefinementTests : BoardTest
         var html = await administrator.GetStringAsync("admin/applications");
         Assert.Contains("Helsinki", html);
         Assert.Contains("I want to join.", html);
-        Assert.Contains("Born", html);
+        Assert.Contains("Date of birth", html);
         Assert.DoesNotContain("unverified@example.test", html);
         var input = new Dictionary<string, string>
         {
@@ -79,12 +109,12 @@ public sealed class UiRefinementTests : BoardTest
             Assert.Contains("50% discount", html);
             Assert.Contains($"Applied to outstanding bill #{view.Invoices[0].Invoice.Id}", html);
             Assert.Contains("30 Jun 2026", html);
-            Assert.Contains("Email invoice PDFs", html);
+            Assert.Contains("Send invoices via email", html);
             Assert.Contains("class=\"preference-form\"", html);
         }
         var billing = WebUtility.HtmlDecode(await member.GetStringAsync("billing"));
         Assert.Contains("50% discount", billing);
-        Assert.DoesNotContain("Email invoice PDFs", billing);
+        Assert.DoesNotContain("Send invoices via email", billing);
         var profile = WebUtility.HtmlDecode(await member.GetStringAsync("profile"));
         Assert.Contains($"Current email: <strong>{Email}</strong>", profile);
         Assert.DoesNotContain("SSO", profile);
@@ -144,8 +174,13 @@ public sealed class UiRefinementTests : BoardTest
             Assert.DoesNotContain("name=\"Action.Grant\"", html);
             Assert.DoesNotContain("id=\"transactions\"", html);
             var settings = html.Split("id=\"billing-settings\"")[1].Split("</section>")[0];
-            Assert.Contains("Email invoice PDFs", settings);
-            Assert.Contains("Billing intervals", settings);
+            Assert.Contains("Send invoices via email", settings);
+            Assert.Contains("Billing periods", settings);
+            Assert.Contains("Change billing period", settings);
+            Assert.Contains("<h2>Upcoming invoices</h2>", html);
+            Assert.Contains("Standard price: 20.00 EUR/month.", html);
+            Assert.DoesNotContain("Initial free days", html);
+            Assert.DoesNotContain("Forecasts are estimates", html);
         }
         var front = await administrator.GetStringAsync("/");
         Assert.Contains("<h1>Member portal</h1>", front);

@@ -36,7 +36,7 @@ else { <AdminPageHeader Title="@T("Bill details")" /> }
                 <dt>@T("IBAN")</dt><dd class="payment-reference">@Options.Value.Iban</dd>
                 <dt>@T("Reference")</dt><dd class="payment-reference">@invoice.Reference</dd>
                 <dt>@T("Remaining amount")</dt><dd>@T("{0} EUR", invoice.Remaining.ToString("0.00"))</dd>
-                @if (invoice.Invoice.DueOn is { } due) { <dt>@T("Pay by")</dt><dd>@due.ToString("d MMM yyyy")</dd> }
+                @if (invoice.Invoice.DueOn is { } due) { <dt>@T("Pay by")</dt><dd>@UiText.Date(due)</dd> }
             </dl>
             <p>@T("Use this bill's reference, not your purchase-deposit reference. Bank transfers appear after confirmation and processing; access may not update immediately.")</p>
             <p>@T("Unpaid requests expire; they are not debt. A paid membership line remains paid even if another item is unfinished.")</p>

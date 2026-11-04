@@ -179,7 +179,7 @@ section[id] { scroll-margin-top: 1rem; }
 .attention-queues small, .field-help { color: var(--nulysa-secondary); }
 .filter-panel { padding: 1.25rem; margin: 1.5rem 0; border: 1px solid var(--nulysa-border); border-radius: var(--nulysa-radius); background: var(--nulysa-surface); }
 .filter-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr)); gap: .5rem 1rem; }
-.filter-fields > div { min-width: 0; }
+.filter-fields > div { min-width: 0; display: flex; flex-direction: column; justify-content: flex-end; }
 .filter-panel input, .filter-panel select { max-width: 100%; }
 .filter-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1rem; }
 .filter-actions a { padding-block: .5rem; white-space: nowrap; }
@@ -187,7 +187,7 @@ section[id] { scroll-margin-top: 1rem; }
 .registry-member h2 { margin: 0 0 .5rem; font-size: 1.15rem; }
 .registry-member h2 span { display: block; margin-top: .25rem; font-size: .9rem; font-weight: 400; }
 .registry-member p { margin: .25rem 0; }
-.breadcrumbs { display: flex; flex-wrap: wrap; gap: .65rem; margin-bottom: 1rem; }
+.breadcrumbs { display: flex; flex-wrap: wrap; align-items: baseline; gap: .65rem; margin-bottom: 1rem; }
 .breadcrumbs a { padding-block: .25rem; }
 .member-subject { padding: .65rem 0; margin: 0 0 .85rem; border-bottom: 1px solid var(--nulysa-border); display: grid; gap: .15rem; }
 .member-subject p { margin: .25rem 0; }
@@ -249,6 +249,9 @@ section[id] { scroll-margin-top: 1rem; }
 .application-card { padding: 1rem; border: 1px solid var(--nulysa-border); border-radius: var(--nulysa-radius); background: var(--nulysa-surface); }
 .application-card h2 { margin: 0 0 .4rem; }
 .application-card header p { margin: 0 0 .35rem; }
+.applicant-age { display: inline-flex; align-items: center; gap: .3rem; }
+.applicant-age.underage { color: var(--nulysa-danger); font-weight: 700; }
+.applicant-age svg { flex-shrink: 0; }
 .application-message { white-space: pre-wrap; margin: .75rem 0; }
 .application-actions { display: flex; align-items: start; flex-wrap: wrap; gap: .5rem 1rem; }
 .application-actions .dialog-disclosure { margin: .25rem 0; }

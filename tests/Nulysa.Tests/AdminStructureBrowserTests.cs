@@ -49,7 +49,7 @@ public sealed class AdminStructureBrowserTests : BoardTest
         var billUrl = page.Url;
         Assert.Contains($"admin/members/{id}/billing/invoices/{invoiceId}", billUrl);
         await Assertions.Expect(page.Locator(".workspace-label")).ToHaveTextAsync("Administration");
-        await page.GetByRole(AriaRole.Link, new() { Name = "Cancel unfinished bill", Exact = true }).ClickAsync();
+        await page.GetByRole(AriaRole.Link, new() { Name = "Cancel unpaid bill items", Exact = true }).ClickAsync();
         await Assertions.Expect(page.GetByLabel("Bill with unfinished lines", new() { Exact = true })).ToHaveValueAsync(invoiceId.ToString());
         await page.GetByLabel("Reason", new() { Exact = true }).FillAsync("Review only");
         await page.GetByRole(AriaRole.Button, new() { Name = "Review adjustment", Exact = true }).ClickAsync();
@@ -80,6 +80,17 @@ public sealed class AdminStructureBrowserTests : BoardTest
                     {
                         await page.GotoAsync(root + route);
                         Assert.True(await page.EvaluateAsync<bool>("document.documentElement.scrollWidth <= innerWidth"), $"Overflow at {width}px in {theme}/{mode}: {route}");
+                        Assert.True(await page.EvaluateAsync<bool>("""
+                        (() => {
+                            const rects = [...document.querySelectorAll('.breadcrumbs > *')].flatMap(item => {
+                                const range = document.createRange();
+                                range.selectNodeContents(item);
+                                return [...range.getClientRects()];
+                            });
+                            return rects.every((rect, i) => rects.slice(i + 1).every(other =>
+                                rect.bottom <= other.top || other.bottom <= rect.top || Math.abs(rect.bottom - other.bottom) < 1));
+                        })()
+                        """), $"Breadcrumb text misaligned at {width}px in {theme}/{mode}: {route}");
                         await Assertions.Expect(page.Locator("#portal-navigation nav[aria-label=\"Board administration\"] a.active")).ToHaveCountAsync(1);
                     }
                 }

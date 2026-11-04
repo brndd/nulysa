@@ -10,6 +10,30 @@ namespace Nulysa.Tests;
 public sealed class LocalizationUnitTests
 {
     [Theory]
+    [InlineData("fi-FI", "fi", "3.12.2026", "Voimassa 3.12.2026 asti", "1.12.2026 – 3.12.2026")]
+    [InlineData("en-GB", "en", "3 Dec 2026", "Valid through 3 Dec 2026", "1 Dec 2026 through 3 Dec 2026")]
+    public void Display_dates_use_local_formats_and_periods_keep_the_inclusive_last_day(
+        string culture, string uiCulture, string date, string standing, string period)
+    {
+        var originalCulture = CultureInfo.CurrentCulture;
+        var originalUiCulture = CultureInfo.CurrentUICulture;
+        try
+        {
+            CultureInfo.CurrentCulture = new(culture);
+            CultureInfo.CurrentUICulture = new(uiCulture);
+            var lastDay = new DateOnly(2026, 12, 3);
+            Assert.Equal(date, UiText.Date(lastDay));
+            Assert.Equal(standing, UiText.T("Covered through {0:d MMM yyyy}", lastDay));
+            Assert.Equal(period, Nulysa.Components.BillingDateText.Period(new(2026, 12, 1), lastDay.AddDays(1)));
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = originalCulture;
+            CultureInfo.CurrentUICulture = originalUiCulture;
+        }
+    }
+
+    [Theory]
     [InlineData("fi-FI", "1,25", 1.25)]
     [InlineData("en-GB", "1.25", 1.25)]
     [InlineData("fi-FI", "-1,25", -1.25)]

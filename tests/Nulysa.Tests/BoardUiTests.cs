@@ -91,6 +91,20 @@ public sealed class BoardUiTests : BoardTest
         var longInactive = await Registry(app, board, state: "inactive", days: 60);
         Assert.Equal(id, Assert.Single(longInactive.Entries).Id);
         Assert.Empty((await Registry(app, board, state: "inactive", days: 120)).Entries);
+
+        var passwordToken = await PasswordToken(app, id);
+        await Run(app, services => services.GetRequiredService<AccountCommands>().SetPassword(id, passwordToken, Password));
+        await using var web = await StartProvider();
+        using var administrator = Client(language: "fi");
+        await Login(administrator, "board@example.test");
+        var adminOverview = WebUtility.HtmlDecode(await administrator.GetStringAsync($"admin/members/{id}"));
+        Assert.Contains("<strong>Jäsenyys epäaktiivinen</strong>", adminOverview);
+        using var memberClient = Client();
+        await Login(memberClient);
+        var memberOverview = await memberClient.GetStringAsync("services");
+        Assert.Contains("<strong>Membership inactive</strong>", memberOverview);
+        Assert.DoesNotContain("membership continues", memberOverview);
+
         await Run(app, services => services.GetRequiredService<MembershipCommands>().BeginDeletion(board, id, Guid.NewGuid(), "Reviewed termination"));
         await CheckStanding();
 
@@ -196,7 +210,7 @@ public sealed class BoardUiTests : BoardTest
         await Login(administrator, "board@example.test");
         var html = WebUtility.HtmlDecode(await administrator.GetStringAsync("admin/mail-attention?state=review&scope=all"));
 
-        Assert.Contains("Uncertain — reconcile with provider", html);
+        Assert.Contains("Uncertain — check with email provider", html);
         Assert.Contains("synthetic-provider-1", html);
         Assert.DoesNotContain("synthetic-provider-0<", html);
         Assert.DoesNotContain("<form method=\"post\"", html.Split("<main")[1].Split("</main>")[0]);
@@ -248,6 +262,22 @@ public sealed class BoardUiTests : BoardTest
         Assert.Null((await db.Users.AsNoTracking().SingleAsync(user => user.Id == inactive)).PendingDeletionAt);
         Assert.Equal(1, (await Run(app, services => services.GetRequiredService<MembershipQueries>().MailFailures(board, state: "review"))).Total);
         Assert.Equal(3, (await Run(app, services => services.GetRequiredService<MembershipQueries>().MailFailures(board, essentialOnly: false))).Total);
+
+        await using var web = await StartProvider();
+        using var administrator = Client(language: "fi");
+        await Login(administrator, "board@example.test");
+        var html = WebUtility.HtmlDecode(await administrator.GetStringAsync("admin?inactiveDays=90"));
+        Assert.Contains("<strong>1</strong><span>vahvistettu hakemus</span>", html);
+        Assert.Contains("<strong>1</strong><span>käsittelemätön maksu</span>", html);
+        Assert.Contains("<strong>1</strong><span>jäsen, jolla jäsenmaksu maksamatta</span>", html);
+        Assert.Contains("<strong>1</strong><span>poistoa odottava tili</span>", html);
+        Assert.Contains("<strong>2</strong><span>tärkeiden sähköpostien ongelmaa</span>", html);
+        await Verified(app, "second-verified@example.test");
+        db.Receipts.Add(new() { Source = "test", SourceAccount = "bank", ExternalId = "second-review", Amount = 2, ReceivedOn = new(2026, 10, 1), ImportedAt = Clock.Now, State = ReceiptState.Review });
+        await db.SaveChangesAsync();
+        var plural = WebUtility.HtmlDecode(await administrator.GetStringAsync("admin?inactiveDays=90"));
+        Assert.Contains("<strong>2</strong><span>vahvistettua hakemusta</span>", plural);
+        Assert.Contains("<strong>2</strong><span>käsittelemätöntä maksua</span>", plural);
     }
 
     [Fact]
@@ -362,20 +392,25 @@ public sealed class BoardUiTests : BoardTest
 
         Assert.Contains("<h1>Needs attention</h1>", dashboard);
         Assert.Contains("Automatic bank import is disabled", dashboard);
-        Assert.Contains("No successful bank synchronization has been recorded", dashboard);
-        Assert.Contains("Inactive for at least 30 days", dashboard);
+        Assert.Contains("No bank payments have been imported yet", dashboard);
+        Assert.Contains("Membership inactive for at least 30 days", dashboard);
         Assert.Contains("inactiveDays=30", dashboard);
         var defaultDashboard = await administrator.GetStringAsync("admin");
-        Assert.Contains("Inactive for at least 30 days", defaultDashboard);
+        Assert.Contains("Membership inactive for at least 30 days", defaultDashboard);
         Assert.Contains("inactiveDays=30", defaultDashboard);
         var customDashboard = await administrator.GetStringAsync("admin?inactiveDays=60");
-        Assert.Contains("Inactive for at least 60 days", customDashboard);
+        Assert.Contains("Membership inactive for at least 60 days", customDashboard);
         Assert.Contains("inactiveDays=60", customDashboard);
         Assert.Contains("No members match these filters", registry);
         Assert.DoesNotContain("Essential mail needing attention", registry);
-        Assert.Contains("No known mail problems match these filters", mail);
+        Assert.Contains("No mail problems found", mail);
         Assert.DoesNotContain("<button>Retry", mail);
         Assert.True((await administrator.GetAsync("admin")).Headers.CacheControl?.NoStore);
+        using var finnish = Client(language: "fi");
+        await Login(finnish, "board@example.test");
+        var empty = WebUtility.HtmlDecode(await finnish.GetStringAsync("admin"));
+        foreach (var label in new[] { "vahvistettua hakemusta", "käsittelemätöntä maksua", "jäsentä, joilla jäsenmaksu maksamatta", "poistoa odottavaa tiliä", "tärkeiden sähköpostien ongelmaa" })
+            Assert.Contains($"<strong>0</strong><span>{label}</span>", empty);
     }
 
 }

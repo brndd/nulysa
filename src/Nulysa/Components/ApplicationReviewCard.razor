@@ -8,12 +8,20 @@
 
 <article class="application-card">
     <header><h2><a href="@($"/admin/applications/{Application.Id}")">@Application.Name — @Application.Email</a></h2>
-        <p>@T("{0} · Born {1} (age {2})", Application.Municipality, Application.DateOfBirth.ToString("d MMM yyyy"), Age)</p>
-        @if (Age < 18) { <strong>@T("Under 18 — check consent outside the portal")</strong> }
+        <p>@Application.Municipality · <span class="applicant-age @(Age < 18 ? "underage" : null)">@T("Age: {0}", Age)
+            @if (Age < 18)
+            {
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="@T("Applicant is underage")" focusable="false">
+                    <title>@T("Applicant is underage")</title>
+                    <path d="M12 3 2 21h20L12 3Z" /><path d="M12 9v5" /><circle cx="12" cy="17" r="1" fill="currentColor" stroke="none" />
+                </svg>
+            }
+        </span></p>
     </header>
     <p class="application-message">@Application.Message</p>
     <details class="application-extra"><summary>@T("Other application details")</summary>
-        <dl class="compact-facts"><dt>@T("Language")</dt><dd>@Application.Language</dd><dt>@T("Phone")</dt><dd>@(Application.PhoneNumber ?? T("Not supplied"))</dd>
+        <dl class="compact-facts"><dt>@T("Date of birth")</dt><dd>@UiText.Date(Application.DateOfBirth)</dd>
+            <dt>@T("Language")</dt><dd>@Application.Language</dd><dt>@T("Phone")</dt><dd>@(Application.PhoneNumber ?? T("Not supplied"))</dd>
             <dt>@T("Nickname")</dt><dd>@(Application.Nickname ?? T("Not supplied"))</dd><dt>@T("Matrix ID")</dt><dd>@(Application.MatrixId ?? T("Not supplied"))</dd></dl>
     </details>
     @if (error is not null && !Input!.Rejecting) { <p role="alert">@ValidationText.Translate(error)</p> }

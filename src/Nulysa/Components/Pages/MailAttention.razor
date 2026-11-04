@@ -11,8 +11,7 @@
 <AdminSectionTabs Destination="mail" />
 <p class="page-intro">@T("Essential mail includes verification, welcome, security, membership and deletion notices. Invoice emails are optional and can be included below.")</p>
 <div class="status-panel operational-warning">
-    <p><strong>@T("Uncertain delivery requires reconciliation.")</strong> @T("Review means a send may have been accepted. Check the delivery ID and provider reference with the mail provider before taking further action. Do not blindly resend.")</p>
-    <p>@T("Failed means delivery was not confirmed. Rejected applicant payloads are erased at their configured deadline even if sending failed. A queued message is not proof of delivery.")</p>
+    <p>@T("Uncertain delivery requires reconciliation.")</p>
 </div>
 <form method="get" action="/admin/mail-attention" class="filter-panel">
     <div class="filter-fields">

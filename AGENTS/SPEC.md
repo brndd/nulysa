@@ -162,8 +162,8 @@ These are conceptual distinctions, not database tables or a settled data model.
 - Payment standing is determined from the membership fee line and coverage, not
   an aggregate unpaid-invoice flag. A combined bill can remain open for door
   access after its membership line is paid; that does not make membership overdue.
-- An inactive person is still a member, with restricted benefits or portal
-  functions. Ending membership is a separate, later step.
+- Inactivity marks unpaid membership fees for follow-up. Keep the account
+  available so administrators can contact the person and they can reactivate.
 - Grace expiry makes membership inactive and pauses membership billing.
 - Membership termination is a manual administrator action, not an automatic
   consequence of remaining inactive for a configured period.
@@ -228,13 +228,13 @@ These are conceptual distinctions, not database tables or a settled data model.
 - Only nonpayment of membership fees can subsequently end membership for
   nonpayment. Other unpaid services may affect their corresponding entitlements,
   but do not themselves end membership.
-- An inactive member remains an association member, with restricted benefits or
-  portal functions. For recurring membership invoices, inactivity begins
+- Administrators can follow up by email when membership becomes inactive.
+  For recurring membership invoices, inactivity begins
   immediately when the unpaid membership line's grace expires, and membership
   billing pauses at that point. Initial-payment rules are described separately.
 - Any portal restrictions for overdue membership fees must preserve login to view
   bills and pay, maintain personal details, resign and make personal-data/privacy
-  requests while membership continues. Keep the member-services page convenient
+  requests while the account is retained. Keep the member-services page convenient
   to reach; storage, access-control tools and other members-only areas may be
   restricted during inactivity. For renewals, reaching the membership charge's due
   date alone does not make membership inactive; its initial grace instead ends after
@@ -753,7 +753,7 @@ initial grace --unpaid after initial due date--> inactive member (no renewal gra
 
 member --recurring invoice overdue--> active member in grace period
 active member in grace period --unpaid at grace expiry--> inactive member
-inactive member: still a member; membership billing paused
+inactive membership: account retained for follow-up; membership billing paused
 inactive member --return-period payment, automatic reactivation enabled--> active member
 reactivated member: prorated return to next boundary; existing billing anchor unchanged
 member (active or inactive) --manual admin termination--> pending deletion
@@ -813,19 +813,18 @@ is no persistent terminated account state between membership and deletion.
 - If the membership line remains unpaid through grace expiry, the member receives the
   grace-end notice, immediately becomes inactive and has membership billing paused.
 
-### Acceptance example: inactive but still a member
+### Acceptance example: inactive membership with account retained
 
 - Given a member whose unpaid membership fee reaches the inactivity threshold,
 - when the inactivity rules take effect,
-- the person remains an association member with restricted benefits or features.
+- membership becomes inactive and administrators can follow up about unpaid fees.
 - They retain portal access to view bills and pay, maintain personal details,
   resign and make personal-data/privacy requests.
 - Keep membership-payment information and the member-services page conveniently
   accessible; storage/access-control tools and other members-only areas may be restricted.
-- Membership termination and personal-data erasure have not occurred merely
-  because the member became inactive.
-- Membership billing pauses. Remaining inactive for longer does not automatically
-  terminate membership; an administrator must make that decision.
+- Inactivity does not start account deletion or personal-data erasure.
+- Membership billing pauses. Remaining inactive does not automatically start
+  account deletion; that requires a separate action.
 
 ### Acceptance example: returning after several inactive months
 

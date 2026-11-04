@@ -7,25 +7,23 @@
 
 <PageTitle>@T("Needs attention") — @Configuration["Association:Name"]</PageTitle>
 <h1>@T("Needs attention")</h1>
-<p class="page-intro">@T("Review membership and payment queues, then check the operational warnings below. An empty queue means no known items; it does not establish that integrations are healthy.")</p>
 @if (attention is not null)
 {
     <nav class="attention-queues" aria-label="@T("Board work queues")">
-        <a href="/admin/applications"><strong>@attention.Applications</strong><span>@T("Verified applications")</span><small>@T("Review admission decisions")</small></a>
-        <a href="/admin/payments#payment-review"><strong>@attention.PaymentReviews</strong><span>@T("Payment exceptions")</span><small>@T("Review unmatched bank transactions")</small></a>
+        <a href="/admin/applications"><strong>@attention.Applications</strong><span>@T(attention.Applications == 1 ? "Verified application" : "Verified applications")</span><small>@T("Review admission decisions")</small></a>
+        <a href="/admin/payments#payment-review"><strong>@attention.PaymentReviews</strong><span>@T(attention.PaymentReviews == 1 ? "Payment to review" : "Payment exceptions")</span><small>@T("Review unmatched bank transactions")</small></a>
         <div class="attention-queue">
-            <a href="@($"/admin/members?state=inactive&inactiveDays={InactiveDays}")"><strong>@attention.InactiveMembers</strong><span>@T("Inactive for at least {0} days", InactiveDays)</span><small>@T("Review members, longest inactive first")</small></a>
+            <a href="@($"/admin/members?state=inactive&inactiveDays={InactiveDays}")"><strong>@attention.InactiveMembers</strong><span>@T(attention.InactiveMembers == 1 ? "Member with unpaid membership fees" : "Members with unpaid membership fees")</span><small>@T("Inactive for at least {0} days", InactiveDays)</small></a>
             <details class="queue-filter"><summary>@T("Adjust threshold")</summary>
                 <form method="get" action="/admin" class="compact-form">
                     <label for="inactive-days">@T("Inactivity review threshold (days)")</label>
-                    <input id="inactive-days" name="inactiveDays" type="number" min="1" max="36500" value="@InactiveDays" aria-describedby="threshold-help" />
+                    <input id="inactive-days" name="inactiveDays" type="number" min="1" max="36500" value="@InactiveDays" />
                     <button class="secondary-action">@T("Apply")</button>
-                    <small id="threshold-help">@T("View filter only; never terminates membership or starts deletion.")</small>
                 </form>
             </details>
         </div>
-        <a href="/admin/members?state=pending-deletion"><strong>@attention.PendingDeletions</strong><span>@T("Pending deletions")</span><small>@T("Review before the erasure batch")</small></a>
-        <a href="/admin/mail-attention"><strong>@attention.EssentialMailProblems</strong><span>@T("Essential mail problems")</span><small>@T("Reconcile failed or uncertain delivery")</small></a>
+        <a href="/admin/members?state=pending-deletion"><strong>@attention.PendingDeletions</strong><span>@T(attention.PendingDeletions == 1 ? "Account marked for deletion" : "Pending deletions")</span><small>@T("Review before the erasure batch")</small></a>
+        <a href="/admin/mail-attention"><strong>@attention.EssentialMailProblems</strong><span>@T(attention.EssentialMailProblems == 1 ? "Important email problem" : "Essential mail problems")</span><small>@T("Reconcile failed or uncertain delivery")</small></a>
     </nav>
     <section id="bank-sync" aria-labelledby="bank-heading">
         <h2 id="bank-heading">@T("Bank synchronization")</h2>

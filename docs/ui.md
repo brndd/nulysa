@@ -392,3 +392,18 @@ request tests and five browser tests passed, including the four-theme responsive
 matrix. Keyboard dismissal/focus restoration, independent choices, OS mode changes,
 enhanced-navigation switch state and no-JavaScript controls are covered. Desktop
 and 320-pixel screenshots were inspected; formatting and diff checks passed.
+
+
+### Interface copy
+
+Keep labels short and use everyday language in Finnish and English. Put actions on
+buttons (for example, “Change billing period”); explain only consequences that matter
+to the decision. Avoid descriptions of internal processing, repeated explanations of
+headings and defensive caveats on ordinary status messages. Keep payment and access
+consequences in confirmations. Upcoming invoices use that heading rather than
+“forecasts”. Service lists show the standard monthly price; subscription confirmation
+explains discounts, free days and automatic renewal.
+
+Resource identifiers retain their original English phrases because domain errors and
+stored feedback also use them. Edit the English and Finnish resource values together;
+the identifier is not necessarily the displayed copy.

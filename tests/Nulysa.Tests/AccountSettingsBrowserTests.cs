@@ -51,11 +51,11 @@ public sealed class AccountSettingsBrowserTests : BoardTest
         }
         var save = page.GetByRole(AriaRole.Button, new() { Name = "Save preference", Exact = true });
         await Assertions.Expect(save).ToBeDisabledAsync();
-        await page.GetByLabel("Email invoice PDFs").UncheckAsync();
+        await page.GetByLabel("Send invoices via email").UncheckAsync();
         await Assertions.Expect(save).ToBeEnabledAsync();
-        await page.GetByLabel("Email invoice PDFs").CheckAsync();
+        await page.GetByLabel("Send invoices via email").CheckAsync();
         await Assertions.Expect(save).ToBeDisabledAsync();
-        await page.GetByLabel("Email invoice PDFs").UncheckAsync();
+        await page.GetByLabel("Send invoices via email").UncheckAsync();
         await save.ClickAsync();
         await Assertions.Expect(save).ToBeDisabledAsync();
         await page.GotoAsync(root + "profile#account");

@@ -76,10 +76,10 @@ public sealed class MailRenderer(AppDbContext db, UserManager<User> users, Membe
                 if (delivery.Kind == MailKind.MembershipGrace && (!standing.Active || !standing.IsMembershipGrace))
                     return null;
 
-                subject = delivery.Kind == MailKind.MembershipInactive ? (fi ? "Jäsenpalvelut keskeytetty" : "Membership benefits paused") : (fi ? "Jäsenmaksun lisäaika" : "Membership payment grace");
+                subject = delivery.Kind == MailKind.MembershipInactive ? (fi ? "Jäsenyys epäaktiivinen" : "Membership inactive") : (fi ? "Jäsenmaksun lisäaika" : "Membership payment grace");
                 text = (delivery.Kind == MailKind.MembershipInactive
-                    ? (fi ? "Jäsenmaksun määräaika päättyi. Jäsenyys jatkuu, mutta jäsenpalvelut ja jäsenlaskutus on keskeytetty. Voit palata maksamalla uuden paluujakson. " : "Your membership payment grace ended. You remain a member; benefits and membership billing are paused. Request a return period to resume. ")
-                    : (fi ? $"Jäsenmaksu on maksamatta. Jäsenpalvelut jatkuvat {standing.ActiveUntilExclusive?.AddDays(-1):yyyy-MM-dd} asti. " : $"Your membership payment is overdue. Benefits remain active through {standing.ActiveUntilExclusive?.AddDays(-1):yyyy-MM-dd}. ")) + Link("billing", new());
+                    ? (fi ? "Jäsenmaksusi jäi maksamatta, joten jäsenyytesi on epäaktiivinen. Katso, miten voit aktivoida jäsenyytesi uudelleen: " : "Your membership fee was not paid, so your membership is inactive. See how to reactivate: ")
+                    : (fi ? $"Jäsenmaksu on maksamatta. Jäsenpalvelut jatkuvat {standing.ActiveUntilExclusive?.AddDays(-1):yyyy-MM-dd} asti. " : $"Your membership payment is overdue. Benefits remain active through {standing.ActiveUntilExclusive?.AddDays(-1):yyyy-MM-dd}. ")) + Link(delivery.Kind == MailKind.MembershipInactive ? "services" : "billing", new());
             }
             else if (delivery.Kind == MailKind.BankAlert)
             {

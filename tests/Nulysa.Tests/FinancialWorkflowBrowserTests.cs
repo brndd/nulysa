@@ -27,18 +27,18 @@ public sealed class FinancialWorkflowBrowserTests : BoardTest
         await page.GetByLabel("Password", new() { Exact = true }).FillAsync(Password);
         await page.GetByRole(AriaRole.Button, new() { Name = "Log in", Exact = true }).ClickAsync();
         await page.GotoAsync(root + $"admin/payments/{receipt}");
-        await page.GetByLabel("Disposition / purpose").SelectOptionAsync("billing");
+        await page.GetByLabel("Payment purpose").SelectOptionAsync("billing");
         await page.GetByLabel("Find member by name, email or member number").FillAsync(Email);
         await page.GetByRole(AriaRole.Button, new() { Name = "Choose purpose / search" }).ClickAsync();
         await page.GetByRole(AriaRole.Link, new() { Name = $"New Member · #{id} · {Email}", Exact = true }).ClickAsync();
         await page.GetByLabel("Reason", new() { Exact = true }).FillAsync("Verified bank facts and member");
-        await page.GetByRole(AriaRole.Button, new() { Name = "Review disposition", Exact = true }).ClickAsync();
+        await page.GetByRole(AriaRole.Button, new() { Name = "Review payment", Exact = true }).ClickAsync();
         await using var db = Context();
         Assert.Equal(ReceiptState.Review, (await db.Receipts.SingleAsync(row => row.Id == receipt)).State);
         await Assertions.Expect(page.GetByLabel("Reason", new() { Exact = true })).ToBeDisabledAsync();
         Assert.True(await page.EvaluateAsync<bool>("document.documentElement.scrollWidth <= innerWidth"));
-        await page.GetByRole(AriaRole.Button, new() { Name = "Confirm disposition", Exact = true }).ClickAsync();
-        await Assertions.Expect(page.GetByRole(AriaRole.Status)).ToContainTextAsync("Transaction disposition saved");
+        await page.GetByRole(AriaRole.Button, new() { Name = "Confirm payment", Exact = true }).ClickAsync();
+        await Assertions.Expect(page.GetByRole(AriaRole.Status)).ToContainTextAsync("Payment updated");
         await page.GotoAsync(root + $"admin/members/{id}/actions/discount");
         await page.GetByLabel("Discount value", new() { Exact = true }).FillAsync("50");
         await page.GetByLabel("Reason", new() { Exact = true }).FillAsync("Reviewed concession");
@@ -47,7 +47,7 @@ public sealed class FinancialWorkflowBrowserTests : BoardTest
         await Assertions.Expect(page.GetByLabel("Discount value", new() { Exact = true })).ToBeDisabledAsync();
         Assert.True(await page.EvaluateAsync<bool>("document.documentElement.scrollWidth <= innerWidth"));
         await page.GetByRole(AriaRole.Button, new() { Name = "Confirm adjustment", Exact = true }).ClickAsync();
-        await Assertions.Expect(page.GetByRole(AriaRole.Status)).ToContainTextAsync("Financial action saved");
+        await Assertions.Expect(page.GetByRole(AriaRole.Status)).ToContainTextAsync("Changes saved");
         Assert.Equal(50, (await db.Discounts.SingleAsync()).Value);
     }
 }

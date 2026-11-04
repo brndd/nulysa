@@ -3,7 +3,7 @@
 <AdminPageHeader Title="@Heading" Context="@Member.Name" Trail="@Trail" />
 <div class="member-subject">
     <strong class="subject-name">@Member.Name <span>@T("Member #{0}", Member.Id)</span></strong>
-    <span>@T("{0} · Joined {1}", Member.Email, Member.JoinedOn.ToString("d MMM yyyy"))</span>
+    <span>@T("{0} · Joined {1}", Member.Email, UiText.Date(Member.JoinedOn))</span>
     @if (Member.PendingDeletionAt is not null) { <strong class="member-account-warning">@T("Pending deletion; login and services blocked.")</strong> }
 </div>
 <nav class="section-navigation" aria-label="@T("Member workspace")">

@@ -57,6 +57,27 @@ public sealed class UiValidationBrowserTests : BoardTest
                         Assert.True(response!.Ok, route);
                         await Assertions.Expect(page.GetByRole(AriaRole.Heading, new() { Level = 1 })).ToHaveCountAsync(1);
                         Assert.True(await page.EvaluateAsync<bool>("document.documentElement.scrollWidth <= innerWidth"), $"{route}: {theme}/{mode} at {width}");
+                        if (route == "admin/members")
+                        {
+                            Assert.True(await page.EvaluateAsync<bool>("""
+                            (() => {
+                                const rows = new Map();
+                                for (const field of document.querySelectorAll('.filter-fields > div')) {
+                                    const row = field.getBoundingClientRect().top;
+                                    const bottom = field.querySelector('input, select').getBoundingClientRect().bottom;
+                                    if (!rows.has(row)) rows.set(row, []);
+                                    rows.get(row).push(bottom);
+                                }
+                                return [...rows.values()].every(bottoms => Math.max(...bottoms) - Math.min(...bottoms) <= 1);
+                            })()
+                            """), $"Registry filters misaligned: {theme}/{mode} at {width}");
+                            var evidence = Environment.GetEnvironmentVariable("NULYSA_UI_EVIDENCE");
+                            if (!string.IsNullOrWhiteSpace(evidence) && width == 1440)
+                            {
+                                Directory.CreateDirectory(evidence);
+                                await page.ScreenshotAsync(new() { Path = Path.Combine(evidence, $"registry-{theme}-{mode}.png"), FullPage = true });
+                            }
+                        }
                         Assert.Empty(await page.EvaluateAsync<string[]>("""
                         [...document.querySelectorAll('main input:not([type=hidden]):not([type=submit]), main select, main textarea')]
                           .filter(el => !el.labels?.length && !el.getAttribute('aria-label') && !el.getAttribute('aria-labelledby'))
