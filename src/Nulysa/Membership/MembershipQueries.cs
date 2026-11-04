@@ -189,7 +189,7 @@ public sealed class MembershipQueries(AppDbContext db, AssociationClock clock, I
         await Authority.RequireAdministrator(db, actor, ct);
         var query = db.Deliveries.AsNoTracking()
             .Where(x => x.State == DeliveryState.Review || x.State == DeliveryState.Failed)
-            .Where(x => !essentialOnly || x.Kind != MailKind.Invoice);
+            .Where(x => x.CampaignId == null && (!essentialOnly || x.Kind != MailKind.Invoice));
         if (state == "failed")
             query = query.Where(x => x.State == DeliveryState.Failed);
         else if (state == "review")

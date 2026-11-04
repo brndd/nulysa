@@ -185,6 +185,11 @@ namespace Nulysa.Data.Migrations
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("EmailNewsletters")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
                     b.Property<string>("Language")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -1084,8 +1089,16 @@ namespace Nulysa.Data.Migrations
                     b.Property<Guid?>("ApplicationId")
                         .HasColumnType("uuid");
 
+                    b.Property<int>("AttemptLimit")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(3);
+
                     b.Property<int>("Attempts")
                         .HasColumnType("integer");
+
+                    b.Property<Guid?>("CampaignId")
+                        .HasColumnType("uuid");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1101,9 +1114,23 @@ namespace Nulysa.Data.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)");
 
+                    b.Property<string>("OutgoingLanguage")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<string>("PreferredLanguage")
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<string>("ProtectedTestMessage")
+                        .HasColumnType("text");
+
                     b.Property<string>("ProviderId")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
+
+                    b.Property<int>("QueueVersion")
+                        .HasColumnType("integer");
 
                     b.Property<DateTimeOffset?>("StartedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1129,14 +1156,89 @@ namespace Nulysa.Data.Migrations
 
                     b.HasIndex("State", "CreatedAt");
 
+                    b.HasIndex("CampaignId", "State", "CreatedAt");
+
                     b.ToTable("Deliveries", t =>
                         {
                             t.HasCheckConstraint("CK_Delivery_Acceptance", "\"State\" <> 'Accepted' OR \"AcceptedAt\" IS NOT NULL");
 
                             t.HasCheckConstraint("CK_Delivery_Attempts", "\"Attempts\" >= 0");
 
+                            t.HasCheckConstraint("CK_Delivery_Campaign", "(\"CampaignId\" IS NOT NULL) = (\"Kind\" IN ('Newsletter', 'OfficialNotice', 'CampaignTest'))\nAND (\"OutgoingLanguage\" IS NOT NULL) = (\"CampaignId\" IS NOT NULL)\nAND (\"PreferredLanguage\" IS NOT NULL) = (\"Kind\" IN ('Newsletter', 'OfficialNotice'))\nAND (\"ProtectedTestMessage\" IS NULL OR \"Kind\" = 'CampaignTest')\nAND (\"Kind\" <> 'CampaignTest' OR \"UserId\" IS NULL)");
+
                             t.HasCheckConstraint("CK_Delivery_Origin", "\"UserId\" IS NULL OR \"ApplicationId\" IS NULL");
+
+                            t.HasCheckConstraint("CK_Delivery_Queue", " \"QueueVersion\" >= 0 AND \"AttemptLimit\" >= \"Attempts\" ");
                         });
+                });
+
+            modelBuilder.Entity("Nulysa.Communications.MailCampaign", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTimeOffset?>("QueuedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long?>("QueuedBy")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("RecipientCount")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("Revision")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UpdatedAt");
+
+                    b.ToTable("MailCampaigns", t =>
+                        {
+                            t.HasCheckConstraint("CK_MailCampaign_Queued", "(\"QueuedAt\" IS NULL AND \"QueuedBy\" IS NULL AND \"RecipientCount\" = 0)\nOR (\"QueuedAt\" IS NOT NULL AND \"QueuedBy\" IS NOT NULL AND \"RecipientCount\" > 0)");
+                        });
+                });
+
+            modelBuilder.Entity("Nulysa.Communications.MailDeliveryRetry", b =>
+                {
+                    b.Property<Guid>("DeliveryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("QueueVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<long>("ActorId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTimeOffset>("RequestedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("DeliveryId", "QueueVersion");
+
+                    b.ToTable("MailDeliveryRetries");
                 });
 
             modelBuilder.Entity("Nulysa.Communications.MailRateWindow", b =>
@@ -1156,6 +1258,32 @@ namespace Nulysa.Data.Migrations
                         {
                             t.HasCheckConstraint("CK_MailRateWindow", "\"Id\" = 1 AND \"Attempts\" >= 0");
                         });
+                });
+
+            modelBuilder.Entity("Nulysa.Communications.OperationalMailTemplate", b =>
+                {
+                    b.Property<string>("Kind")
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("jsonb");
+
+                    b.Property<string>("FallbackLanguage")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long>("UpdatedBy")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Kind");
+
+                    b.ToTable("OperationalMailTemplates");
                 });
 
             modelBuilder.Entity("Nulysa.Integrations.BankConnection", b =>
@@ -2088,6 +2216,11 @@ namespace Nulysa.Data.Migrations
                         .HasForeignKey("ApplicationId")
                         .OnDelete(DeleteBehavior.SetNull);
 
+                    b.HasOne("Nulysa.Communications.MailCampaign", null)
+                        .WithMany()
+                        .HasForeignKey("CampaignId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Nulysa.Billing.Invoice", null)
                         .WithMany()
                         .HasForeignKey("InvoiceId")
@@ -2097,6 +2230,15 @@ namespace Nulysa.Data.Migrations
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("Nulysa.Communications.MailDeliveryRetry", b =>
+                {
+                    b.HasOne("Nulysa.Communications.Delivery", null)
+                        .WithMany()
+                        .HasForeignKey("DeliveryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Nulysa.Membership.Member", b =>

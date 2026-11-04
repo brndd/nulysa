@@ -25,6 +25,7 @@ public sealed class MembershipMaintenance(AppDbContext db, AssociationClock cloc
                 .Select(x => x.Id)
                 .Take(50)
                 .ToListAsync(ct);
+            var obsoleteJobs = new List<JobKey>();
             foreach (var id in applications)
             {
                 // Recheck after the row lock: verification/rejection/approval may have raced the scan.
@@ -37,7 +38,7 @@ public sealed class MembershipMaintenance(AppDbContext db, AssociationClock cloc
                 var deliveries = await db.Deliveries.Where(x => x.ApplicationId == id).ToListAsync(ct);
                 foreach (var delivery in deliveries)
                 {
-                    await scheduler.DeleteJob(MailQueue.JobKey(delivery.Id), ct);
+                    obsoleteJobs.Add(MailQueue.JobKey(delivery.Id, delivery.QueueVersion));
                     if (delivery.State != DeliveryState.Accepted)
                         delivery.State = delivery.Kind == MailKind.Rejection ? DeliveryState.Failed : DeliveryState.Cancelled;
                 }
@@ -46,30 +47,23 @@ public sealed class MembershipMaintenance(AppDbContext db, AssociationClock cloc
             await db.SaveChangesAsync(ct);
 
             await db.Deliveries.Where(x => x.State == DeliveryState.Sending && x.StartedAt <= clock.Now.AddMinutes(-2))
-                .ExecuteUpdateAsync(x => x.SetProperty(d => d.State, DeliveryState.Review), ct);
+                .ExecuteUpdateAsync(x => x.SetProperty(d => d.State, DeliveryState.Review).SetProperty(d => d.ProtectedTestMessage, (string?)null), ct);
+            var terminal = db.Deliveries.Where(x => x.State != DeliveryState.Pending && x.State != DeliveryState.Sending
+                && (x.AcceptedAt ?? x.StartedAt ?? x.CreatedAt) < clock.Now.AddDays(-30));
+            var oldDeliveries = await terminal.OrderBy(x => x.CreatedAt).Select(x => x.Id).Take(100).ToListAsync(ct);
+            await terminal.Where(x => oldDeliveries.Contains(x.Id)).ExecuteDeleteAsync(ct);
+
+            // Keep application/delivery row mutations ahead of scheduler writes.
+            if (obsoleteJobs.Count > 0)
+                await scheduler.DeleteJobs(obsoleteJobs, ct);
             var pending = await db.Deliveries.AsNoTracking()
                 .Where(x => x.State == DeliveryState.Pending)
-                .OrderBy(x => x.CreatedAt)
+                .OrderBy(x => x.CampaignId != null).ThenBy(x => x.CreatedAt).ThenBy(x => x.Id)
                 .Take(50)
                 .ToListAsync(ct);
-            foreach (var delivery in pending)
-            {
-                var key = MailQueue.JobKey(delivery.Id);
-                if (await scheduler.GetJobDetail(key, ct) is not null)
-                    continue;
-
-                await scheduler.ScheduleJob(JobBuilder.Create<MailDeliveryJob>().WithIdentity(key).RequestRecovery()
-                    .UsingJobData("delivery_id", delivery.Id.ToString()).UsingJobData("enqueued_at", delivery.CreatedAt.ToString("O")).Build(),
-                    TriggerBuilder.Create<MailDeliveryJob>().StartNow().Build(), cancellationToken: ct);
-            }
-
-            var oldDeliveries = await db.Deliveries
-                .Where(x => x.State != DeliveryState.Pending && x.State != DeliveryState.Sending && x.CreatedAt < clock.Now.AddDays(-30))
-                .OrderBy(x => x.CreatedAt)
-                .Select(x => x.Id)
-                .Take(100)
-                .ToListAsync(ct);
-            await db.Deliveries.Where(x => oldDeliveries.Contains(x.Id)).ExecuteDeleteAsync(ct);
+            var scheduled = await scheduler.GetJobDetails(pending.Select(x => MailQueue.JobKey(x.Id, x.QueueVersion)).ToArray(), ct);
+            var scheduledKeys = scheduled.Select(x => x.Key).ToHashSet();
+            await MailQueue.ScheduleBatch(scheduler, pending.Where(x => !scheduledKeys.Contains(MailQueue.JobKey(x.Id, x.QueueVersion))).ToArray(), ct);
             await tx.CommitAsync(ct);
         }
 

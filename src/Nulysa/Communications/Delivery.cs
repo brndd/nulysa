@@ -1,6 +1,6 @@
 namespace Nulysa.Communications;
 
-public enum MailKind { Verification, Welcome, Rejection, DeletionWarning, PasswordReset, EmailChange, Restoration, Invoice, MembershipGrace, MembershipInactive, BankAlert, PasswordChanged }
+public enum MailKind { Verification, Welcome, Rejection, DeletionWarning, PasswordReset, EmailChange, Restoration, Invoice, MembershipGrace, MembershipInactive, BankAlert, PasswordChanged, Newsletter, OfficialNotice, CampaignTest }
 public enum DeliveryState { Pending, Sending, Accepted, Review, Failed, Cancelled }
 
 public sealed class Delivery
@@ -18,6 +18,12 @@ public sealed class Delivery
     public string? ProviderId { get; set; }
     public long? InvoiceId { get; set; }
     public int? InvoiceRevision { get; set; }
+    public Guid? CampaignId { get; set; }
+    public string? PreferredLanguage { get; set; }
+    public string? OutgoingLanguage { get; set; }
+    public string? ProtectedTestMessage { get; set; }
+    public int QueueVersion { get; set; }
+    public int AttemptLimit { get; set; } = MailQueue.AttemptsPerRound;
 }
 
 public sealed class MailOptions
@@ -34,7 +40,7 @@ public sealed class MailOptions
     public int MaxPerMinute { get; set; } = 60;
 }
 
-public sealed record OutgoingMail(string To, string Subject, string Text, byte[]? Pdf = null, string? FileName = null);
+public sealed record OutgoingMail(string To, string Subject, string Text, byte[]? Pdf = null, string? FileName = null, string? Html = null, string? UnsubscribeUrl = null);
 public enum SendOutcome { Accepted, Throttled, Rejected, Uncertain }
 public sealed record SendResult(SendOutcome Outcome, string? ProviderId = null);
 

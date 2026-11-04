@@ -10,7 +10,7 @@ using Nulysa.Membership;
 namespace Nulysa.Communications;
 
 public sealed class MailRenderer(AppDbContext db, UserManager<User> users, MembershipCommands membership, AssociationClock clock,
-    IOptions<MailOptions> mailOptions, IOptions<MembershipOptions> membershipOptions, IConfiguration config, InvoicePdf pdf, IOptions<BillingOptions> billingOptions)
+    IOptions<MailOptions> mailOptions, IOptions<MembershipOptions> membershipOptions, InvoicePdf pdf, IOptions<BillingOptions> billingOptions, Campaigns campaigns, NewsletterPreferences preferences, OperationalTemplates templates)
 {
     public async Task<OutgoingMail?> Render(Delivery delivery, CancellationToken ct)
     {
@@ -18,9 +18,10 @@ public sealed class MailRenderer(AppDbContext db, UserManager<User> users, Membe
         var application = delivery.ApplicationId is { } applicationId
             ? await db.Applications.AsNoTracking().SingleOrDefaultAsync(x => x.Id == applicationId, ct) : null;
         var user = delivery.UserId is { } userId ? await db.Users.AsNoTracking().SingleOrDefaultAsync(x => x.Id == userId, ct) : null;
-        language = application?.Language ?? user?.Language ?? membershipOptions.Value.DefaultLanguage;
-        if (language is not ("en" or "fi"))
-            language = membershipOptions.Value.DefaultLanguage;
+        if (delivery.CampaignId is not null)
+            return await campaigns.RenderDelivery(delivery, user, preferences, ct);
+
+        (language, var variant) = await templates.Resolve(delivery.Kind, application?.Language ?? user?.Language ?? membershipOptions.Value.DefaultLanguage, ct);
         var fi = language == "fi";
 
         if (delivery.Kind == MailKind.Verification)
@@ -61,8 +62,9 @@ public sealed class MailRenderer(AppDbContext db, UserManager<User> users, Membe
                 var attachment = await pdf.Render(invoiceId, delivery.InvoiceRevision, ct);
                 if (attachment is null)
                     return null;
-                return new(email, (config["Association:Name"] ?? "Nulysa") + (fi ? " — Maksupyyntö " : " — Payment request ") + invoiceId,
-                    (fi ? "Ennakkomaksupyyntö on liitteenä. Ajantasaiset maksutiedot: " : "Your advance payment request is attached. Current funding and remaining amount: ") + Link("billing", new()), attachment, $"invoice-{invoiceId}.pdf");
+                return templates.Render(email, (fi ? "Maksupyyntö " : "Payment request ") + invoiceId,
+                    (fi ? "Ennakkomaksupyyntö on liitteenä. Ajantasaiset maksutiedot: " : "Your advance payment request is attached. Current funding and remaining amount: ") + Link("billing", new()),
+                    variant, attachment, $"invoice-{invoiceId}.pdf");
             }
             else if (delivery.Kind is MailKind.MembershipGrace or MailKind.MembershipInactive)
             {
@@ -155,8 +157,7 @@ public sealed class MailRenderer(AppDbContext db, UserManager<User> users, Membe
                 }
             }
         }
-        // Trusted plain-text templates only. Rich editable authoring/sanitisation belongs to S3.
-        return new(email, (config["Association:Name"] ?? "Nulysa") + " — " + subject, text);
+        return templates.Render(email, subject, text, variant);
     }
 
     private string Link(string path, Dictionary<string, string?> values)

@@ -23,6 +23,7 @@ WebAssembly client or global interactive circuit.
   coverage, membership/service lifecycles, and review entry points.
 - [Foundation evidence and limits](docs/foundations.md),
   [S1 membership/mail](docs/membership.md), [S2 billing/configuration](docs/billing.md),
+  [S3 communications backend](docs/communications.md),
   [operations runbook](docs/operations.md), [OIDC configuration](docs/oidc-reference.md),
   [performance follow-ups](docs/performance-followups.md).
 

@@ -12,7 +12,7 @@ public static class UiLanguages
 {
     public const string Cookie = "Nulysa.Language";
     // Add a resource translation and a catalogue entry to support another UI language.
-    // Communication languages are governed separately by the mail templates.
+    // Member preferences and campaign variants use this catalogue. Automatic mail has its own translated details and fallback.
     public static IReadOnlyList<UiLanguage> Supported { get; } =
     [new("en", "en-GB", "English"), new("fi", "fi-FI", "Suomi")];
 

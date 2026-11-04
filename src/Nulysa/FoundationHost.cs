@@ -88,6 +88,7 @@ public static class FoundationHost
             return Results.File(System.Text.Encoding.UTF8.GetBytes(await queries.ExportReceipts(context.User, start, end, context.RequestAborted)), "text/csv; charset=utf-8", "bank-transactions.csv");
         }).RequireAuthorization("Administrator");
         app.MapBankConnections();
+        NewsletterPreferences.MapUnsubscribe(app);
         app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
         if (builder.Configuration.GetValue<bool>("Oidc:Enabled"))
             app.MapControllers();
@@ -164,6 +165,9 @@ public static class FoundationHost
                 BillingOptions.TemplatesExist(x.TemplateDirectory) && BillingOptions.TypstAvailable(x.TypstPath),
                 "Invalid billing timing/template/Typst settings.")
             .Validate(x => (development && x.Iban.Length == 0) || BillingOptions.ValidIban(x.Iban), "Billing:Iban must be a checksum-valid payment destination.").ValidateOnStart();
+        builder.Services.AddScoped<Campaigns>();
+        builder.Services.AddScoped<NewsletterPreferences>();
+        builder.Services.AddScoped<OperationalTemplates>();
         builder.Services.AddScoped<MailQueue>();
         builder.Services.AddScoped<MailRenderer>();
         builder.Services.AddScoped<MailDispatcher>();
@@ -177,7 +181,7 @@ public static class FoundationHost
         });
         builder.Services.AddOptions<MembershipOptions>().Bind(config.GetSection("Membership"))
             .Validate(x => x.UnverifiedRetentionHours is >= 1 and <= 168 && x.DeletionWaitingDays is >= 1 and <= 365 &&
-                x.RejectionRetentionDays is >= 1 and <= 30 && x.DefaultLanguage is "en" or "fi", "Invalid membership retention/language settings.").ValidateOnStart();
+                x.RejectionRetentionDays is >= 1 and <= 30 && OperationalTemplates.BuiltInLanguages.Contains(x.DefaultLanguage), "Invalid membership retention/language settings.").ValidateOnStart();
         builder.Services.AddOptions<MailOptions>().Bind(config.GetSection("Mail"))
             .Validate(x => Uri.TryCreate(x.PublicUrl, UriKind.Absolute, out var uri) && string.IsNullOrEmpty(uri.UserInfo) &&
                 string.IsNullOrEmpty(uri.Query) && string.IsNullOrEmpty(uri.Fragment) && x.PublicUrl.EndsWith('/') &&
@@ -253,6 +257,9 @@ public static class FoundationHost
                 options.AddPolicy("verification", context => RateLimitPartition.GetFixedWindowLimiter(
                     context.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ => new FixedWindowRateLimiterOptions
                     { PermitLimit = 20, Window = TimeSpan.FromMinutes(10), QueueLimit = 0 }));
+                options.AddPolicy("newsletter-unsubscribe", context => RateLimitPartition.GetFixedWindowLimiter(
+                    context.Connection.RemoteIpAddress?.ToString() ?? "unknown", _ => new FixedWindowRateLimiterOptions
+                    { PermitLimit = 60, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
                 options.AddPolicy("invoice-pdf", context => RateLimitPartition.GetFixedWindowLimiter(
                     context.User.Identity?.Name ?? context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
                     _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));

@@ -29,7 +29,7 @@ distributed infrastructure.
 | Database | PostgreSQL in development, production and database CI, through EF Core and Npgsql. One application DbContext coordinates domain/Identity/OpenIddict tables; Quartz owns separate tables in the same database and explicitly shares application transactions for scheduling. No SQLite support initially. |
 | Web UI | Blazor Web App with static SSR and ordinary HTTP forms by default; selective Interactive Server pages/components for richer interactions. Use Blazor's enhanced navigation/form handling where useful, not a parallel HTMX layer. Customizable association branding, including page titles, with unobtrusive Nulysa attribution. No initial WebAssembly/Auto mode, separate client project, frontend authentication system or mandatory public CRUD API. Protocol/device endpoints remain ordinary ASP.NET Core endpoints. |
 | Background work | Quartz.NET 4 with PostgreSQL AdoJobStore, a separate worker process and a small configurable execution pool. Enable persistence, clustering, recovery, retry policies and database execution history explicitly. No Redis/RabbitMQ or custom queue framework. Prove transaction/recovery behaviour in S0 (section 7). |
-| Email and PDFs | SMTP adapter initially, so Scaleway TEM or another transactional provider can be used through its SMTP endpoint; editable, localised email templates with restricted placeholders. Keep Typst for invoice PDFs, invoking a pinned CLI as a controlled child process and reusing the association's parameterized template. Use trusted source, structured input, controlled private assets/packages/fonts and no arbitrary runtime remote fetching. Rich-text editor and sanitisation-library choices remain deferred. |
+| Email and PDFs | SMTP adapter initially, so Scaleway TEM or another transactional provider can be used through its SMTP endpoint; editable, localised email templates with restricted placeholders. Keep Typst for invoice PDFs, invoking a pinned CLI as a controlled child process and reusing the association's parameterized template. Use trusted source, structured input, controlled private assets/packages/fonts and no arbitrary runtime remote fetching. The [S3 backend](../docs/communications.md) renders a validated structured document to safe HTML and plain text; the editor UI is deferred. |
 | Identity integration | ASP.NET Core Identity for email/password accounts and cookies; OpenIddict for the registry's upstream OAuth/OIDC server. Keep Keycloak as the SSO intermediary. Prove local continuity (section 3); production access/testing is not an early-development prerequisite. |
 | Tooling | Pin the .NET SDK and NuGet dependencies/lockfiles. Use compiler/nullable checks, .NET analyzers and formatting. Proposed tests: xUnit, ASP.NET Core integration testing and Playwright for critical browser journeys. Run database/transaction/worker tests on real PostgreSQL. Exact versions and test grouping are S0 work. |
 | Deployment | Production uses Linux containers and Kestrel behind a trusted TLS reverse proxy. Prefer one release artifact with explicit web, worker and maintenance entry points, PostgreSQL and private document storage. Persist Data Protection and OIDC signing keys. Local application development may run on the host against containerized PostgreSQL. |
@@ -486,10 +486,10 @@ duplicate-safe effects**, not a particular internal mechanism:
   at dispatch, with explicit exceptions for verification/rejection/final-warning
   messages that do not require an active member login. Apply explicit localisation
   fallback, per-provider rate limits and proposed operational-message priority.
-- Render editable rich-text email through server-side sanitisation and allow-listed
-  placeholders, not unrestricted Razor/C# template execution. Select the editor,
-  stored content format and sanitisation library together when implementing authoring;
-  an editor does not replace server-side safeguards. Prefer trusted Typst invoice
+- Render editable rich-text email from an allow-listed document structure on the
+  server. Encode text and validate URLs, with no raw HTML or template execution.
+  The editor must map to the [stored structure](../docs/communications.md).
+  Prefer trusted Typst invoice
   templates with structured parameters, not user data interpolated as executable
   Typst source. Validate the existing template and pin/vendor its required packages
   and fonts before claiming reproducible rendering. Invoice jobs identify the

@@ -2667,4 +2667,10 @@
   <data name="Payment pages" xml:space="preserve">
     <value>Maksusivut</value>
   </data>
+  <data name="Unsubscribe from newsletters" xml:space="preserve">
+    <value>Peru uutiskirjeen tilaus</value>
+  </data>
+  <data name="Choose a supported language." xml:space="preserve">
+    <value>Valitse tuettu kieli.</value>
+  </data>
 </root>

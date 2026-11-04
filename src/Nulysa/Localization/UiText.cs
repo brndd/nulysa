@@ -9,11 +9,13 @@ public static class UiText
 {
     private static readonly ResourceManager Resources = new("Nulysa.Localization.UiStrings", typeof(UiText).Assembly);
 
+    public static string ForCulture(string message, CultureInfo culture) => Resources.GetString(message, culture) ?? message;
+
     public static string Date(DateOnly date) => T("{0:d MMM yyyy}", date);
 
     public static string T(string message, params object?[] arguments)
     {
-        var text = Resources.GetString(message, CultureInfo.CurrentUICulture) ?? message;
+        var text = ForCulture(message, CultureInfo.CurrentUICulture);
         return arguments.Length == 0 ? text : string.Format(CultureInfo.CurrentCulture, text, arguments);
     }
 }

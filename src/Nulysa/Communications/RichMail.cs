@@ -1,0 +1,155 @@
+using System.ComponentModel.DataAnnotations;
+using System.Globalization;
+using System.Net;
+using System.Text;
+using System.Text.Json;
+using System.Text.RegularExpressions;
+using Nulysa.Localization;
+
+namespace Nulysa.Communications;
+
+// The editor exchanges this document, never raw HTML. Both outputs are rendered on the server.
+public enum MailBlockKind { Paragraph, Heading, Bullet, Quote, OperationalDetails }
+public sealed record MailRun(string Text, bool Bold = false, bool Italic = false, string? Link = null);
+public sealed record MailBlock(MailBlockKind Kind, MailRun[] Runs);
+public sealed record MailVariant(string Language, string Subject, MailBlock[] Body);
+public sealed record MailContent(string Subject, string Text, string Html);
+
+internal static class RichMail
+{
+    public const int SubjectLimit = 200;
+    private const int BodyLimit = 32_000;
+
+    public static MailVariant[] Validate(IReadOnlyCollection<MailVariant> variants, bool operational = false)
+    {
+        if (variants.Count == 0 || variants.Count > UiLanguages.Supported.Count)
+            throw new ValidationException("Provide at least one supported message language.");
+
+        var languages = new HashSet<string>(StringComparer.Ordinal);
+        return variants.Select(variant =>
+        {
+            if (variant is null)
+                throw new ValidationException("Provide a message for every saved variant.");
+            var language = UiLanguages.Find(variant.Language)?.Code;
+            if (language is null || !languages.Add(language))
+                throw new ValidationException("Provide only one variant per supported language.");
+            if (string.IsNullOrWhiteSpace(variant.Subject) || variant.Subject.Length > SubjectLimit || variant.Subject.Any(char.IsControl))
+                throw new ValidationException("Enter a single-line subject up to 200 characters.");
+            if (variant.Body is not { Length: > 0 and <= 100 } || variant.Body.Any(block => block is null ||
+                !Enum.IsDefined(block.Kind) || block.Runs is not { Length: <= 100 } ||
+                (block.Kind == MailBlockKind.OperationalDetails ? block.Runs.Length != 0 :
+                    block.Runs.Length == 0 || block.Runs.All(run => string.IsNullOrWhiteSpace(run?.Text))) ||
+                block.Runs.Any(run => run?.Text is not { Length: <= BodyLimit } || run.Text.Contains('\0') ||
+                    (run.Link is not null && !SafeLink(run.Link)))))
+                throw new ValidationException("Use supported formatting and absolute HTTPS, HTTP or mailto links.");
+            if (variant.Body.SelectMany(block => block.Runs).Sum(run => (long)run.Text.Length + (run.Link?.Length ?? 0)) > BodyLimit)
+                throw new ValidationException("The message body is too long.");
+            if (variant.Body.Count(block => block.Kind == MailBlockKind.OperationalDetails) != (operational ? 1 : 0))
+                throw new ValidationException(operational ? "Include the operational details block once." : "Operational details are only available in automatic mail.");
+            if (operational && (variant.Subject.Replace("{{subject}}", "").Replace("{{association}}", "").Contains("{{") ||
+                variant.Subject.Replace("{{subject}}", "").Replace("{{association}}", "").Contains("}}")))
+                throw new ValidationException("Use only {{subject}} and {{association}} in an automatic mail subject.");
+            return variant with { Language = language, Subject = variant.Subject.Trim() };
+        }).OrderBy(variant => variant.Language, StringComparer.Ordinal).ToArray();
+    }
+
+    public static string Store(MailVariant[] variants) => JsonSerializer.Serialize(variants);
+    public static MailVariant[] Read(string json) => JsonSerializer.Deserialize<MailVariant[]>(json)!;
+
+    public static MailContent Render(MailVariant variant, string? details = null, string? originalSubject = null, string? association = null)
+    {
+        var text = new StringBuilder();
+        var html = new StringBuilder();
+        var list = false;
+        foreach (var block in variant.Body)
+        {
+            if (list && block.Kind != MailBlockKind.Bullet)
+            {
+                html.Append("</ul>");
+                list = false;
+            }
+            if (text.Length > 0)
+                text.Append(list ? "\n" : "\n\n");
+            if (block.Kind == MailBlockKind.OperationalDetails)
+            {
+                text.Append(details);
+                html.Append("<p>").Append(LinkDetails(details ?? "")).Append("</p>");
+                continue;
+            }
+            var tag = block.Kind switch
+            {
+                MailBlockKind.Heading => "h2",
+                MailBlockKind.Bullet => "li",
+                MailBlockKind.Quote => "blockquote",
+                _ => "p"
+            };
+            if (block.Kind == MailBlockKind.Bullet)
+            {
+                if (!list)
+                    html.Append("<ul>");
+                list = true;
+                text.Append("- ");
+            }
+            html.Append('<').Append(tag).Append('>');
+            foreach (var run in block.Runs)
+            {
+                var formatted = EncodeLines(run.Text);
+                text.Append(run.Text);
+                if (run.Bold)
+                    formatted = $"<strong>{formatted}</strong>";
+                if (run.Italic)
+                    formatted = $"<em>{formatted}</em>";
+                if (run.Link is { } href && SafeLink(href))
+                {
+                    formatted = $"<a href=\"{WebUtility.HtmlEncode(href)}\" rel=\"noopener noreferrer\">{formatted}</a>";
+                    if (href != run.Text)
+                        text.Append(" (").Append(href).Append(')');
+                }
+                html.Append(formatted);
+            }
+            html.Append("</").Append(tag).Append('>');
+        }
+        if (list)
+            html.Append("</ul>");
+
+        // Split on tokens so values are substituted once, even if a value contains token syntax.
+        var subject = originalSubject is null ? variant.Subject : Regex.Replace(
+            variant.Subject, @"\{\{(subject|association)\}\}", token => token.Groups[1].Value == "subject" ? originalSubject : association ?? "");
+        return new(subject, text.ToString(), html.ToString());
+    }
+
+    public static MailContent WithUnsubscribe(MailContent content, string language, string? url = null)
+    {
+        var label = UiText.ForCulture("Unsubscribe from newsletters", CultureInfo.GetCultureInfo(language));
+        return content with
+        {
+            Text = content.Text + "\n\n" + label + (url is null ? "" : ": " + url),
+            Html = content.Html + (url is null ? $"<p>{label}</p>" :
+                $"<p><a href=\"{WebUtility.HtmlEncode(url)}\" rel=\"noopener noreferrer\">{label}</a></p>")
+        };
+    }
+
+    private static string LinkDetails(string text)
+    {
+        // Automatic details carry the real account links. Encode all dynamic text, including labels and URLs.
+        var html = new StringBuilder();
+        var offset = 0;
+        foreach (Match match in Regex.Matches(text, @"https?://[^\s<>""']+", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+        {
+            if (!SafeLink(match.Value))
+                continue;
+            html.Append(EncodeLines(text[offset..match.Index]));
+            var url = WebUtility.HtmlEncode(match.Value);
+            html.Append($"<a href=\"{url}\" rel=\"noopener noreferrer\">{url}</a>");
+            offset = match.Index + match.Length;
+        }
+        return html.Append(EncodeLines(text[offset..])).ToString();
+    }
+
+    private static string EncodeLines(string value) => WebUtility.HtmlEncode(value).Replace("\r\n", "\n").Replace("\r", "\n").Replace("\n", "<br>");
+    private static bool SafeLink(string href) => href.Length is > 0 and <= 2048 && href.All(c => !char.IsControl(c) && !char.IsWhiteSpace(c) && c != '\\') &&
+        Uri.TryCreate(href, UriKind.Absolute, out var uri) &&
+        ((uri.Scheme is "https" or "http" && uri.Host.Length > 0 && uri.UserInfo.Length == 0) ||
+            (uri.Scheme == "mailto" && uri.Query.Length == 0 && uri.Fragment.Length == 0 && uri.AbsolutePath.Length > 0 &&
+                !href.Contains('%')));
+}

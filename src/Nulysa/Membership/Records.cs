@@ -1,14 +1,22 @@
 using System.ComponentModel.DataAnnotations;
 using Nulysa.Accounts;
+using Nulysa.Localization;
 
 namespace Nulysa.Membership;
+
+internal sealed class MemberLanguageAttribute : ValidationAttribute
+{
+    public MemberLanguageAttribute() : base("Choose a supported language.") { }
+
+    public override bool IsValid(object? value) => value is string code && UiLanguages.Find(code)?.Code == code;
+}
 
 public sealed class ProfileInput
 {
     [Required, StringLength(200)] public string Name { get; set; } = "";
     [Required, StringLength(200)] public string Municipality { get; set; } = "";
     [Required] public DateOnly? DateOfBirth { get; set; }
-    [Required, RegularExpression("^(en|fi)$")] public string Language { get; set; } = "en";
+    [Required, MemberLanguage] public string Language { get; set; } = "en";
     [StringLength(50)] public string? PhoneNumber { get; set; }
     [StringLength(100)] public string? Nickname { get; set; }
     [StringLength(200)] public string? MatrixId { get; set; }

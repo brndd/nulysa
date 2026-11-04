@@ -23,6 +23,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
     public DbSet<BillingAccount> BillingAccounts => Set<BillingAccount>();
     public DbSet<InitialMembershipRequest> InitialMembershipRequests => Set<InitialMembershipRequest>();
     public DbSet<Delivery> Deliveries => Set<Delivery>();
+    public DbSet<MailCampaign> MailCampaigns => Set<MailCampaign>();
+    public DbSet<OperationalMailTemplate> OperationalMailTemplates => Set<OperationalMailTemplate>();
+    public DbSet<MailDeliveryRetry> MailDeliveryRetries => Set<MailDeliveryRetry>();
     public DbSet<MailRateWindow> MailRateWindows => Set<MailRateWindow>();
     public DbSet<FeeDefinition> Fees => Set<FeeDefinition>();
     public DbSet<FeePrice> FeePrices => Set<FeePrice>();
@@ -69,6 +72,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             user.Property(x => x.OidcSubject).HasMaxLength(256).IsRequired();
             user.HasIndex(x => x.OidcSubject).IsUnique();
             user.HasIndex(x => x.NormalizedEmail).IsUnique();
+            user.Property(x => x.EmailNewsletters).HasDefaultValue(true);
             user.Ignore(x => x.MayLogIn);
         });
         builder.Entity<MembershipApplication>(entity =>
@@ -116,6 +120,14 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             entity.ToTable(table =>
             {
                 table.HasCheckConstraint("CK_Delivery_Attempts", "\"Attempts\" >= 0");
+                table.HasCheckConstraint("CK_Delivery_Queue", """ "QueueVersion" >= 0 AND "AttemptLimit" >= "Attempts" """);
+                table.HasCheckConstraint("CK_Delivery_Campaign", """
+                    ("CampaignId" IS NOT NULL) = ("Kind" IN ('Newsletter', 'OfficialNotice', 'CampaignTest'))
+                    AND ("OutgoingLanguage" IS NOT NULL) = ("CampaignId" IS NOT NULL)
+                    AND ("PreferredLanguage" IS NOT NULL) = ("Kind" IN ('Newsletter', 'OfficialNotice'))
+                    AND ("ProtectedTestMessage" IS NULL OR "Kind" = 'CampaignTest')
+                    AND ("Kind" <> 'CampaignTest' OR "UserId" IS NULL)
+                    """);
                 table.HasCheckConstraint("CK_Delivery_Origin", "\"UserId\" IS NULL OR \"ApplicationId\" IS NULL");
                 table.HasCheckConstraint("CK_Delivery_Acceptance", "\"State\" <> 'Accepted' OR \"AcceptedAt\" IS NOT NULL");
             });
@@ -126,6 +138,35 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
             entity.HasOne<Invoice>().WithMany().HasForeignKey(x => x.InvoiceId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne<MembershipApplication>().WithMany().HasForeignKey(x => x.ApplicationId).OnDelete(DeleteBehavior.SetNull);
             entity.HasIndex(x => new { x.State, x.CreatedAt });
+            entity.Property(x => x.AttemptLimit).HasDefaultValue(MailQueue.AttemptsPerRound);
+            entity.Property(x => x.PreferredLanguage).HasMaxLength(10);
+            entity.Property(x => x.OutgoingLanguage).HasMaxLength(10);
+            entity.HasOne<MailCampaign>().WithMany().HasForeignKey(x => x.CampaignId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasIndex(x => new { x.CampaignId, x.State, x.CreatedAt });
+        });
+        builder.Entity<MailCampaign>(entity =>
+        {
+            entity.ToTable(table => table.HasCheckConstraint("CK_MailCampaign_Queued", """
+                ("QueuedAt" IS NULL AND "QueuedBy" IS NULL AND "RecipientCount" = 0)
+                OR ("QueuedAt" IS NOT NULL AND "QueuedBy" IS NOT NULL AND "RecipientCount" > 0)
+                """));
+            entity.Property(x => x.Title).HasMaxLength(200);
+            entity.Property(x => x.Kind).HasConversion<string>().HasMaxLength(20);
+            entity.Property(x => x.Content).HasColumnType("jsonb");
+            entity.HasIndex(x => x.UpdatedAt);
+        });
+        builder.Entity<OperationalMailTemplate>(entity =>
+        {
+            entity.HasKey(x => x.Kind);
+            entity.Property(x => x.Kind).HasConversion<string>().HasMaxLength(30);
+            entity.Property(x => x.Content).HasColumnType("jsonb");
+            entity.Property(x => x.FallbackLanguage).HasMaxLength(10);
+        });
+        builder.Entity<MailDeliveryRetry>(entity =>
+        {
+            entity.HasKey(x => new { x.DeliveryId, x.QueueVersion });
+            entity.Property(x => x.Reason).HasMaxLength(1000);
+            entity.HasOne<Delivery>().WithMany().HasForeignKey(x => x.DeliveryId).OnDelete(DeleteBehavior.Cascade);
         });
         builder.Entity<MailRateWindow>(entity =>
         {

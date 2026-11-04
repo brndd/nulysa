@@ -1,33 +1,44 @@
+using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Nulysa.Data;
-using Quartz;
 
 namespace Nulysa.Communications;
 
 public sealed class MailDispatcher(AppDbContext db, MailRenderer renderer, IMailTransport transport, TimeProvider clock, IOptions<MailOptions> options,
     ILogger<MailDispatcher> logger)
 {
-    public async Task Dispatch(Guid id, CancellationToken ct = default)
+    public Task<TimeSpan?> Dispatch(Guid id, CancellationToken ct = default, int queueVersion = 0)
+        => Dispatch(id, queueVersion, null, ct);
+
+    internal async Task<TimeSpan?> Dispatch(Guid id, int queueVersion,
+        Func<DbTransaction, TimeSpan, CancellationToken, Task>? defer, CancellationToken ct)
     {
         OutgoingMail? message;
         int attempt;
         Guid? rejectedApplication;
         await using (var tx = await db.Database.BeginTransactionAsync(ct))
         {
+            // Membership and preference changes lock the account first. Use the same order when claiming bulk mail.
+            var recipient = await db.Deliveries.AsNoTracking().Where(x => x.Id == id && x.CampaignId != null)
+                .Select(x => x.UserId).SingleOrDefaultAsync(ct);
+            if (recipient is { } userId)
+                await db.Database.ExecuteSqlInterpolatedAsync($"SELECT 1 FROM \"AspNetUsers\" WHERE \"Id\" = {userId} FOR NO KEY UPDATE", ct);
             var delivery = await Lock(id, ct);
-            if (delivery is null)
-                return;
+            if (delivery is null || delivery.QueueVersion != queueVersion)
+                return null;
             if (delivery.State == DeliveryState.Sending)
             {
                 delivery.State = DeliveryState.Review;
+                delivery.ProtectedTestMessage = null;
                 await db.SaveChangesAsync(ct);
                 await tx.CommitAsync(ct);
-                return;
+                return null;
             }
             if (delivery.State != DeliveryState.Pending)
-                return;
+                return null;
 
             try
             {
@@ -43,16 +54,18 @@ public sealed class MailDispatcher(AppDbContext db, MailRenderer renderer, IMail
                 logger.LogWarning("Mail render failed for delivery {DeliveryId} ({ErrorType}); recording review.",
                     id, error.GetType().Name);
                 delivery.State = DeliveryState.Review;
+                delivery.ProtectedTestMessage = null;
                 await db.SaveChangesAsync(ct);
                 await tx.CommitAsync(ct);
-                return;
+                return null;
             }
             if (message is null)
             {
                 delivery.State = DeliveryState.Cancelled;
+                delivery.ProtectedTestMessage = null;
                 await db.SaveChangesAsync(ct);
                 await tx.CommitAsync(ct);
-                return;
+                return null;
             }
 
             // One persisted dispatch rate, shared by every worker and every process.
@@ -69,7 +82,15 @@ public sealed class MailDispatcher(AppDbContext db, MailRenderer renderer, IMail
                 window.Attempts = 0;
             }
             if (window.Attempts >= options.Value.MaxPerMinute)
-                throw new JobExecutionException("Mail provider rate limit; dispatch deferred.");
+            {
+                var delay = TimeSpan.FromSeconds(Math.Max(1, (window.StartedAt.AddMinutes(1) - clock.GetUtcNow()).TotalSeconds));
+                if (defer is not null)
+                {
+                    await defer(tx.GetDbTransaction(), delay, ct);
+                    await tx.CommitAsync(ct);
+                }
+                return delay;
+            }
             window.Attempts++;
 
             delivery.State = DeliveryState.Sending;
@@ -91,7 +112,9 @@ public sealed class MailDispatcher(AppDbContext db, MailRenderer renderer, IMail
             result = new(SendOutcome.Uncertain);
         }
 
-        // Record acceptance/ambiguity even when shutdown cancelled the HTTP operation.
+        // Record acceptance/ambiguity even when shutdown cancelled the transport operation.
+        var retryDelay = TimeSpan.FromSeconds(30);
+        var deferred = false;
         using var finish = new CancellationTokenSource(TimeSpan.FromSeconds(20));
         await using (var tx = await db.Database.BeginTransactionAsync(finish.Token))
         {
@@ -101,16 +124,19 @@ public sealed class MailDispatcher(AppDbContext db, MailRenderer renderer, IMail
                 await db.Database.ExecuteSqlInterpolatedAsync($"SELECT 1 FROM \"Applications\" WHERE \"Id\" = {applicationId} FOR UPDATE", finish.Token);
 
             var delivery = await Lock(id, finish.Token);
-            if (delivery is null || delivery.Attempts != attempt)
-                return;
+            if (delivery is null || delivery.QueueVersion != queueVersion || delivery.Attempts != attempt)
+                return null;
 
             delivery.State = result.Outcome switch
             {
                 SendOutcome.Accepted => DeliveryState.Accepted,
-                SendOutcome.Throttled when attempt < 3 => DeliveryState.Pending,
+                SendOutcome.Throttled when attempt < delivery.AttemptLimit => DeliveryState.Pending,
                 SendOutcome.Rejected or SendOutcome.Throttled => DeliveryState.Failed,
                 _ => DeliveryState.Review
             };
+            deferred = delivery.State == DeliveryState.Pending;
+            if (!deferred)
+                delivery.ProtectedTestMessage = null;
             if (result.Outcome == SendOutcome.Accepted)
             {
                 delivery.AcceptedAt = clock.GetUtcNow();
@@ -120,10 +146,11 @@ public sealed class MailDispatcher(AppDbContext db, MailRenderer renderer, IMail
                     await db.Applications.Where(x => x.Id == appId && x.RejectedAt != null).ExecuteDeleteAsync(finish.Token);
             }
             await db.SaveChangesAsync(finish.Token);
+            if (deferred && defer is not null)
+                await defer(tx.GetDbTransaction(), retryDelay, finish.Token);
             await tx.CommitAsync(finish.Token);
         }
-        if (result.Outcome == SendOutcome.Throttled && attempt < 3)
-            throw new JobExecutionException("Mail provider throttled dispatch.");
+        return deferred ? retryDelay : null;
     }
 
     private Task<Delivery?> Lock(Guid id, CancellationToken ct)

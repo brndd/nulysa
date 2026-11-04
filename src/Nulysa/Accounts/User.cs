@@ -14,6 +14,7 @@ public sealed class User : IdentityUser<long>
     public Guid? PendingEmailVersion { get; set; }
     public DateTimeOffset? PendingEmailRequestedAt { get; set; }
     public string OidcSubject { get; init; } = Guid.NewGuid().ToString("N");
+    public bool EmailNewsletters { get; set; } = true;
     public bool Admitted { get; set; }
     public DateTimeOffset? PendingDeletionAt { get; set; }
     public bool MayLogIn => Admitted && PendingDeletionAt is null;

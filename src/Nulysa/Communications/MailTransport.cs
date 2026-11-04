@@ -18,6 +18,18 @@ public sealed class SmtpMailTransport(IOptions<MailOptions> options, IConfigurat
             IsBodyHtml = false
         };
         message.To.Add(mail.To);
+        if (mail.Html is not null)
+        {
+            // SmtpClient emits the Body separately when AlternateViews exist; make both MIME alternatives explicit.
+            message.Body = "";
+            message.AlternateViews.Add(AlternateView.CreateAlternateViewFromString(mail.Text, System.Text.Encoding.UTF8, "text/plain"));
+            message.AlternateViews.Add(AlternateView.CreateAlternateViewFromString(mail.Html, System.Text.Encoding.UTF8, "text/html"));
+        }
+        if (mail.UnsubscribeUrl is { } url && new Uri(url).Scheme == Uri.UriSchemeHttps)
+        {
+            message.Headers.Add("List-Unsubscribe", $"<{url}>");
+            message.Headers.Add("List-Unsubscribe-Post", "List-Unsubscribe=One-Click");
+        }
         if (mail.Pdf is not null)
             message.Attachments.Add(new Attachment(new MemoryStream(mail.Pdf), mail.FileName ?? "invoice.pdf", "application/pdf"));
         message.Headers.Add("X-Nulysa-Delivery-ID", id.ToString("D"));

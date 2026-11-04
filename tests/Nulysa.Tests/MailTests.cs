@@ -33,6 +33,23 @@ public sealed class MailTransportTests
         Assert.Contains("Plain text; not executable <script>", transcript);
     }
 
+    [Fact]
+    public async Task Smtp_sends_both_rich_mail_alternatives_and_newsletter_unsubscribe_headers()
+    {
+        await using var server = new FakeSmtpServer("250 queued");
+        var unsubscribe = "https://example.test/unsubscribe?token=opaque";
+        var result = await Transport(server.Port).Send(Guid.NewGuid(), new("member@example.test", "Newsletter",
+            "Plain text alternative", Html: "<p>HTML alternative</p>", UnsubscribeUrl: unsubscribe), CancellationToken.None);
+
+        Assert.Equal(SendOutcome.Accepted, result.Outcome);
+        var transcript = await server.Transcript;
+        Assert.Contains("multipart/alternative", transcript);
+        Assert.Contains("text/plain", transcript);
+        Assert.Contains("text/html", transcript);
+        Assert.Contains($"List-Unsubscribe: <{unsubscribe}>", transcript);
+        Assert.Contains("List-Unsubscribe-Post: List-Unsubscribe=One-Click", transcript);
+    }
+
     [Theory]
     [InlineData("450 mailbox busy", SendOutcome.Throttled)]
     [InlineData("550 mailbox unavailable", SendOutcome.Rejected)]
@@ -249,9 +266,8 @@ public sealed class MailTests : MembershipTest
         var id = await Verified(app);
         await Run(app, sp => sp.GetRequiredService<MembershipCommands>().Reject(board, id, null));
         for (var attempt = 0; attempt < 2; attempt++)
-
-            await Assert.ThrowsAsync<JobExecutionException>(() => Run(app, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(id)));
-        await Assert.ThrowsAsync<JobExecutionException>(() => Run(app, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(id)));
+            Assert.Equal(TimeSpan.FromSeconds(30), await Run(app, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(id)));
+        Assert.Equal(TimeSpan.FromMinutes(1), await Run(app, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(id)));
         Assert.Equal(2, transport.Sent.Count); // Retrying the SAME recipient still consumes provider rate capacity.
         Clock.Now = Clock.Now.AddMinutes(1);
         await Run(app, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(id));
@@ -266,7 +282,7 @@ public sealed class MailTests : MembershipTest
         var pending = await Verified(limited, "second@example.test");
         await Run(limited, sp => sp.GetRequiredService<MembershipCommands>().Reject(board, pending, null));
 
-        await Assert.ThrowsAsync<JobExecutionException>(() => Run(limited, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(pending)));
+        Assert.Equal(TimeSpan.FromMinutes(1), await Run(limited, sp => sp.GetRequiredService<MailDispatcher>().Dispatch(pending)));
         Assert.Equal(3, transport.Sent.Count);
     }
 

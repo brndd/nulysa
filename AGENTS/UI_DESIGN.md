@@ -422,7 +422,8 @@ newsletters, official notices and transactional templates.
 “Send now” queues delivery, not completion. Show progress, failures and uncertain
 outcomes. Retry follows the safe delivery workflow, not blind resending. No initial
 administrator-selected future send times or delegated newsletter permissions.
-Editor/storage format/sanitisation selection remains S3 work.
+Choose a rich-text editor that maps to the validated document structure in the
+[S3 backend](../docs/communications.md).
 
 ## 7. Access and training — S4
 
