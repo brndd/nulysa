@@ -22,6 +22,9 @@ namespace Nulysa.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.HasSequence("payment_reference_numbers")
+                .HasMax(99999999999999L);
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole<long>", b =>
                 {
                     b.Property<long>("Id")
@@ -409,8 +412,9 @@ namespace Nulysa.Data.Migrations
                     b.Property<long>("BillingAccountId")
                         .HasColumnType("bigint");
 
-                    b.Property<DateOnly>("EndsOn")
-                        .HasColumnType("date");
+                    b.Property<DateOnly>("EndExclusive")
+                        .HasColumnType("date")
+                        .HasColumnName("EndsOn");
 
                     b.Property<long?>("InvoiceLineId")
                         .HasColumnType("bigint");
@@ -507,8 +511,9 @@ namespace Nulysa.Data.Migrations
                     b.Property<long>("BillingAccountId")
                         .HasColumnType("bigint");
 
-                    b.Property<DateOnly>("EndsOn")
-                        .HasColumnType("date");
+                    b.Property<DateOnly>("EndExclusive")
+                        .HasColumnType("date")
+                        .HasColumnName("EndsOn");
 
                     b.Property<long>("FeeDefinitionId")
                         .HasColumnType("bigint");
@@ -727,11 +732,9 @@ namespace Nulysa.Data.Migrations
                     b.Property<DateOnly?>("EffectiveOn")
                         .HasColumnType("date");
 
-                    b.Property<DateOnly>("EndsOn")
-                        .HasColumnType("date");
-
-                    b.Property<DateOnly>("ExpiresOn")
-                        .HasColumnType("date");
+                    b.Property<DateOnly>("EndExclusive")
+                        .HasColumnType("date")
+                        .HasColumnName("EndsOn");
 
                     b.Property<DateTimeOffset?>("ExpiryNotifiedAt")
                         .HasColumnType("timestamp with time zone");
@@ -751,8 +754,9 @@ namespace Nulysa.Data.Migrations
                     b.Property<DateOnly?>("LastFundingOn")
                         .HasColumnType("date");
 
-                    b.Property<DateOnly>("OriginalEndsOn")
-                        .HasColumnType("date");
+                    b.Property<DateOnly>("OriginalEndExclusive")
+                        .HasColumnType("date")
+                        .HasColumnName("OriginalEndsOn");
 
                     b.Property<string>("OriginalPricingJson")
                         .IsRequired()
@@ -760,6 +764,10 @@ namespace Nulysa.Data.Migrations
 
                     b.Property<DateOnly>("OriginalStartsOn")
                         .HasColumnType("date");
+
+                    b.Property<DateOnly>("PaymentCutoffExclusive")
+                        .HasColumnType("date")
+                        .HasColumnName("ExpiresOn");
 
                     b.Property<string>("PricingJson")
                         .IsRequired()
@@ -832,8 +840,9 @@ namespace Nulysa.Data.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
 
-                    b.Property<DateOnly>("NewEnd")
-                        .HasColumnType("date");
+                    b.Property<DateOnly>("NewEndExclusive")
+                        .HasColumnType("date")
+                        .HasColumnName("NewEnd");
 
                     b.Property<DateOnly>("NewStart")
                         .HasColumnType("date");
@@ -842,8 +851,9 @@ namespace Nulysa.Data.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
 
-                    b.Property<DateOnly>("OldEnd")
-                        .HasColumnType("date");
+                    b.Property<DateOnly>("OldEndExclusive")
+                        .HasColumnType("date")
+                        .HasColumnName("OldEnd");
 
                     b.Property<DateOnly>("OldStart")
                         .HasColumnType("date");
@@ -1028,11 +1038,13 @@ namespace Nulysa.Data.Migrations
                     b.Property<long>("FeeDefinitionId")
                         .HasColumnType("bigint");
 
-                    b.Property<long?>("MembershipId")
-                        .HasColumnType("bigint");
+                    b.Property<long?>("MembershipUserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("MembershipId");
 
-                    b.Property<DateOnly>("NextOn")
-                        .HasColumnType("date");
+                    b.Property<DateOnly>("NextUnissuedPeriodStartsOn")
+                        .HasColumnType("date")
+                        .HasColumnName("NextOn");
 
                     b.Property<long?>("ServiceEnrollmentId")
                         .HasColumnType("bigint");
@@ -1046,7 +1058,7 @@ namespace Nulysa.Data.Migrations
 
                     b.HasIndex("FeeDefinitionId");
 
-                    b.HasIndex("MembershipId")
+                    b.HasIndex("MembershipUserId")
                         .IsUnique()
                         .HasFilter("\"EndedAt\" IS NULL AND \"MembershipId\" IS NOT NULL");
 
@@ -1969,7 +1981,7 @@ namespace Nulysa.Data.Migrations
 
                     b.HasOne("Nulysa.Membership.Member", null)
                         .WithMany()
-                        .HasForeignKey("MembershipId")
+                        .HasForeignKey("MembershipUserId")
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Nulysa.Services.ServiceEnrollment", null)

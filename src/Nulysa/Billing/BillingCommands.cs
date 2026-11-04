@@ -133,7 +133,13 @@ public sealed partial class BillingCommands(AppDbContext db, AssociationClock cl
         var group = facts.Groups.SingleOrDefault(x => x.IntervalMonths == months);
         if (group is not null)
             return group;
-        group = new() { BillingAccountId = facts.Account.Id, IntervalMonths = months, Anchor = anchor };
+        group = new()
+        {
+            BillingAccountId = facts.Account.Id,
+            IntervalMonths = months,
+            Anchor = anchor,
+            PaymentReference = await PaymentReference.Allocate(db, PaymentReferenceKind.Recurring, ct)
+        };
         facts.Groups.Add(group);
         db.BillingGroups.Add(group);
         await db.SaveChangesAsync(ct);

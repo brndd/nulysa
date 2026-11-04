@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Nulysa.Accounts;
+using Nulysa.Billing;
 using Nulysa.Communications;
 using Nulysa.Data;
 using Nulysa.Membership;
@@ -343,7 +344,7 @@ public sealed class MembershipTests : MembershipTest
         }
         await using (var db = Context())
         {
-            db.BillingAccounts.Add(new() { UserId = id, CreatedAt = Clock.Now });
+            db.BillingAccounts.Add(new() { UserId = id, CreatedAt = Clock.Now, PurchaseDepositReference = PaymentReference.Complete("2999") });
 
             await Assert.ThrowsAsync<DbUpdateException>(() => db.SaveChangesAsync());
         }

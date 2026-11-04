@@ -44,7 +44,7 @@ public sealed class BillingGroup
     public long BillingAccountId { get; set; }
     public int IntervalMonths { get; set; }
     public DateOnly Anchor { get; set; }
-    public string PaymentReference { get; set; } = Billing.PaymentReference.Create('2');
+    public required string PaymentReference { get; set; }
 }
 
 public sealed class RecurringItem

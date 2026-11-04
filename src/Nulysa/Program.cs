@@ -125,7 +125,7 @@ try
                     throw new InvalidOperationException("Development user creation failed.");
                 var clock = scope.ServiceProvider.GetRequiredService<AssociationClock>();
                 db.Members.Add(new() { UserId = user.Id, JoinedOn = clock.Today });
-                var account = new BillingAccount { UserId = user.Id, CreatedAt = clock.Now };
+                var account = await BillingAccount.Create(db, user.Id, clock.Now);
                 db.BillingAccounts.Add(account);
                 await db.SaveChangesAsync();
                 // Explicit synthetic bootstrap data, never a production membership-price default.

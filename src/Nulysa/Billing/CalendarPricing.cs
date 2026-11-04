@@ -1,6 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-using System.Globalization;
-using System.Security.Cryptography;
 using System.Text.Json.Serialization;
 
 namespace Nulysa.Billing;
@@ -203,21 +201,4 @@ public static class Pricing
             .Sum());
         return Math.Max(0, Math.Min(remainingCredit, FromSegments(original).Amount - previous.Sum(x => x.Amount)));
     }
-}
-
-public static class PaymentReference
-{
-    public static string Create(char prefix)
-    {
-        var value = prefix + (BitConverter.ToUInt64(RandomNumberGenerator.GetBytes(8)) % 1_000_000_000_000_000UL).ToString("D15", CultureInfo.InvariantCulture);
-        return Complete(value);
-    }
-
-    public static string Complete(string value)
-    {
-        var sum = value.Reverse().Select((digit, i) => (digit - '0') * new[] { 7, 3, 1 }[i % 3]).Sum();
-        return value + ((10 - sum % 10) % 10).ToString(CultureInfo.InvariantCulture);
-    }
-
-    public static string Normalize(string value) => string.Concat(value.Where(x => !char.IsWhiteSpace(x))).ToUpperInvariant();
 }

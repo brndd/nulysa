@@ -9,6 +9,9 @@ public static class BillingMapping
 {
     public static void Configure(ModelBuilder builder)
     {
+        // Leave the 17-digit space to previously issued references.
+        builder.HasSequence<long>(PaymentReference.SequenceName).HasMax(99_999_999_999_999);
+
         builder.Entity<BillingAccount>(e =>
         {
             e.Property(x => x.PurchaseDepositReference).HasMaxLength(20);

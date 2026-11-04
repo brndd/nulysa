@@ -15,7 +15,9 @@ bash scripts/dev.sh seed-development-data
 
 The command is idempotent for convenience: if the seed administrator already
 exists, it prints the known account list and changes nothing. It does not try to
-repair a partial seed.
+repair a partial seed. A fresh seed uses the same short payment references as new
+members and invoices. To see them throughout an already seeded demo, follow the
+reset instructions below and seed again.
 
 ## Logins
 

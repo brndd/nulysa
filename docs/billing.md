@@ -66,12 +66,18 @@ approval**; a missing price rolls back approval, including its mail intents.
    accounts' financial evidence and permitted refund/reversal tasks. Reconciliation
    and CSV exports are under `/admin/payments/accounting`.
 
-Recurring references are stable per member/interval; one-off requests have separate
-references. Changing an interval affects the next **unissued** period, preserving
-existing quotes, funding, deadlines and references. All groups keep the original
-joining-anniversary phase. Short initial/alignment bridges merge once with the next
-period; month-end days do not drift. Receipt-date repricing does not run daily merely
-to make partial funds sufficient.
+New payment references start at six digits: a purpose digit, a sequence number
+(at least four digits), and the Finnish check digit. The purpose is `1` for recurring
+bills, `2` for purchase balance deposits, and `3` for one-off invoices. Recurring
+bills can include membership and services, so services do not get their own prefix.
+Previously issued references still work.
+
+Recurring references are stable per member/interval. Changing an interval affects
+the next **unissued** period, preserving existing quotes, funding, deadlines and
+references. All groups keep the original joining-anniversary phase. Short
+initial/alignment bridges merge once with the next period; month-end days do not
+drift. Receipt-date repricing does not run daily merely to make partial funds
+sufficient.
 
 ## Deployment settings
 

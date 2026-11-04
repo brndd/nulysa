@@ -244,7 +244,7 @@ public sealed partial class BillingTests
         await using var db = Context();
         var approved = new DateTimeOffset(2026, 6, 1, 10, 0, 0, TimeSpan.Zero);
         db.Members.Add(new() { UserId = user.Id, JoinedOn = new(2026, 6, 1) });
-        var account = new BillingAccount { UserId = user.Id, CreatedAt = approved };
+        var account = new BillingAccount { UserId = user.Id, CreatedAt = approved, PurchaseDepositReference = PaymentReference.Complete("1000000000000001") };
         db.BillingAccounts.Add(account);
         await db.SaveChangesAsync();
         db.InitialMembershipRequests.Add(new() { BillingAccountId = account.Id, Anchor = new(2026, 6, 1), RequestedAt = approved });

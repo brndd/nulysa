@@ -246,7 +246,8 @@ public sealed class DevelopmentSeed(
         MembershipCommands.Check(await users.CreateAsync(user, SeedPassword));
 
         db.Members.Add(new Member { UserId = user.Id, JoinedOn = definition.JoinedOn });
-        var account = new BillingAccount { UserId = user.Id, CreatedAt = At(definition.JoinedOn), EmailInvoices = false };
+        var account = await BillingAccount.Create(db, user.Id, At(definition.JoinedOn), ct);
+        account.EmailInvoices = false;
         db.BillingAccounts.Add(account);
         db.Approvals.Add(new Approval
         {

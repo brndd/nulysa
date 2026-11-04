@@ -23,7 +23,12 @@ public sealed partial class BillingCommands
             if (!hasDescription || !hasCategory || !isPositiveCentAmount || dueOn <= clock.Today)
                 throw new ValidationException("Provide a description, category, positive cent amount and future payment deadline.");
 
-            var invoice = new Invoice { BillingAccountId = accountId, IssuedAt = clock.Now, OneOffReference = PaymentReference.Create('3') };
+            var invoice = new Invoice
+            {
+                BillingAccountId = accountId,
+                IssuedAt = clock.Now,
+                OneOffReference = await PaymentReference.Allocate(db, PaymentReferenceKind.OneOff, ct)
+            };
             facts.Invoices.Add(invoice);
             db.Invoices.Add(invoice);
             await db.SaveChangesAsync(ct);

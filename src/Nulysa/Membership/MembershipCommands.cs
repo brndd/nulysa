@@ -162,7 +162,7 @@ public sealed class MembershipCommands(AppDbContext db, UserManager<User> users,
         var joinedOn = DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(approvedAt, clock.Zone).DateTime);
         db.Members.Add(new() { UserId = user.Id, JoinedOn = joinedOn });
         db.Approvals.Add(new() { Id = applicationId, UserId = user.Id, AdministratorId = Authority.Id(actor), ApprovedAt = approvedAt });
-        var account = new BillingAccount { UserId = user.Id, CreatedAt = approvedAt };
+        var account = await BillingAccount.Create(db, user.Id, approvedAt, ct);
         db.BillingAccounts.Add(account);
         await db.SaveChangesAsync(ct);
 

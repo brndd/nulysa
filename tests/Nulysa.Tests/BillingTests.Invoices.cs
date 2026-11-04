@@ -13,6 +13,39 @@ namespace Nulysa.Tests;
 public sealed partial class BillingTests
 {
     [Fact]
+    public async Task New_payment_references_are_short_and_unique_and_grow_when_the_sequence_needs_more_digits()
+    {
+        On(6, 1);
+        var board = await Board();
+        await using var app = CommandsApp();
+        var id = await Admit(app, board);
+        var other = await Admit(app, board, "other@example.test");
+        var first = await View(app, board, id);
+        var second = await View(app, board, other);
+        Task<long?> CreateOneOff() => Run(app, sp => sp.GetRequiredService<BillingCommands>()
+            .OneOff(board, first.AccountId, Guid.NewGuid(), "Workshop", "workshop", 5, new(2026, 6, 20)));
+        var oneOff = await CreateOneOff();
+        var oneOffReference = (await View(app, board, id)).Invoices.Single(x => x.Invoice.Id == oneOff).Reference;
+
+        var recurring = new[] { first.Groups.Single().PaymentReference, second.Groups.Single().PaymentReference };
+        var deposits = new[] { first.DepositReference, second.DepositReference };
+        Assert.All(recurring, reference => Assert.Matches("^1[0-9]{5}$", reference));
+        Assert.All(deposits, reference => Assert.Matches("^2[0-9]{5}$", reference));
+        Assert.Matches("^3[0-9]{5}$", oneOffReference);
+        var references = recurring.Concat(deposits).Append(oneOffReference).ToArray();
+        Assert.Equal(references.Length, references.Distinct().Count());
+        Assert.All(references, reference => Assert.Equal(PaymentReference.Complete(reference[..^1]), reference));
+
+        await using var db = Context();
+        await db.Database.ExecuteSqlRawAsync("SELECT setval('payment_reference_numbers', 9999)");
+        var nextOneOff = await CreateOneOff();
+        var nextReference = (await View(app, board, id)).Invoices.Single(x => x.Invoice.Id == nextOneOff).Reference;
+        Assert.Equal("3100004", nextReference);
+        await Pay(app, nextReference, 5);
+        Assert.Equal(5, (await View(app, board, id)).Invoices.Single(x => x.Invoice.Id == nextOneOff).Paid);
+    }
+
+    [Fact]
     public async Task One_off_reference_uses_the_same_funding_path_without_recurring_coverage_or_wallet_sweep()
     {
         On(6, 1);
