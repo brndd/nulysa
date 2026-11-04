@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using Nulysa.Localization;
 
@@ -12,7 +13,11 @@ namespace Nulysa.Communications;
 public enum MailBlockKind { Paragraph, Heading, Bullet, Quote, OperationalDetails }
 public sealed record MailRun(string Text, bool Bold = false, bool Italic = false, string? Link = null);
 public sealed record MailBlock(MailBlockKind Kind, MailRun[] Runs);
-public sealed record MailVariant(string Language, string Subject, MailBlock[] Body);
+public sealed record MailVariant(string Language, string Subject, MailBlock[] Body)
+{
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Markdown { get; init; }
+}
 public sealed record MailContent(string Subject, string Text, string Html);
 
 internal static class RichMail
@@ -20,7 +25,7 @@ internal static class RichMail
     public const int SubjectLimit = 200;
     private const int BodyLimit = 32_000;
 
-    public static MailVariant[] Validate(IReadOnlyCollection<MailVariant> variants, bool operational = false)
+    public static MailVariant[] Validate(IReadOnlyCollection<MailVariant> variants, bool operational = false, bool allowEmptySubject = false)
     {
         if (variants.Count == 0 || variants.Count > UiLanguages.Supported.Count)
             throw new ValidationException("Provide at least one supported message language.");
@@ -33,8 +38,10 @@ internal static class RichMail
             var language = UiLanguages.Find(variant.Language)?.Code;
             if (language is null || !languages.Add(language))
                 throw new ValidationException("Provide only one variant per supported language.");
-            if (string.IsNullOrWhiteSpace(variant.Subject) || variant.Subject.Length > SubjectLimit || variant.Subject.Any(char.IsControl))
+            if ((!allowEmptySubject && string.IsNullOrWhiteSpace(variant.Subject)) || variant.Subject.Length > SubjectLimit || variant.Subject.Any(char.IsControl))
                 throw new ValidationException("Enter a single-line subject up to 200 characters.");
+            if (variant.Markdown is { Length: > MailMarkdown.SourceLimit })
+                throw new ValidationException("The Markdown source is too long.");
             if (variant.Body is not { Length: > 0 and <= 100 } || variant.Body.Any(block => block is null ||
                 !Enum.IsDefined(block.Kind) || block.Runs is not { Length: <= 100 } ||
                 (block.Kind == MailBlockKind.OperationalDetails ? block.Runs.Length != 0 :
@@ -147,7 +154,7 @@ internal static class RichMail
     }
 
     private static string EncodeLines(string value) => WebUtility.HtmlEncode(value).Replace("\r\n", "\n").Replace("\r", "\n").Replace("\n", "<br>");
-    private static bool SafeLink(string href) => href.Length is > 0 and <= 2048 && href.All(c => !char.IsControl(c) && !char.IsWhiteSpace(c) && c != '\\') &&
+    internal static bool SafeLink(string href) => href.Length is > 0 and <= 2048 && href.All(c => !char.IsControl(c) && !char.IsWhiteSpace(c) && c != '\\') &&
         Uri.TryCreate(href, UriKind.Absolute, out var uri) &&
         ((uri.Scheme is "https" or "http" && uri.Host.Length > 0 && uri.UserInfo.Length == 0) ||
             (uri.Scheme == "mailto" && uri.Query.Length == 0 && uri.Fragment.Length == 0 && uri.AbsolutePath.Length > 0 &&

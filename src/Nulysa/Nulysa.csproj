@@ -7,6 +7,7 @@
   </ItemGroup>
   <ItemGroup>
     <!-- Keep Blazor assets identical across the host and container SDK patch versions. -->
+    <PackageReference Include="Markdig" Version="1.5.1" />
     <PackageReference Include="Microsoft.AspNetCore.App.Internal.Assets" Version="10.0.14" PrivateAssets="all" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.14" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.14" PrivateAssets="all" />

@@ -48,6 +48,11 @@
         "resolved": "4.0.1",
         "contentHash": "8CoAaZkniVekR1ycJyxn+hOz+6ZQCDPcoIsIs6ujd4WyFcBMlxGNU15Qb8Uxd4iO4UmOuETb0M6vzBbwX/mfLA=="
       },
+      "Markdig": {
+        "type": "Transitive",
+        "resolved": "1.5.1",
+        "contentHash": "NtHwU5t5yKr6Gnylhs8/hlR0mOAftTFQURDz2ID8bkunxps1neOzKw0dYKKlwNuwiYIGLHjJTXK91f809Ko1ww=="
+      },
       "Microsoft.AspNetCore.Cryptography.Internal": {
         "type": "Transitive",
         "resolved": "10.0.14",
@@ -486,6 +491,7 @@
       "nulysa": {
         "type": "Project",
         "dependencies": {
+          "Markdig": "[1.5.1, )",
           "Microsoft.AspNetCore.Identity.EntityFrameworkCore": "[10.0.14, )",
           "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.3, )",
           "OpenIddict.EntityFrameworkCore": "[7.7.2, )",
