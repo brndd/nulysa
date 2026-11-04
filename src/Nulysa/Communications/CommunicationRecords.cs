@@ -13,6 +13,7 @@ public sealed class MailCampaign
     public DateTimeOffset? QueuedAt { get; set; }
     public long? QueuedBy { get; set; }
     public int RecipientCount { get; set; }
+    public int AcceptedRecipients { get; set; }
 }
 
 public sealed class OperationalMailTemplate
@@ -33,7 +34,9 @@ public sealed class MailDeliveryRetry
     public DateTimeOffset RequestedAt { get; set; }
 }
 
-public sealed record CampaignSummary(Guid Id, Guid Revision, string Title, CampaignKind Kind, DateTimeOffset UpdatedAt, DateTimeOffset? QueuedAt, int RecipientCount);
+public sealed record CampaignSummary(Guid Id, Guid Revision, string Title, CampaignKind Kind, DateTimeOffset UpdatedAt, DateTimeOffset? QueuedAt, int RecipientCount, int AcceptedRecipients);
+public sealed record CampaignHistoryEntry(CampaignSummary Campaign, bool Processing);
+public sealed record CampaignHistoryPage(IReadOnlyList<CampaignHistoryEntry> Entries, int Page, int PageCount);
 public sealed record CampaignDraft(CampaignSummary Campaign, IReadOnlyList<MailVariant> Variants);
 public sealed record CampaignLanguageGroup(string PreferredLanguage, int Recipients, string? OutgoingLanguage, MailContent? Content);
 public sealed record CampaignPreview(CampaignSummary Campaign, IReadOnlyList<CampaignLanguageGroup> Groups, string? Confirmation);

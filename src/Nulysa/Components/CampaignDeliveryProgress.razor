@@ -1,0 +1,185 @@
+@using System.ComponentModel.DataAnnotations
+@using System.Security.Claims
+@using Nulysa.Communications
+@using Nulysa.Components.Pages
+@inject IServiceScopeFactory Scopes
+
+<section aria-labelledby="campaign-progress">
+    <h3 id="campaign-progress">@T("Delivery records")</h3>
+    @if (Campaign.QueuedAt is not null)
+    {
+        @if (progress is not null)
+        {
+            <p><CampaignSendStatus Campaign="progress.Campaign" Processing="@(progress.Counts.GetValueOrDefault(DeliveryState.Pending) + progress.Counts.GetValueOrDefault(DeliveryState.Sending) > 0)" /></p>
+            <ul>
+                @foreach (var state in Enum.GetValues<DeliveryState>())
+                {
+                    var count = state == DeliveryState.Accepted ? progress.Campaign.AcceptedRecipients : progress.Counts.GetValueOrDefault(state);
+                    <li>@T("{0}: {1}", StateLabel(state), count)</li>
+                }
+            </ul>
+            @if (progress.NoLongerRetained > 0)
+            {
+                <p>@T("Delivery records no longer retained: {0}", progress.NoLongerRetained)</p>
+            }
+        }
+    }
+    <p>@T("Accepted means the mail provider accepted the message. Uncertain deliveries require reconciliation before any resend.")</p>
+    <label for="campaign-delivery-state">@T("Delivery state")</label>
+    <select id="campaign-delivery-state" @bind="filter" @bind:after="() => Load(1)" disabled="@Disabled">
+        <option value="">@T("All states")</option>
+        @foreach (var state in Enum.GetValues<DeliveryState>())
+        {
+            <option value="@state">@StateLabel(state)</option>
+        }
+    </select>
+    <button type="button" class="secondary-action" disabled="@Disabled" @onclick="() => Load(progress?.Page ?? 1)">@T("Refresh deliveries")</button>
+    @if (error is not null) { <p role="alert">@ValidationText.Translate(error)</p> }
+    @if (notice is not null) { <p role="status">@notice</p> }
+
+    @if (progress is not null)
+    {
+        @if (progress.Recipients.Count == 0)
+        {
+            <p>@T("No deliveries match this view.")</p>
+        }
+        else
+        {
+            <form @onsubmit="Retry" @onsubmit:preventDefault>
+                <table>
+                    <thead><tr><th scope="col">@T("Recipient")</th><th scope="col">@T("Language")</th>
+                        <th scope="col">@T("Delivery state")</th><th scope="col">@T("Attempts")</th>
+                        <th scope="col">@T("Delivery ID")</th><th scope="col">@T("Provider reference")</th>
+                        @if (Campaign.QueuedAt is not null) { <th scope="col">@T("Retry")</th> }
+                    </tr></thead>
+                    <tbody>
+                        @foreach (var row in progress.Recipients)
+                        {
+                            <tr @key="row.Id">
+                                <td>
+                                    @if (row.Test) { @T("Test email") }
+                                    else if (row.UserId is { } member)
+                                    {
+                                        <a href="@($"/admin/members/{member}/details")">@T("Member #{0}", member)</a>
+                                    }
+                                    else { @T("Recipient no longer available") }
+                                </td>
+                                <td>@(row.OutgoingLanguage is { } language ? CampaignDelivery.LanguageName(language) : "—")</td>
+                                <td>@StateLabel(row.State)</td>
+                                <td>@row.Attempts</td>
+                                <td class="supporting-reference">@row.Id</td>
+                                <td class="supporting-reference">@(row.ProviderId ?? "—")</td>
+                                @if (Campaign.QueuedAt is not null)
+                                {
+                                    <td>
+                                        @if (row.State == DeliveryState.Failed && !row.Test && row.UserId is not null)
+                                        {
+                                            <input type="checkbox" checked="@selected.Contains(row.Id)" disabled="@Disabled"
+                                                   aria-label="@T("Select delivery {0} for retry", row.Id)"
+                                                   @onchange="e => Select(row.Id, e.Value is true)" />
+                                        }
+                                    </td>
+                                }
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+                @if (selected.Count > 0)
+                {
+                    <fieldset>
+                        <legend>@T("Retry failed deliveries")</legend>
+                        <label for="campaign-retry-reason">@T("Reason")</label>
+                        <input id="campaign-retry-reason" @bind="reason" required maxlength="1000" disabled="@Disabled" />
+                        <label><input type="checkbox" @bind="confirmed" disabled="@Disabled" /> @T("I confirm retrying the selected deliveries ({0}).", selected.Count)</label>
+                        <div><button type="submit" disabled="@(Disabled || !confirmed)">@T("Queue selected retries")</button></div>
+                    </fieldset>
+                }
+            </form>
+        }
+
+        @if (PageCount > 1)
+        {
+            <nav class="section-pagination" aria-label="@T("Delivery pages")">
+                <button type="button" disabled="@(Disabled || progress.Page == 1)" @onclick="() => Load(progress.Page - 1)">@T("Previous")</button>
+                <span>@T("Page {0} of {1}", progress.Page, PageCount)</span>
+                <button type="button" disabled="@(Disabled || progress.Page >= PageCount)" @onclick="() => Load(progress.Page + 1)">@T("Next")</button>
+            </nav>
+        }
+    }
+</section>
+
+@code {
+    [Parameter, EditorRequired] public CampaignSummary Campaign { get; set; } = null!;
+    [Parameter, EditorRequired] public ClaimsPrincipal Actor { get; set; } = null!;
+
+    private CampaignProgress? progress;
+    private string filter = "";
+    private readonly HashSet<Guid> selected = [];
+    private bool confirmed;
+    private string reason = "";
+    private string? error;
+    private string? notice;
+    private bool busy;
+    private bool Disabled => !RendererInfo.IsInteractive || busy;
+    private int PageCount => ((progress?.TotalRows ?? 0) + Campaigns.PageSize - 1) / Campaigns.PageSize;
+
+    protected override Task OnInitializedAsync() => Load(1);
+
+    private static string StateLabel(DeliveryState state) => T(state switch
+    {
+        DeliveryState.Pending => "Queued",
+        DeliveryState.Sending => "Sending",
+        DeliveryState.Accepted => "Accepted by provider",
+        DeliveryState.Review => "Uncertain",
+        DeliveryState.Failed => "Failed",
+        DeliveryState.Cancelled => "Cancelled",
+        _ => state.ToString()
+    });
+
+    private void Select(Guid id, bool enabled)
+    {
+        if (enabled)
+            selected.Add(id);
+        else
+            selected.Remove(id);
+        confirmed = false;
+    }
+
+    private Task Load(int page) => Run(campaigns => Read(campaigns, page));
+
+    private async Task Read(Campaigns campaigns, int page)
+    {
+        var state = Enum.TryParse<DeliveryState>(filter, out var parsed) ? (DeliveryState?)parsed : null;
+        progress = await campaigns.Progress(Actor, Campaign.Id, page, state);
+        selected.Clear();
+        confirmed = false;
+        reason = "";
+    }
+
+    private Task Retry() => Run(async campaigns =>
+    {
+        if (!confirmed || selected.Count == 0)
+            return;
+        var count = await campaigns.RetryFailed(Actor, Campaign.Id, selected.ToArray(), reason, confirmed);
+        notice = T("Retries queued: {0}", count);
+        await Read(campaigns, progress?.Page ?? 1);
+    });
+
+    private async Task Run(Func<Campaigns, Task> action)
+    {
+        if (busy)
+            return;
+        busy = true;
+        error = null;
+        notice = null;
+        try
+        {
+            await using var scope = Scopes.CreateAsyncScope();
+            await action(scope.ServiceProvider.GetRequiredService<Campaigns>());
+        }
+        catch (ValidationException problem) { error = problem.Message; }
+        catch (KeyNotFoundException) { error = "Campaign does not exist."; }
+        catch (UnauthorizedAccessException) { error = "Access denied"; }
+        finally { busy = false; }
+    }
+}

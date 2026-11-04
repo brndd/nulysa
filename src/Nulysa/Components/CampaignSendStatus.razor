@@ -1,0 +1,8 @@
+@using Nulysa.Communications
+
+<span>@T(Processing ? "Queued" : "Complete") · @T("Sent ({0}/{1})", Campaign.AcceptedRecipients, Campaign.RecipientCount)</span>
+
+@code {
+    [Parameter, EditorRequired] public CampaignSummary Campaign { get; set; } = null!;
+    [Parameter] public bool Processing { get; set; }
+}

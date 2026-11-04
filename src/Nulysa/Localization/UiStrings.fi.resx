@@ -2784,4 +2784,184 @@
   <data name="Write your message in Markdown…" xml:space="preserve">
     <value>Kirjoita viesti Markdown-muodossa…</value>
   </data>
+  <data name="Review and send saved draft" xml:space="preserve">
+    <value>Tarkista ja lähetä tallennettu luonnos</value>
+  </data>
+  <data name="Review and send" xml:space="preserve">
+    <value>Tarkista ja lähetä</value>
+  </data>
+  <data name="View delivery progress" xml:space="preserve">
+    <value>Näytä lähetyksen eteneminen</value>
+  </data>
+  <data name="Delivery progress" xml:space="preserve">
+    <value>Lähetyksen eteneminen</value>
+  </data>
+  <data name="Queued" xml:space="preserve">
+    <value>Jonossa</value>
+  </data>
+  <data name="Sending" xml:space="preserve">
+    <value>Lähetetään</value>
+  </data>
+  <data name="Accepted by provider" xml:space="preserve">
+    <value>Palveluntarjoaja hyväksyi</value>
+  </data>
+  <data name="Uncertain" xml:space="preserve">
+    <value>Epävarma</value>
+  </data>
+  <data name="Campaign does not exist." xml:space="preserve">
+    <value>Viestiä ei löydy.</value>
+  </data>
+  <data name="Back to draft" xml:space="preserve">
+    <value>Takaisin luonnokseen</value>
+  </data>
+  <data name="Audience and outgoing messages" xml:space="preserve">
+    <value>Vastaanottajat ja lähetettävät viestit</value>
+  </data>
+  <data name="Includes current members, including inactive members, who receive newsletters. Accounts pending deletion are excluded." xml:space="preserve">
+    <value>Mukana ovat nykyiset jäsenet, myös passiiviset, jotka tilaavat uutiskirjeitä. Poistoa odottavat tilit eivät ole mukana.</value>
+  </data>
+  <data name="Includes current members, including inactive members, regardless of newsletter preferences. Accounts pending deletion are excluded." xml:space="preserve">
+    <value>Mukana ovat nykyiset jäsenet, myös passiiviset, uutiskirjeasetuksista riippumatta. Poistoa odottavat tilit eivät ole mukana.</value>
+  </data>
+  <data name="Refresh audience" xml:space="preserve">
+    <value>Päivitä vastaanottajat</value>
+  </data>
+  <data name="There are no eligible recipients." xml:space="preserve">
+    <value>Sopivia vastaanottajia ei ole.</value>
+  </data>
+  <data name="{0} · {1} recipients" xml:space="preserve">
+    <value>{0} · {1} vastaanottajaa</value>
+  </data>
+  <data name="This group needs a fallback language." xml:space="preserve">
+    <value>Tälle ryhmälle tarvitaan varakieli.</value>
+  </data>
+  <data name="Fallback for {0}" xml:space="preserve">
+    <value>Varakieli ryhmälle {0}</value>
+  </data>
+  <data name="Choose a fallback" xml:space="preserve">
+    <value>Valitse varakieli</value>
+  </data>
+  <data name="Outgoing language: {0}" xml:space="preserve">
+    <value>Lähetyskieli: {0}</value>
+  </data>
+  <data name="Test email" xml:space="preserve">
+    <value>Testiviesti</value>
+  </data>
+  <data name="Send a copy of a saved language variant to an address you choose." xml:space="preserve">
+    <value>Lähetä kopio tallennetusta kieliversiosta haluamaasi osoitteeseen.</value>
+  </data>
+  <data name="Test language" xml:space="preserve">
+    <value>Testiviestin kieli</value>
+  </data>
+  <data name="Test email address" xml:space="preserve">
+    <value>Testiviestin sähköpostiosoite</value>
+  </data>
+  <data name="Queue test email" xml:space="preserve">
+    <value>Lisää testiviesti jonoon</value>
+  </data>
+  <data name="Test email queued." xml:space="preserve">
+    <value>Testiviesti lisättiin jonoon.</value>
+  </data>
+  <data name="Confirm bulk send" xml:space="preserve">
+    <value>Vahvista joukkolähetys</value>
+  </data>
+  <data name="Messages are added to the delivery queue after confirmation." xml:space="preserve">
+    <value>Viestit lisätään lähetysjonoon vahvistuksen jälkeen.</value>
+  </data>
+  <data name="I reviewed the outgoing messages and confirm sending to {0} recipients." xml:space="preserve">
+    <value>Tarkistin lähetettävät viestit ja vahvistan lähetyksen {0} vastaanottajalle.</value>
+  </data>
+  <data name="A current audience preview with all languages resolved is required." xml:space="preserve">
+    <value>Tarkista ajantasainen vastaanottajaluettelo ja valitse tarvittavat varakielet.</value>
+  </data>
+  <data name="Queue bulk send" xml:space="preserve">
+    <value>Lisää joukkolähetys jonoon</value>
+  </data>
+  <data name="The draft changed. Refresh the audience and review it again." xml:space="preserve">
+    <value>Luonnos muuttui. Päivitä vastaanottajat ja tarkista viesti uudelleen.</value>
+  </data>
+  <data name="Delivery records" xml:space="preserve">
+    <value>Lähetystiedot</value>
+  </data>
+  <data name="Delivery records no longer retained: {0}" xml:space="preserve">
+    <value>Poistettuja lähetystietoja: {0}</value>
+  </data>
+  <data name="Accepted means the mail provider accepted the message. Uncertain deliveries require reconciliation before any resend." xml:space="preserve">
+    <value>Hyväksytty tarkoittaa, että sähköpostipalvelu otti viestin vastaan. Epävarmat lähetykset on selvitettävä ennen uudelleenlähetystä.</value>
+  </data>
+  <data name="All states" xml:space="preserve">
+    <value>Kaikki tilat</value>
+  </data>
+  <data name="Refresh deliveries" xml:space="preserve">
+    <value>Päivitä lähetystiedot</value>
+  </data>
+  <data name="No deliveries match this view." xml:space="preserve">
+    <value>Hakua vastaavia lähetyksiä ei ole.</value>
+  </data>
+  <data name="Recipient no longer available" xml:space="preserve">
+    <value>Vastaanottajan tiedot eivät ole enää saatavilla</value>
+  </data>
+  <data name="Attempts" xml:space="preserve">
+    <value>Yritykset</value>
+  </data>
+  <data name="Retry" xml:space="preserve">
+    <value>Yritä uudelleen</value>
+  </data>
+  <data name="Select delivery {0} for retry" xml:space="preserve">
+    <value>Valitse lähetys {0} uutta yritystä varten</value>
+  </data>
+  <data name="Retry failed deliveries" xml:space="preserve">
+    <value>Yritä epäonnistuneita lähetyksiä uudelleen</value>
+  </data>
+  <data name="I confirm retrying the selected deliveries ({0})." xml:space="preserve">
+    <value>Vahvistan, että valittuja lähetyksiä ({0}) yritetään uudelleen.</value>
+  </data>
+  <data name="Queue selected retries" xml:space="preserve">
+    <value>Lisää valitut lähetykset uudelleen jonoon</value>
+  </data>
+  <data name="Retries queued: {0}" xml:space="preserve">
+    <value>Uudelleen jonoon lisättyjä lähetyksiä: {0}</value>
+  </data>
+  <data name="Delivery pages" xml:space="preserve">
+    <value>Lähetystietojen sivut</value>
+  </data>
+  <data name="The draft, audience or fallbacks changed. Preview and confirm again." xml:space="preserve">
+    <value>Luonnos, vastaanottajat tai varakielet muuttuivat. Tarkista ja vahvista lähetys uudelleen.</value>
+  </data>
+  <data name="Confirm the message from a current preview." xml:space="preserve">
+    <value>Vahvista viesti ajantasaisesta esikatselusta.</value>
+  </data>
+  <data name="The draft has changed. Reload it before testing." xml:space="preserve">
+    <value>Luonnos muuttui. Lataa se uudelleen ennen testaamista.</value>
+  </data>
+  <data name="Enter one email address for the test." xml:space="preserve">
+    <value>Anna yksi sähköpostiosoite testiviestille.</value>
+  </data>
+  <data name="Choose a saved language for the test." xml:space="preserve">
+    <value>Valitse testiviestille tallennettu kieliversio.</value>
+  </data>
+  <data name="Campaign history" xml:space="preserve">
+    <value>Viestihistoria</value>
+  </data>
+  <data name="Back to campaign history" xml:space="preserve">
+    <value>Takaisin viestihistoriaan</value>
+  </data>
+  <data name="No campaigns have been queued." xml:space="preserve">
+    <value>Yhtään viestiä ei ole lisätty jonoon.</value>
+  </data>
+  <data name="Campaign content" xml:space="preserve">
+    <value>Viestin sisältö</value>
+  </data>
+  <data name="View Markdown source" xml:space="preserve">
+    <value>Näytä Markdown-teksti</value>
+  </data>
+  <data name="Complete" xml:space="preserve">
+    <value>Valmis</value>
+  </data>
+  <data name="Sent ({0}/{1})" xml:space="preserve">
+    <value>Lähetetty ({0}/{1})</value>
+  </data>
+  <data name="Sent counts messages accepted by the mail provider." xml:space="preserve">
+    <value>Lähetettyjen määrä kertoo, montako viestiä sähköpostipalvelu hyväksyi.</value>
+  </data>
 </root>

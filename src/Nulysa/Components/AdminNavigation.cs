@@ -31,6 +31,7 @@ public static class AdminNavigation
         new("communications", "Communications",
         [
             new("campaign-drafts", "Campaign drafts", "/admin/communications/drafts"),
+            new("campaign-history", "Campaign history", "/admin/communications/history"),
             new("mail-templates", "Automatic mail templates", "/admin/communications/templates"),
             new("mail", "Mail problems", "/admin/mail-attention")
         ]),

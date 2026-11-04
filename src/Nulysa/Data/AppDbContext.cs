@@ -146,10 +146,16 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options)
         });
         builder.Entity<MailCampaign>(entity =>
         {
-            entity.ToTable(table => table.HasCheckConstraint("CK_MailCampaign_Queued", """
-                ("QueuedAt" IS NULL AND "QueuedBy" IS NULL AND "RecipientCount" = 0)
-                OR ("QueuedAt" IS NOT NULL AND "QueuedBy" IS NOT NULL AND "RecipientCount" > 0)
-                """));
+            entity.ToTable(table =>
+            {
+                table.HasCheckConstraint("CK_MailCampaign_Queued", """
+                    ("QueuedAt" IS NULL AND "QueuedBy" IS NULL AND "RecipientCount" = 0)
+                    OR ("QueuedAt" IS NOT NULL AND "QueuedBy" IS NOT NULL AND "RecipientCount" > 0)
+                    """);
+                table.HasCheckConstraint("CK_MailCampaign_Accepted", """
+                    "AcceptedRecipients" BETWEEN 0 AND "RecipientCount"
+                    """);
+            });
             entity.Property(x => x.Title).HasMaxLength(200);
             entity.Property(x => x.Kind).HasConversion<string>().HasMaxLength(20);
             entity.Property(x => x.Content).HasColumnType("jsonb");

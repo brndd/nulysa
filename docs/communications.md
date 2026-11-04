@@ -65,5 +65,11 @@ EF migrations before starting web and worker.
   mail clients to offer the action, configure the provider to DKIM-sign both
   headers as described in [RFC 8058](https://www.rfc-editor.org/rfc/rfc8058.html#section-4).
 
-Campaign audience confirmation and delivery progress, member preferences and
-browser unsubscribe confirmation are separate UI work.
+Open **Review and send saved draft** after saving a campaign to preview the
+audience, choose fallbacks and queue a test email. Confirm the reviewed audience
+to queue the bulk send. Queued campaigns move to **Campaign history**, where
+administrators can view the frozen content, copy its Markdown, and retry definite
+failures with a reason. A campaign is complete when no deliveries are queued or
+sending. Its sent count records provider acceptance and survives retention or
+erasure of individual delivery records.
+Member preferences and browser unsubscribe confirmation are separate UI work.

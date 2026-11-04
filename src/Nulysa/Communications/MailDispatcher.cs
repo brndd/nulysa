@@ -143,6 +143,7 @@ public sealed class MailDispatcher(AppDbContext db, MailRenderer renderer, IMail
                 return null;
             }
 
+            var firstAcceptance = delivery.AcceptedAt is null;
             delivery.State = result.Outcome switch
             {
                 SendOutcome.Accepted => DeliveryState.Accepted,
@@ -158,6 +159,10 @@ public sealed class MailDispatcher(AppDbContext db, MailRenderer renderer, IMail
             {
                 delivery.AcceptedAt = clock.GetUtcNow();
                 delivery.ProviderId = result.ProviderId;
+                // Keep the aggregate when member erasure or retention removes the delivery record.
+                if (firstAcceptance && delivery.CampaignId is { } campaignId && delivery.Kind != MailKind.CampaignTest)
+                    await db.MailCampaigns.Where(x => x.Id == campaignId)
+                        .ExecuteUpdateAsync(x => x.SetProperty(c => c.AcceptedRecipients, c => c.AcceptedRecipients + 1), finish.Token);
                 // Never call enqueueing delivery. Rejection purges applicant data only after provider acceptance.
                 if (delivery.Kind == MailKind.Rejection && delivery.ApplicationId is { } appId)
                     await db.Applications.Where(x => x.Id == appId && x.RejectedAt != null).ExecuteDeleteAsync(finish.Token);

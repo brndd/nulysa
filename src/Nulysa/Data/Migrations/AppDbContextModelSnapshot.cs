@@ -1181,6 +1181,9 @@ namespace Nulysa.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<int>("AcceptedRecipients")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Content")
                         .IsRequired()
                         .HasColumnType("jsonb");
@@ -1216,6 +1219,8 @@ namespace Nulysa.Data.Migrations
 
                     b.ToTable("MailCampaigns", t =>
                         {
+                            t.HasCheckConstraint("CK_MailCampaign_Accepted", "\"AcceptedRecipients\" BETWEEN 0 AND \"RecipientCount\"");
+
                             t.HasCheckConstraint("CK_MailCampaign_Queued", "(\"QueuedAt\" IS NULL AND \"QueuedBy\" IS NULL AND \"RecipientCount\" = 0)\nOR (\"QueuedAt\" IS NOT NULL AND \"QueuedBy\" IS NOT NULL AND \"RecipientCount\" > 0)");
                         });
                 });

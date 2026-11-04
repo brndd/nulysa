@@ -331,6 +331,20 @@ public sealed class CommunicationsTests : MembershipTest
         Assert.Equal(1, progress.Counts[DeliveryState.Review]);
         Assert.Equal(2, progress.Recipients.Single(x => x.Id == failed).Attempts);
         Assert.Equal("Corrected mailbox", (await db.MailDeliveryRetries.SingleAsync()).Reason);
+
+        var reviewPage = await Run(app, sp => Campaign(sp).Progress(board, id, 999, DeliveryState.Review));
+        Assert.Equal(1, reviewPage.Page);
+        Assert.Equal(deliveries[2].Id, Assert.Single(reviewPage.Recipients).Id);
+
+        Assert.Empty(await Run(app, sp => Campaign(sp).ListDrafts(board)));
+        Clock.Now = Clock.Now.AddDays(31);
+        await Run(app, sp => sp.GetRequiredService<MembershipMaintenance>().Scan());
+        Assert.False(await db.Deliveries.AnyAsync(x => x.CampaignId == id));
+        var history = await Run(app, sp => Campaign(sp).ListHistory(board));
+        var entry = Assert.Single(history.Entries);
+        Assert.False(entry.Processing);
+        Assert.Equal(3, entry.Campaign.RecipientCount);
+        Assert.Equal(2, entry.Campaign.AcceptedRecipients);
     }
 
     [Fact]

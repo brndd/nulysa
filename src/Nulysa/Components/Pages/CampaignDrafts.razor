@@ -17,7 +17,9 @@
     <ul>
         @foreach (var draft in drafts)
         {
-            <li><a href="@($"/admin/communications/drafts/{draft.Id}")" aria-current="@(DraftId == draft.Id ? "page" : null)">@draft.Title</a></li>
+            <li>
+                <a href="@($"/admin/communications/drafts/{draft.Id}")" aria-current="@(DraftId == draft.Id ? "page" : null)">@draft.Title</a>
+            </li>
         }
     </ul>
 }
@@ -32,6 +34,10 @@
 
 @if (error is not null) { <p role="alert">@ValidationText.Translate(error)</p> }
 @if (saved) { <p role="status">@T("Draft saved.")</p> }
+@if (queuedId is { } queued)
+{
+    <p><a href="@CampaignDelivery.HistoryUrl(queued)">@T("View delivery progress")</a></p>
+}
 
 @if (inputs is not null)
 {
@@ -48,6 +54,10 @@
             <MarkdownMailEditor @key="input" Input="input" Newsletter="@(kind == CampaignKind.Newsletter)" />
         }
         <button type="submit" disabled="@(!RendererInfo.IsInteractive || busy)">@T("Save draft")</button>
+        @if (revision is not null)
+        {
+            <a href="@CampaignDelivery.Url(id)">@T("Review and send saved draft")</a>
+        }
     </form>
 }
 
@@ -59,6 +69,7 @@
     private MarkdownMailInput[]? inputs;
     private Guid id;
     private Guid? revision;
+    private Guid? queuedId;
     private string title = "";
     private CampaignKind kind;
     private string? error;
@@ -75,6 +86,7 @@
     protected override async Task OnParametersSetAsync()
     {
         inputs = null;
+        queuedId = null;
         saved = false;
         error = null;
         if (DraftId is { } draftId)
@@ -84,7 +96,7 @@
     private async Task Load(int requestedPage)
     {
         await using var scope = Scopes.CreateAsyncScope();
-        var rows = await scope.ServiceProvider.GetRequiredService<Campaigns>().List(actor, requestedPage);
+        var rows = await scope.ServiceProvider.GetRequiredService<Campaigns>().ListDrafts(actor, requestedPage);
         if (rows.Count == 0 && requestedPage > page)
             return;
         drafts = rows;
@@ -95,6 +107,7 @@
     {
         id = Guid.NewGuid();
         revision = null;
+        queuedId = null;
         title = "";
         kind = CampaignKind.Newsletter;
         error = null;
@@ -113,7 +126,7 @@
             var draft = await scope.ServiceProvider.GetRequiredService<Campaigns>().Get(actor, campaignId);
             if (draft.Campaign.QueuedAt is not null)
             {
-                error = "This campaign has been queued. Copy it to write a new draft.";
+                queuedId = draft.Campaign.Id;
                 return;
             }
             id = draft.Campaign.Id;

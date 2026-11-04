@@ -19,11 +19,27 @@ public sealed class Campaigns(AppDbContext db, ISchedulerFactory schedulers, IDa
     private ITimeLimitedDataProtector Confirmations => protection.CreateProtector("MailCampaignConfirmation.v1").ToTimeLimitedDataProtector();
     private ITimeLimitedDataProtector TestMessages => protection.CreateProtector("MailCampaignTest.v1").ToTimeLimitedDataProtector();
 
-    public async Task<IReadOnlyList<CampaignSummary>> List(ClaimsPrincipal actor, int page = 1, CancellationToken ct = default)
+    public async Task<IReadOnlyList<CampaignSummary>> ListDrafts(ClaimsPrincipal actor, int page = 1, CancellationToken ct = default)
     {
         await Authority.RequireAdministrator(db, actor, ct);
-        return (await db.MailCampaigns.AsNoTracking().OrderByDescending(x => x.UpdatedAt).ThenBy(x => x.Id)
+        return (await db.MailCampaigns.AsNoTracking().Where(x => x.QueuedAt == null).OrderByDescending(x => x.UpdatedAt).ThenBy(x => x.Id)
             .Skip(Offset(page)).Take(PageSize).ToListAsync(ct)).Select(Summary).ToArray();
+    }
+
+    public async Task<CampaignHistoryPage> ListHistory(ClaimsPrincipal actor, int page = 1, CancellationToken ct = default)
+    {
+        await Authority.RequireAdministrator(db, actor, ct);
+        var queued = db.MailCampaigns.AsNoTracking().Where(x => x.QueuedAt != null);
+        var pageCount = PageCount(await queued.CountAsync(ct));
+        var current = Math.Clamp(page, 1, pageCount);
+        var entries = await queued.OrderByDescending(x => x.QueuedAt).ThenBy(x => x.Id)
+            .Skip(Offset(current)).Take(PageSize)
+            .Select(x => new CampaignHistoryEntry(
+                new CampaignSummary(x.Id, x.Revision, x.Title, x.Kind, x.UpdatedAt, x.QueuedAt, x.RecipientCount, x.AcceptedRecipients),
+                db.Deliveries.Any(d => d.CampaignId == x.Id && d.Kind != MailKind.CampaignTest &&
+                    (d.State == DeliveryState.Pending || d.State == DeliveryState.Sending))))
+            .ToListAsync(ct);
+        return new(entries, current, pageCount);
     }
 
     public async Task<CampaignDraft> Get(ClaimsPrincipal actor, Guid id, CancellationToken ct = default)
@@ -158,11 +174,12 @@ public sealed class Campaigns(AppDbContext db, ISchedulerFactory schedulers, IDa
         if (state is not null)
             deliveries = deliveries.Where(x => x.State == state);
         var total = await deliveries.CountAsync(ct);
+        var currentPage = Math.Clamp(page, 1, PageCount(total));
         var rows = await deliveries.OrderByDescending(x => x.CreatedAt).ThenBy(x => x.Id)
-            .Skip(Offset(page)).Take(PageSize)
+            .Skip(Offset(currentPage)).Take(PageSize)
             .Select(x => new CampaignRecipient(x.Id, x.UserId, x.PreferredLanguage, x.OutgoingLanguage, x.State, x.Attempts,
                 x.AcceptedAt, x.ProviderId, x.Kind == MailKind.CampaignTest)).ToArrayAsync(ct);
-        return new(Summary(campaign), counts, Math.Max(0, campaign.RecipientCount - counts.Values.Sum()), rows, total, page);
+        return new(Summary(campaign), counts, Math.Max(0, campaign.RecipientCount - counts.Values.Sum()), rows, total, currentPage);
     }
 
     public async Task<int> RetryFailed(ClaimsPrincipal actor, Guid id, IReadOnlyCollection<Guid> deliveryIds, string reason,
@@ -277,7 +294,8 @@ public sealed class Campaigns(AppDbContext db, ISchedulerFactory schedulers, IDa
             throw new ValidationException("This campaign has been queued. Copy it to write a new draft.");
     }
 
-    private static CampaignSummary Summary(MailCampaign x) => new(x.Id, x.Revision, x.Title, x.Kind, x.UpdatedAt, x.QueuedAt, x.RecipientCount);
+    private static CampaignSummary Summary(MailCampaign x) => new(x.Id, x.Revision, x.Title, x.Kind, x.UpdatedAt, x.QueuedAt, x.RecipientCount, x.AcceptedRecipients);
+    private static int PageCount(int total) => Math.Max(1, (total + PageSize - 1) / PageSize);
     private static int Offset(int page) => (Math.Clamp(page, 1, int.MaxValue / PageSize) - 1) * PageSize;
 
     private sealed record Confirmation(Guid CampaignId, long ActorId, string Fingerprint);

@@ -1,0 +1,254 @@
+@page "/admin/communications/drafts/{CampaignId:guid}/delivery"
+@page "/admin/communications/history/{CampaignId:guid}"
+@attribute [Authorize(Policy = "Administrator")]
+@rendermode @(new InteractiveServerRenderMode())
+@using System.ComponentModel.DataAnnotations
+@using System.Security.Claims
+@using Nulysa.Communications
+@inject IServiceScopeFactory Scopes
+@inject AuthenticationStateProvider Authentication
+@inject NavigationManager Navigation
+
+<AdminPageHeader Title="@(T(draft?.Campaign.QueuedAt is null ? "Review and send" : "Delivery progress"))" Context="@draft?.Campaign.Title" />
+<AdminSectionTabs Destination="@(IsHistory ? "campaign-history" : "campaign-drafts")" />
+
+@if (error is not null) { <p role="alert">@ValidationText.Translate(error)</p> }
+@if (notice is not null) { <p role="status">@notice</p> }
+
+@if (draft is not null)
+{
+    var campaign = draft.Campaign;
+    <h2>@campaign.Title</h2>
+    <p>@T(campaign.Kind == CampaignKind.Newsletter ? "Newsletter" : "Official notice")</p>
+    @if (campaign.QueuedAt is null)
+    {
+        <p><a href="@($"/admin/communications/drafts/{campaign.Id}")">@T("Back to draft")</a></p>
+        <section aria-labelledby="campaign-audience">
+            <h3 id="campaign-audience">@T("Audience and outgoing messages")</h3>
+            <p>@T(campaign.Kind == CampaignKind.Newsletter
+                ? "Includes current members, including inactive members, who receive newsletters. Accounts pending deletion are excluded."
+                : "Includes current members, including inactive members, regardless of newsletter preferences. Accounts pending deletion are excluded.")</p>
+            <button type="button" class="secondary-action" disabled="@Disabled" @onclick="Refresh">@T("Refresh audience")</button>
+            @if (preview is not null)
+            {
+                @if (preview.Groups.Count == 0)
+                {
+                    <p>@T("There are no eligible recipients.")</p>
+                }
+                else
+                {
+                    @foreach (var group in preview.Groups)
+                    {
+                        <div class="status-panel" @key="group.PreferredLanguage">
+                            <h4>@T("{0} · {1} recipients", LanguageName(group.PreferredLanguage), group.Recipients)</h4>
+                            @if (!draft.Variants.Any(x => x.Language == group.PreferredLanguage))
+                            {
+                                <p>@T("This group needs a fallback language.")</p>
+                                <label for="@($"fallback-{group.PreferredLanguage}")">@T("Fallback for {0}", LanguageName(group.PreferredLanguage))</label>
+                                <select id="@($"fallback-{group.PreferredLanguage}")" value="@group.OutgoingLanguage" disabled="@Disabled"
+                                        @onchange="e => ChooseFallback(group.PreferredLanguage, e.Value?.ToString())">
+                                    <option value="">@T("Choose a fallback")</option>
+                                    @foreach (var variant in draft.Variants)
+                                    {
+                                        <option value="@variant.Language">@LanguageName(variant.Language)</option>
+                                    }
+                                </select>
+                            }
+                            @if (group.Content is { } content && group.OutgoingLanguage is { } language)
+                            {
+                                <p>@T("Outgoing language: {0}", LanguageName(language))</p>
+                                <p><strong>@T("Subject"):</strong> @content.Subject</p>
+                                <div class="markdown-preview" @onclick:preventDefault>@((MarkupString)content.Html)</div>
+                            }
+                        </div>
+                    }
+                }
+            }
+        </section>
+
+        <section aria-labelledby="campaign-test">
+            <h3 id="campaign-test">@T("Test email")</h3>
+            <p>@T("Send a copy of a saved language variant to an address you choose.")</p>
+            <form @onsubmit="SendTest" @onsubmit:preventDefault>
+                <label for="test-language">@T("Test language")</label>
+                <select id="test-language" @bind="testLanguage" disabled="@Disabled" required>
+                    @foreach (var variant in draft.Variants)
+                    {
+                        <option value="@variant.Language">@LanguageName(variant.Language)</option>
+                    }
+                </select>
+                <label for="test-address">@T("Test email address")</label>
+                <input id="test-address" type="email" @bind="testAddress" required maxlength="256" disabled="@Disabled" />
+                <button type="submit" disabled="@Disabled">@T("Queue test email")</button>
+            </form>
+        </section>
+
+        <section aria-labelledby="campaign-confirm">
+            <h3 id="campaign-confirm">@T("Confirm bulk send")</h3>
+            <p>@T("Messages are added to the delivery queue after confirmation.")</p>
+            @if (preview?.Confirmation is not null)
+            {
+                <label><input type="checkbox" @bind="confirmed" disabled="@Disabled" />
+                    @T("I reviewed the outgoing messages and confirm sending to {0} recipients.", preview.Groups.Sum(x => x.Recipients))
+                </label>
+            }
+            else
+            {
+                <p>@T("A current audience preview with all languages resolved is required.")</p>
+            }
+            <div><button type="button" @onclick="Send" disabled="@(Disabled || !confirmed || preview?.Confirmation is null)">@T("Queue bulk send")</button></div>
+        </section>
+    }
+    else
+    {
+        <p><a href="/admin/communications/history">@T("Back to campaign history")</a></p>
+        <section aria-labelledby="campaign-content">
+            <h3 id="campaign-content">@T("Campaign content")</h3>
+            @foreach (var variant in draft.Variants)
+            {
+                var content = MailMarkdown.Preview(variant, campaign.Kind == CampaignKind.Newsletter);
+                <article class="status-panel">
+                    <h4>@LanguageName(variant.Language)</h4>
+                    <p><strong>@T("Subject"):</strong> @content.Subject</p>
+                    <div class="markdown-preview" @onclick:preventDefault>@((MarkupString)content.Html)</div>
+                    <details>
+                        <summary>@T("View Markdown source")</summary>
+                        <label for="@($"campaign-source-{variant.Language}")">@T("Message body (Markdown)")</label>
+                        <textarea id="@($"campaign-source-{variant.Language}")" readonly rows="8">@MailMarkdown.Source(variant)</textarea>
+                    </details>
+                </article>
+            }
+        </section>
+    }
+    <CampaignDeliveryProgress @key="progressVersion" Campaign="campaign" Actor="actor" />
+}
+
+@code {
+    [Parameter] public Guid CampaignId { get; set; }
+
+    public static string Url(Guid id) => $"/admin/communications/drafts/{id}/delivery";
+    public static string HistoryUrl(Guid id) => $"/admin/communications/history/{id}";
+    private bool IsHistory => Navigation.ToBaseRelativePath(Navigation.Uri).StartsWith("admin/communications/history/", StringComparison.OrdinalIgnoreCase);
+
+    private ClaimsPrincipal actor = null!;
+    private CampaignDraft? draft;
+    private CampaignPreview? preview;
+    private readonly Dictionary<string, string> fallbacks = new(StringComparer.Ordinal);
+    private string testLanguage = "";
+    private string testAddress = "";
+    private string? error;
+    private string? notice;
+    private bool busy;
+    private bool confirmed;
+    private int progressVersion;
+    private bool Disabled => !RendererInfo.IsInteractive || busy;
+
+    public static string LanguageName(string code) => UiLanguages.Find(code)?.Name ?? code;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        actor = (await Authentication.GetAuthenticationStateAsync()).User;
+        draft = null;
+        fallbacks.Clear();
+        testAddress = "";
+        progressVersion++;
+        await Refresh();
+    }
+
+    private async Task Refresh()
+    {
+        await Run(async campaigns =>
+        {
+            preview = null;
+            confirmed = false;
+            var latest = await campaigns.Get(actor, CampaignId);
+            if (latest.Campaign.Revision != draft?.Campaign.Revision)
+                fallbacks.Clear();
+            if (IsHistory && latest.Campaign.QueuedAt is null)
+                throw new KeyNotFoundException();
+            draft = latest;
+            if (draft.Campaign.QueuedAt is null)
+            {
+                if (!draft.Variants.Any(x => x.Language == testLanguage))
+                    testLanguage = draft.Variants.First().Language;
+                await ReadAudience(campaigns);
+            }
+            else if (!IsHistory)
+                Navigation.NavigateTo(HistoryUrl(CampaignId), forceLoad: true, replace: true);
+            else
+                progressVersion++;
+        });
+    }
+
+    private async Task ChooseFallback(string preferred, string? outgoing)
+    {
+        await Run(async campaigns =>
+        {
+            confirmed = false;
+            if (string.IsNullOrEmpty(outgoing))
+                fallbacks.Remove(preferred);
+            else
+                fallbacks[preferred] = outgoing;
+            await ReadAudience(campaigns);
+        });
+    }
+
+    private async Task ReadAudience(Campaigns campaigns)
+    {
+        try
+        {
+            var result = await campaigns.Preview(actor, CampaignId, fallbacks);
+            if (result.Campaign.Revision != draft?.Campaign.Revision)
+                throw new ValidationException("The draft changed. Refresh the audience and review it again.");
+            preview = result;
+        }
+        catch (ValidationException)
+        {
+            preview = null;
+            throw;
+        }
+    }
+
+    private async Task SendTest()
+    {
+        await Run(async campaigns =>
+        {
+            if (draft is null || draft.Campaign.QueuedAt is not null)
+                return;
+            await campaigns.SendTest(actor, CampaignId, draft.Campaign.Revision, testLanguage, testAddress.Trim());
+            notice = T("Test email queued.");
+            progressVersion++;
+        });
+    }
+
+    private async Task Send()
+    {
+        await Run(async campaigns =>
+        {
+            if (draft is null || !confirmed || preview?.Confirmation is not { } confirmation)
+                return;
+            confirmed = false;
+            preview = null;
+            var result = await campaigns.Send(actor, CampaignId, fallbacks, confirmation);
+            Navigation.NavigateTo(HistoryUrl(result.Id), forceLoad: true);
+        });
+    }
+
+    private async Task Run(Func<Campaigns, Task> action)
+    {
+        if (busy)
+            return;
+        busy = true;
+        error = null;
+        notice = null;
+        try
+        {
+            await using var scope = Scopes.CreateAsyncScope();
+            await action(scope.ServiceProvider.GetRequiredService<Campaigns>());
+        }
+        catch (ValidationException problem) { error = problem.Message; }
+        catch (KeyNotFoundException) { error = "Campaign does not exist."; }
+        catch (UnauthorizedAccessException) { error = "Access denied"; }
+        finally { busy = false; }
+    }
+}

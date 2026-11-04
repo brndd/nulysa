@@ -44,6 +44,7 @@ public sealed class AdminStructureTests : BoardTest
             ("/admin/payments/retained-balances", "Retained balances", "/admin/payments/retained-balances", 1),
             ($"/admin/payments/{receipt}", "Review bank transaction", "/admin/payments", 0),
             ("/admin/communications/drafts", "Campaign drafts", "/admin/communications/drafts", 1),
+            ("/admin/communications/history", "Campaign history", "/admin/communications/history", 1),
             ("/admin/communications/templates", "Automatic mail templates", "/admin/communications/templates", 1),
             ("/admin/mail-attention", "Mail problems", "/admin/mail-attention", 1),
             ("/admin/settings/fees", "Fees and prices", "/admin/settings/fees", 1),
@@ -107,7 +108,8 @@ public sealed class AdminStructureTests : BoardTest
         await Login(member);
         foreach (var route in new[] { $"admin/members/{id}", $"admin/members/{id}/details", $"admin/members/{id}/billing", $"admin/members/{id}/billing/invoices/{bill.Invoice.Id}" })
             Assert.Equal(HttpStatusCode.Forbidden, (await member.GetAsync(route)).StatusCode);
-        foreach (var route in new[] { $"admin/members/{id}/actions", "admin/payments/import", "admin/settings/fees", "admin/settings/services/new" })
+        foreach (var route in new[] { $"admin/members/{id}/actions", "admin/payments/import", "admin/settings/fees", "admin/settings/services/new",
+            $"admin/communications/drafts/{Guid.NewGuid()}/delivery" })
             Assert.Equal("/Account/AccessDenied", (await member.GetAsync(route)).Headers.Location!.AbsolutePath);
 
         await using var db = Context();

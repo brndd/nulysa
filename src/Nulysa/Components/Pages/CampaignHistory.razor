@@ -1,0 +1,57 @@
+@page "/admin/communications/history"
+@attribute [Authorize(Policy = "Administrator")]
+@using Nulysa.Communications
+@inject Campaigns Campaigns
+@inject AuthenticationStateProvider Authentication
+
+<AdminPageHeader Title="@T("Campaign history")" />
+<AdminSectionTabs Destination="campaign-history" />
+
+@if (history is not null)
+{
+    @if (history.Entries.Count == 0)
+    {
+        <p>@T("No campaigns have been queued.")</p>
+    }
+    else
+    {
+        <ul>
+            @foreach (var entry in history.Entries)
+            {
+                var campaign = entry.Campaign;
+                <li>
+                    <a href="@CampaignDelivery.HistoryUrl(campaign.Id)">@campaign.Title</a>
+                    · @T(campaign.Kind == CampaignKind.Newsletter ? "Newsletter" : "Official notice")
+                    @if (campaign.QueuedAt is { } queuedAt)
+                    {
+                        <span> · <time datetime="@queuedAt.ToString("O")">@queuedAt.ToString("u")</time></span>
+                    }
+                    · <CampaignSendStatus Campaign="campaign" Processing="entry.Processing" />
+                </li>
+            }
+        </ul>
+        <p>@T("Sent counts messages accepted by the mail provider.")</p>
+    }
+
+    @if (history.PageCount > 1)
+    {
+        <nav class="section-pagination" aria-label="@T("Campaign pages")">
+            @if (history.Page > 1) { <a href="@PageUrl(history.Page - 1)">@T("Previous")</a> }
+            <span>@T("Page {0} of {1}", history.Page, history.PageCount)</span>
+            @if (history.Page < history.PageCount) { <a href="@PageUrl(history.Page + 1)">@T("Next")</a> }
+        </nav>
+    }
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "page")] public string? RequestedPage { get; set; }
+    private CampaignHistoryPage? history;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var actor = (await Authentication.GetAuthenticationStateAsync()).User;
+        history = await Campaigns.ListHistory(actor, int.TryParse(RequestedPage, out var page) ? page : 1);
+    }
+
+    private static string PageUrl(int page) => $"/admin/communications/history?page={page}";
+}
