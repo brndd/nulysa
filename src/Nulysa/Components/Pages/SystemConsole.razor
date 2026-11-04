@@ -20,7 +20,8 @@ else if (report is not null)
     <dl>
         <dt>@T("Pending one-shot jobs")</dt><dd>@report.Work.PendingWork</dd>
         <dt>@T("Final failures")</dt><dd>@report.Work.FinalFailures</dd>
-        <dt>@T("Oldest pending work age (seconds)")</dt><dd>@(report.Work.OldestWorkAgeSeconds?.ToString("F0") ?? T("None"))</dd>
+        <dt>@T("Oldest operational work age (seconds)")</dt><dd>@(report.Work.OldestOperationalWorkAgeSeconds?.ToString("F0") ?? T("None"))</dd>
+        <dt>@T("Oldest campaign work age (seconds)")</dt><dd>@(report.Work.OldestCampaignWorkAgeSeconds?.ToString("F0") ?? T("None"))</dd>
     </dl>
     <ul>@foreach (var issue in report.Work.Issues) { <li>@issue</li> }</ul>
     <table tabindex="0">

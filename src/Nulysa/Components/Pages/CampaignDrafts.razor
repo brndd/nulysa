@@ -7,6 +7,7 @@
 @using Nulysa.Communications
 @inject IServiceScopeFactory Scopes
 @inject AuthenticationStateProvider Authentication
+@inject NavigationManager Navigation
 
 <AdminPageHeader Title="@T("Campaign drafts")" />
 <AdminSectionTabs Destination="campaign-drafts" />
@@ -23,12 +24,12 @@
         }
     </ul>
 }
-@if (page > 1 || drafts.Count == Campaigns.PageSize)
+@if (page > 1 || hasNext)
 {
     <nav aria-label="@T("Campaign pages")">
         <button type="button" disabled="@(!RendererInfo.IsInteractive || busy || page == 1)" @onclick="() => Load(page - 1)">@T("Previous")</button>
         <span>@T("Page {0}", page)</span>
-        <button type="button" disabled="@(!RendererInfo.IsInteractive || busy || drafts.Count < Campaigns.PageSize)" @onclick="() => Load(page + 1)">@T("Next")</button>
+        <button type="button" disabled="@(!RendererInfo.IsInteractive || busy || !hasNext)" @onclick="() => Load(page + 1)">@T("Next")</button>
     </nav>
 }
 
@@ -64,6 +65,7 @@
 @code {
     [Parameter] public Guid? DraftId { get; set; }
 
+    private const string SavedDraftNavigation = "campaign-draft-saved";
     private ClaimsPrincipal actor = null!;
     private IReadOnlyList<CampaignSummary> drafts = [];
     private MarkdownMailInput[]? inputs;
@@ -74,6 +76,7 @@
     private CampaignKind kind;
     private string? error;
     private int page = 1;
+    private bool hasNext;
     private bool busy;
     private bool saved;
 
@@ -90,17 +93,19 @@
         saved = false;
         error = null;
         if (DraftId is { } draftId)
+        {
             await Open(draftId);
+            saved = inputs is not null && Navigation.HistoryEntryState == SavedDraftNavigation;
+        }
     }
 
     private async Task Load(int requestedPage)
     {
         await using var scope = Scopes.CreateAsyncScope();
-        var rows = await scope.ServiceProvider.GetRequiredService<Campaigns>().ListDrafts(actor, requestedPage);
-        if (rows.Count == 0 && requestedPage > page)
-            return;
-        drafts = rows;
-        page = requestedPage;
+        var result = await scope.ServiceProvider.GetRequiredService<Campaigns>().ListDrafts(actor, requestedPage);
+        drafts = result.Entries;
+        page = result.Page;
+        hasNext = result.HasNext;
     }
 
     private void NewDraft()
@@ -154,10 +159,17 @@
         {
             var variants = MarkdownMailInput.ReadEnabled(inputs);
             await using var scope = Scopes.CreateAsyncScope();
+            var firstSave = revision is null;
             var result = await scope.ServiceProvider.GetRequiredService<Campaigns>().Save(actor, id, revision, title, kind, variants);
             revision = result.Revision;
             saved = true;
             await Load(1);
+            if (firstSave)
+                Navigation.NavigateTo($"/admin/communications/drafts/{result.Id}", new NavigationOptions
+                {
+                    ReplaceHistoryEntry = true,
+                    HistoryEntryState = SavedDraftNavigation
+                });
         }
         catch (ValidationException problem) { error = problem.Message; }
         finally { busy = false; }

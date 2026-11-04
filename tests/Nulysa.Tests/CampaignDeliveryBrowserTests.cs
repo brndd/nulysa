@@ -104,5 +104,11 @@ public sealed class CampaignDeliveryBrowserTests : BoardTest
         Assert.Equal(DeliveryState.Accepted, states[first]);
         Assert.Equal(DeliveryState.Pending, states[second]);
         Assert.Equal(DeliveryState.Review, states[third]);
+
+        await page.GetByRole(AriaRole.Button, new() { Name = "Copy to new draft", Exact = true }).ClickAsync();
+        await Assertions.Expect(page).ToHaveURLAsync(new System.Text.RegularExpressions.Regex("/admin/communications/drafts/[0-9a-f-]+$"));
+        await Assertions.Expect(page.GetByLabel("Draft title")).ToHaveValueAsync("Workshop campaign");
+        await Assertions.Expect(page.Locator("#markdown-en-body")).ToHaveValueAsync("**Bring tools**");
+        Assert.Equal(2, await db.MailCampaigns.CountAsync());
     }
 }

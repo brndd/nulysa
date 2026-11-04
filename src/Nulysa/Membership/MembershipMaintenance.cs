@@ -61,9 +61,13 @@ public sealed class MembershipMaintenance(AppDbContext db, AssociationClock cloc
             var pending = db.Deliveries.AsNoTracking()
                 .Where(x => x.State == DeliveryState.Pending && (x.RetryNotBefore == null || x.RetryNotBefore <= now))
                 .OrderBy(x => x.CampaignId != null).ThenBy(x => x.CreatedAt).ThenBy(x => x.Id);
-            for (var offset = 0; missing.Count < repairLimit; offset += lookupSize)
+            Delivery? last = null;
+            while (missing.Count < repairLimit)
             {
-                var batch = await pending.Skip(offset).Take(lookupSize).ToListAsync(ct);
+                var next = last is null ? pending : pending.Where(x => EF.Functions.GreaterThan(
+                    ValueTuple.Create(x.CampaignId != null, x.CreatedAt, x.Id),
+                    ValueTuple.Create(last.CampaignId != null, last.CreatedAt, last.Id)));
+                var batch = await next.Take(lookupSize).ToListAsync(ct);
                 if (batch.Count == 0)
                     break;
                 var scheduled = await scheduler.GetJobDetails(batch.Select(x => MailQueue.JobKey(x.Id, x.QueueVersion)).ToArray(), ct);
@@ -72,6 +76,8 @@ public sealed class MembershipMaintenance(AppDbContext db, AssociationClock cloc
                     .Take(repairLimit - missing.Count));
                 if (batch.Count < lookupSize)
                     break;
+                // Earlier rows can leave Pending while workers run. Seek from the last key instead of skipping rows.
+                last = batch[^1];
             }
 
             // Keep application/delivery row mutations ahead of scheduler writes.

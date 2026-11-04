@@ -1377,9 +1377,6 @@
   <data name="Oldest 100 unresolved transactions. Processing these reveals the next items in the queue." xml:space="preserve">
     <value>Näytetään 100 vanhinta tarkistettavaa maksua.</value>
   </data>
-  <data name="Oldest pending work age (seconds)" xml:space="preserve">
-    <value>Vanhimman odottavan työn ikä (sekuntia)</value>
-  </data>
   <data name="On this page" xml:space="preserve">
     <value>Tällä sivulla</value>
   </data>
@@ -3098,5 +3095,44 @@
   </data>
   <data name="Use a single named template field in Liquid expressions." xml:space="preserve">
     <value>Käytä Liquid-lausekkeessa yhtä nimettyä viestipohjan kenttää.</value>
+  </data>
+  <data name="Provide a valid campaign title and type." xml:space="preserve">
+    <value>Anna kampanjalle kelvollinen otsikko ja tyyppi.</value>
+  </data>
+  <data name="The draft has changed. Reload it before editing." xml:space="preserve">
+    <value>Luonnos on muuttunut. Lataa se uudelleen ennen muokkaamista.</value>
+  </data>
+  <data name="Select up to 500 failed deliveries and confirm the reason for retrying." xml:space="preserve">
+    <value>Valitse enintään 500 epäonnistunutta lähetystä ja vahvista uudelleenlähetyksen syy.</value>
+  </data>
+  <data name="The campaign has not been queued." xml:space="preserve">
+    <value>Kampanjaa ei ole lisätty lähetysjonoon.</value>
+  </data>
+  <data name="Choose one saved variant per missing language." xml:space="preserve">
+    <value>Valitse jokaiselle puuttuvalle kielelle yksi tallennettu kieliversio.</value>
+  </data>
+  <data name="Provide at least one supported message language." xml:space="preserve">
+    <value>Valitse viestille vähintään yksi tuettu kieli.</value>
+  </data>
+  <data name="Provide a message for every saved variant." xml:space="preserve">
+    <value>Kirjoita viesti jokaiselle tallennettavalle kieliversiolle.</value>
+  </data>
+  <data name="Provide only one variant per supported language." xml:space="preserve">
+    <value>Tallenna vain yksi versio kutakin tuettua kieltä kohden.</value>
+  </data>
+  <data name="Use supported formatting and absolute HTTPS, HTTP or mailto links." xml:space="preserve">
+    <value>Käytä tuettuja muotoiluja ja absoluuttisia HTTPS-, HTTP- tai mailto-linkkejä.</value>
+  </data>
+  <data name="The message body is too long." xml:space="preserve">
+    <value>Viestin sisältö on liian pitkä.</value>
+  </data>
+  <data name="Copy to new draft" xml:space="preserve">
+    <value>Kopioi uudeksi luonnokseksi</value>
+  </data>
+  <data name="Oldest operational work age (seconds)" xml:space="preserve">
+    <value>Vanhimman operatiivisen työn ikä (sekuntia)</value>
+  </data>
+  <data name="Oldest campaign work age (seconds)" xml:space="preserve">
+    <value>Vanhimman kampanjatyön ikä (sekuntia)</value>
   </data>
 </root>

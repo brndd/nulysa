@@ -28,7 +28,7 @@ internal sealed class OperationalTemplateMarkup
         if (source.Subject is null || source.Subject.Length > RichMail.SubjectLimit || source.Subject.Any(char.IsControl) ||
             (!preview && string.IsNullOrWhiteSpace(source.Subject)))
             throw Error("Enter a single-line subject up to 200 characters.");
-        if (source.Body is null || source.Body.Length > MailMarkdown.SourceLimit)
+        if (source.Body is null || source.Body.Length > MailMarkdown.OperationalSourceLimit)
             throw Error("The Markdown source is too long.");
 
         marker = new(markerPrefix + "[0-9]+End");
@@ -52,7 +52,7 @@ internal sealed class OperationalTemplateMarkup
 
             var renderedSubject = subject.Render(context);
             var markdown = body.Render(context);
-            var blocks = string.IsNullOrWhiteSpace(markdown) ? [] : MailMarkdown.Parse(source.Language, "Template", markdown).Body;
+            var blocks = string.IsNullOrWhiteSpace(markdown) ? [] : MailMarkdown.Parse(source.Language, "Template", markdown, allowEmptySubject: false, operational: true).Body;
             var fieldsInBody = CheckPlacement(markdown, blocks);
             if (!preview && fields.FirstOrDefault(field => field.Required && !fieldsInBody.Contains(field.Name)) is { } missing)
                 throw Error("Include {{{{{0}}}}} in the message body in every conditional branch.", missing.Name);

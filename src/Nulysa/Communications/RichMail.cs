@@ -24,11 +24,15 @@ internal static class RichMail
     public const int SubjectLimit = 200;
     private const int BodyLimit = 32_000;
 
-    public static MailVariant[] Validate(IReadOnlyCollection<MailVariant> variants, bool allowEmptySubject = false)
+    public static MailVariant[] Validate(IReadOnlyCollection<MailVariant> variants, bool allowEmptySubject = false, bool operational = false)
     {
         if (variants.Count == 0 || variants.Count > UiLanguages.Supported.Count)
             throw new ValidationException("Provide at least one supported message language.");
 
+        // Expanded wrappers can carry a full legacy body plus the operational section.
+        var bodyLimit = operational ? 36_000 : BodyLimit;
+        var blockLimit = operational ? 110 : 100;
+        var sourceLimit = operational ? MailMarkdown.OperationalSourceLimit : MailMarkdown.SourceLimit;
         var languages = new HashSet<string>(StringComparer.Ordinal);
         return variants.Select(variant =>
         {
@@ -39,15 +43,15 @@ internal static class RichMail
                 throw new ValidationException("Provide only one variant per supported language.");
             if ((!allowEmptySubject && string.IsNullOrWhiteSpace(variant.Subject)) || variant.Subject.Length > SubjectLimit || variant.Subject.Any(char.IsControl))
                 throw new ValidationException("Enter a single-line subject up to 200 characters.");
-            if (variant.Markdown is { Length: > MailMarkdown.SourceLimit })
+            if (variant.Markdown is { } markdown && markdown.Length > sourceLimit)
                 throw new ValidationException("The Markdown source is too long.");
-            if (variant.Body is not { Length: > 0 and <= 100 } || variant.Body.Any(block => block is null ||
+            if (variant.Body is not { Length: > 0 } || variant.Body.Length > blockLimit || variant.Body.Any(block => block is null ||
                 !Enum.IsDefined(block.Kind) || block.Kind == MailBlockKind.OperationalDetails ||
                 block.Runs is not { Length: > 0 and <= 100 } || block.Runs.All(run => string.IsNullOrWhiteSpace(run?.Text)) ||
-                block.Runs.Any(run => run?.Text is not { Length: <= BodyLimit } || run.Text.Contains('\0') ||
+                block.Runs.Any(run => run?.Text is null || run.Text.Length > bodyLimit || run.Text.Contains('\0') ||
                     (run.Link is not null && !SafeLink(run.Link)))))
                 throw new ValidationException("Use supported formatting and absolute HTTPS, HTTP or mailto links.");
-            if (variant.Body.SelectMany(block => block.Runs).Sum(run => (long)run.Text.Length + (run.Link?.Length ?? 0)) > BodyLimit)
+            if (variant.Body.SelectMany(block => block.Runs).Sum(run => (long)run.Text.Length + (run.Link?.Length ?? 0)) > bodyLimit)
                 throw new ValidationException("The message body is too long.");
             return variant with { Language = language, Subject = variant.Subject.Trim() };
         }).OrderBy(variant => variant.Language, StringComparer.Ordinal).ToArray();

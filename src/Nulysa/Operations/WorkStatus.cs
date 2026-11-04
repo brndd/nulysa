@@ -6,7 +6,8 @@ using Quartz;
 
 namespace Nulysa.Operations;
 
-public sealed record WorkReport(bool Healthy, string[] Issues, int PendingWork, int FinalFailures, double? OldestWorkAgeSeconds);
+public sealed record WorkReport(bool Healthy, string[] Issues, int PendingWork, int FinalFailures, double? OldestWorkAgeSeconds,
+    double? OldestOperationalWorkAgeSeconds, double? OldestCampaignWorkAgeSeconds);
 
 public static class WorkStatus
 {
@@ -49,6 +50,7 @@ public static class WorkStatus
         var jobs = await scheduler.GetJobDetails(keys, ct);
         DateTimeOffset? oldest = null;
         DateTimeOffset? oldestOperational = null;
+        DateTimeOffset? oldestCampaign = null;
         foreach (var job in jobs)
         {
             if (!DateTimeOffset.TryParse(job.JobDataMap.GetString("enqueued_at"), CultureInfo.InvariantCulture,
@@ -58,12 +60,15 @@ public static class WorkStatus
             {
                 if (oldest is null || created < oldest)
                     oldest = created;
-                if (job.JobDataMap.GetString(MailQueue.CampaignJobDataKey) != "true" &&
-                    (oldestOperational is null || created < oldestOperational))
+                if (job.JobDataMap.GetString(MailQueue.CampaignJobDataKey) == "true")
+                {
+                    if (oldestCampaign is null || created < oldestCampaign)
+                        oldestCampaign = created;
+                }
+                else if (oldestOperational is null || created < oldestOperational)
                     oldestOperational = created;
             }
         }
-        var age = oldest is { } at ? (double?)(now - at).TotalSeconds : null;
         if (oldestOperational < now.AddMinutes(-5))
             issues.Add("aged_work");
 
@@ -76,6 +81,8 @@ public static class WorkStatus
         if (await operationalMail.AnyAsync(x => x.State == DeliveryState.Pending && x.CreatedAt < now.AddMinutes(-5), ct))
             issues.Add("aged_mail");
 
-        return new(issues.Count == 0, [.. issues.Order()], keys.Count, failures, age);
+        return new(issues.Count == 0, [.. issues.Order()], keys.Count, failures, Age(oldest), Age(oldestOperational), Age(oldestCampaign));
+
+        double? Age(DateTimeOffset? created) => (now - created)?.TotalSeconds;
     }
 }

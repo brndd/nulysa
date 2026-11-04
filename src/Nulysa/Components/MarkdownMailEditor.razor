@@ -59,7 +59,7 @@
             <div class="markdown-body" id="@FieldId("write-panel")" role="tabpanel" aria-labelledby="@FieldId("write-tab")" hidden="@previewing">
                 <label class="visually-hidden" for="@FieldId("body")">@T("Message body (Markdown)")</label>
                 <textarea id="@FieldId("body")" @ref="body" @bind="Input.Source" @bind:event="oninput"
-                          placeholder="@T("Write your message in Markdown…")" rows="12" maxlength="@MailMarkdown.SourceLimit"></textarea>
+                          placeholder="@T("Write your message in Markdown…")" rows="12" maxlength="@(TemplateKind is null ? MailMarkdown.SourceLimit : MailMarkdown.OperationalSourceLimit)"></textarea>
             </div>
             <div class="markdown-body" id="@FieldId("preview-panel")" role="tabpanel" aria-labelledby="@FieldId("preview-tab")" hidden="@(!previewing)" tabindex="0">
                 @if (error is not null)

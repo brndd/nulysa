@@ -47,7 +47,8 @@ EF migrations before starting web and worker.
   deliveries are excluded. Recipient records follow existing erasure and
   terminal delivery retention rules (30 days); progress exposes how many are
   no longer retained. Campaign outcomes appear in progress. Campaign delivery
-  failures and backlog age are excluded from the operational mail alarms.
+  failures and backlog age are excluded from the operational mail alarms. The
+  System Console shows the oldest campaign and operational jobs separately.
 - `OperationalTemplates` manages one subject and Markdown body per message
   kind and language. Shipped defaults are embedded from
   `src/Nulysa/Communications/Templates/*.md`, with a `Subject:` header followed
@@ -71,9 +72,9 @@ EF migrations before starting web and worker.
 Open **Review and send saved draft** after saving a campaign to preview the
 audience, choose fallbacks and queue a test email. Confirm the reviewed audience
 to queue the bulk send. Queued campaigns move to **Campaign history**, where
-administrators can view the frozen content, copy its Markdown, and retry definite
-failures with a reason. A campaign is complete when no deliveries are queued or
-sending. Its sent count records provider acceptance and survives retention or
+administrators can view the frozen content, copy it into a new draft, and retry
+definite failures with a reason. A campaign is complete when no deliveries are
+queued or sending. Its sent count records provider acceptance and survives retention or
 erasure of individual delivery records.
 Member preferences and browser unsubscribe confirmation are separate UI work.
 

@@ -88,7 +88,10 @@ public sealed class OperationalTemplates(AppDbContext db, TimeProvider clock, IO
         }
         else
         {
-            overrides[language] = source;
+            if (source == OperationalTemplateCatalog.Default(kind, language).Source)
+                overrides.Remove(language);
+            else
+                overrides[language] = source;
             if (row is null)
             {
                 row = new() { Kind = kind };
@@ -163,9 +166,9 @@ public sealed class OperationalTemplates(AppDbContext db, TimeProvider clock, IO
                 const string associationPrefix = "{{association}} — ";
                 var defaultSubject = shipped.Subject.StartsWith(associationPrefix, StringComparison.Ordinal)
                     ? shipped.Subject[associationPrefix.Length..] : shipped.Subject;
-                var original = Upgrade(x.Language, x.Subject, MailMarkdown.Source(x with { Markdown = null }));
-                var subject = original.Subject.Replace("{{subject}}", defaultSubject, StringComparison.Ordinal);
-                var body = original.Body.Replace(MailMarkdown.OperationalDetails, shipped.Body, StringComparison.Ordinal);
+                var subject = x.Subject.Replace("{%", "{% raw %}{%{% endraw %}", StringComparison.Ordinal)
+                    .Replace("{{subject}}", defaultSubject, StringComparison.Ordinal);
+                var body = MailMarkdown.ExpandOperationalDetails(x, shipped.Body);
                 return new OperationalTemplateSource(x.Language, subject, body);
             });
         }

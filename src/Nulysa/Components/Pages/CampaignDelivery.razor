@@ -102,6 +102,7 @@
     else
     {
         <p><a href="/admin/communications/history">@T("Back to campaign history")</a></p>
+        <button type="button" class="secondary-action" disabled="@Disabled" @onclick="Copy">@T("Copy to new draft")</button>
         <section aria-labelledby="campaign-content">
             <h3 id="campaign-content">@T("Campaign content")</h3>
             @foreach (var variant in draft.Variants)
@@ -233,6 +234,14 @@
             Navigation.NavigateTo(HistoryUrl(result.Id), forceLoad: true);
         });
     }
+
+    private Task Copy() => Run(async campaigns =>
+    {
+        if (draft is null)
+            return;
+        var copy = await campaigns.Copy(actor, draft.Campaign.Id, Guid.NewGuid(), draft.Campaign.Title);
+        Navigation.NavigateTo($"/admin/communications/drafts/{copy.Id}");
+    });
 
     private async Task Run(Func<Campaigns, Task> action)
     {

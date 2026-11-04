@@ -1377,9 +1377,6 @@
   <data name="Oldest 100 unresolved transactions. Processing these reveals the next items in the queue." xml:space="preserve">
     <value>Showing the 100 oldest payments needing review.</value>
   </data>
-  <data name="Oldest pending work age (seconds)" xml:space="preserve">
-    <value>Oldest pending work age (seconds)</value>
-  </data>
   <data name="On this page" xml:space="preserve">
     <value>On this page</value>
   </data>
@@ -3098,5 +3095,44 @@
   </data>
   <data name="Use a single named template field in Liquid expressions." xml:space="preserve">
     <value>Use a single named template field in Liquid expressions.</value>
+  </data>
+  <data name="Provide a valid campaign title and type." xml:space="preserve">
+    <value>Provide a valid campaign title and type.</value>
+  </data>
+  <data name="The draft has changed. Reload it before editing." xml:space="preserve">
+    <value>The draft has changed. Reload it before editing.</value>
+  </data>
+  <data name="Select up to 500 failed deliveries and confirm the reason for retrying." xml:space="preserve">
+    <value>Select up to 500 failed deliveries and confirm the reason for retrying.</value>
+  </data>
+  <data name="The campaign has not been queued." xml:space="preserve">
+    <value>The campaign has not been queued.</value>
+  </data>
+  <data name="Choose one saved variant per missing language." xml:space="preserve">
+    <value>Choose one saved variant per missing language.</value>
+  </data>
+  <data name="Provide at least one supported message language." xml:space="preserve">
+    <value>Provide at least one supported message language.</value>
+  </data>
+  <data name="Provide a message for every saved variant." xml:space="preserve">
+    <value>Provide a message for every saved variant.</value>
+  </data>
+  <data name="Provide only one variant per supported language." xml:space="preserve">
+    <value>Provide only one variant per supported language.</value>
+  </data>
+  <data name="Use supported formatting and absolute HTTPS, HTTP or mailto links." xml:space="preserve">
+    <value>Use supported formatting and absolute HTTPS, HTTP or mailto links.</value>
+  </data>
+  <data name="The message body is too long." xml:space="preserve">
+    <value>The message body is too long.</value>
+  </data>
+  <data name="Copy to new draft" xml:space="preserve">
+    <value>Copy to new draft</value>
+  </data>
+  <data name="Oldest operational work age (seconds)" xml:space="preserve">
+    <value>Oldest operational work age (seconds)</value>
+  </data>
+  <data name="Oldest campaign work age (seconds)" xml:space="preserve">
+    <value>Oldest campaign work age (seconds)</value>
   </data>
 </root>

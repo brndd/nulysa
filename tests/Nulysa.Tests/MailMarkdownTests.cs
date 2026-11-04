@@ -1,11 +1,28 @@
 using System.ComponentModel.DataAnnotations;
 using System.Globalization;
 using Nulysa.Communications;
+using Nulysa.Localization;
 
 namespace Nulysa.Tests;
 
 public sealed class MailMarkdownTests
 {
+    [Fact]
+    public void Empty_campaign_body_validation_is_translated_for_finnish_admins()
+    {
+        var original = CultureInfo.CurrentUICulture;
+        try
+        {
+            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("fi");
+            var error = Assert.Throws<ValidationException>(() => MailMarkdown.Parse("fi", "Otsikko", ""));
+            Assert.Equal("Käytä tuettuja muotoiluja ja absoluuttisia HTTPS-, HTTP- tai mailto-linkkejä.", ValidationText.Translate(error.Message));
+        }
+        finally
+        {
+            CultureInfo.CurrentUICulture = original;
+        }
+    }
+
     [Fact]
     public void Supported_formatting_reaches_the_mail_renderer_and_keeps_the_editable_source()
     {

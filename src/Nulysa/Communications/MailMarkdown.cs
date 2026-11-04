@@ -11,15 +11,17 @@ public static class MailMarkdown
 {
     internal const string OperationalDetails = "{{operational_details}}";
     public const int SourceLimit = 40_000;
+    // Automatic templates can include reconstructed Markdown escapes and expanded operational details.
+    public const int OperationalSourceLimit = 128_000;
     private static readonly MarkdownPipeline Pipeline = new MarkdownPipelineBuilder()
         .UsePreciseSourceLocation().UsePipeTables().UseTaskLists().Build();
 
     public static MailVariant Parse(string language, string subject, string source)
         => Parse(language, subject, source, allowEmptySubject: false);
 
-    internal static MailVariant Parse(string language, string subject, string source, bool allowEmptySubject)
+    internal static MailVariant Parse(string language, string subject, string source, bool allowEmptySubject, bool operational = false)
     {
-        if (source.Length > SourceLimit)
+        if (source.Length > (operational ? OperationalSourceLimit : SourceLimit))
             throw new ValidationException("The Markdown source is too long.");
 
         var blocks = new List<MailBlock>();
@@ -48,7 +50,7 @@ public static class MailMarkdown
                     throw Unsupported(block);
             }
         }
-        return RichMail.Validate([new(language, subject, [.. blocks]) { Markdown = source }], allowEmptySubject: allowEmptySubject)[0];
+        return RichMail.Validate([new(language, subject, [.. blocks]) { Markdown = source }], allowEmptySubject: allowEmptySubject, operational: operational)[0];
     }
 
     public static MailContent Preview(MailVariant variant, bool newsletter = false)
@@ -131,6 +133,34 @@ public static class MailMarkdown
                 _ => body
             };
         }));
+    }
+
+    internal static string ExpandOperationalDetails(MailVariant wrapper, string details)
+    {
+        var source = Source(wrapper);
+        var marker = FindMarker(source);
+        if (marker is null && wrapper.Markdown is not null)
+        {
+            source = Source(wrapper with { Markdown = null });
+            marker = FindMarker(source);
+        }
+        return marker is { } span
+            ? EscapeLiquid(source[..span.Start]) + details + EscapeLiquid(source[(span.End + 1)..])
+            : EscapeLiquid(source);
+
+        static SourceSpan? FindMarker(string markdown)
+        {
+            foreach (var paragraph in Markdown.Parse(markdown, Pipeline).OfType<ParagraphBlock>())
+            {
+                var span = paragraph.Span;
+                if (markdown.AsSpan(span.Start, span.Length).Trim().SequenceEqual(OperationalDetails))
+                    return span;
+            }
+            return null;
+        }
+
+        // Older wrapper bodies treated template delimiters in prose as literal Markdown.
+        static string EscapeLiquid(string text) => Regex.Replace(text, @"\{(?=[{%])", @"{\");
     }
 
     private static string Run(MailRun run)

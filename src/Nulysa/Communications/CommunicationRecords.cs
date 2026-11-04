@@ -35,6 +35,7 @@ public sealed class MailDeliveryRetry
 }
 
 public sealed record CampaignSummary(Guid Id, Guid Revision, string Title, CampaignKind Kind, DateTimeOffset UpdatedAt, DateTimeOffset? QueuedAt, int RecipientCount, int AcceptedRecipients);
+public sealed record CampaignDraftPage(IReadOnlyList<CampaignSummary> Entries, int Page, bool HasNext);
 public sealed record CampaignHistoryEntry(CampaignSummary Campaign, bool Processing);
 public sealed record CampaignHistoryPage(IReadOnlyList<CampaignHistoryEntry> Entries, int Page, int PageCount);
 public sealed record CampaignDraft(CampaignSummary Campaign, IReadOnlyList<MailVariant> Variants);

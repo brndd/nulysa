@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Data;
 using System.Net.Mail;
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -19,11 +20,14 @@ public sealed class Campaigns(AppDbContext db, ISchedulerFactory schedulers, IDa
     private ITimeLimitedDataProtector Confirmations => protection.CreateProtector("MailCampaignConfirmation.v1").ToTimeLimitedDataProtector();
     private ITimeLimitedDataProtector TestMessages => protection.CreateProtector("MailCampaignTest.v1").ToTimeLimitedDataProtector();
 
-    public async Task<IReadOnlyList<CampaignSummary>> ListDrafts(ClaimsPrincipal actor, int page = 1, CancellationToken ct = default)
+    public async Task<CampaignDraftPage> ListDrafts(ClaimsPrincipal actor, int page = 1, CancellationToken ct = default)
     {
         await Authority.RequireAdministrator(db, actor, ct);
-        return (await db.MailCampaigns.AsNoTracking().Where(x => x.QueuedAt == null).OrderByDescending(x => x.UpdatedAt).ThenBy(x => x.Id)
-            .Skip(Offset(page)).Take(PageSize).ToListAsync(ct)).Select(Summary).ToArray();
+        var current = Math.Clamp(page, 1, int.MaxValue / PageSize);
+        var drafts = await db.MailCampaigns.AsNoTracking().Where(x => x.QueuedAt == null)
+            .OrderByDescending(x => x.UpdatedAt).ThenBy(x => x.Id)
+            .Skip(Offset(current)).Take(PageSize + 1).ToListAsync(ct);
+        return new(drafts.Take(PageSize).Select(Summary).ToArray(), current, drafts.Count > PageSize);
     }
 
     public async Task<CampaignHistoryPage> ListHistory(ClaimsPrincipal actor, int page = 1, CancellationToken ct = default)
@@ -166,6 +170,8 @@ public sealed class Campaigns(AppDbContext db, ISchedulerFactory schedulers, IDa
         CancellationToken ct = default)
     {
         await Authority.RequireAdministrator(db, actor, ct);
+        // The accepted aggregate and the visible delivery states must come from the same snapshot.
+        await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.RepeatableRead, ct);
         var campaign = await Find(id, ct);
         var deliveries = db.Deliveries.AsNoTracking().Where(x => x.CampaignId == id);
         var counts = await deliveries.Where(x => x.Kind != MailKind.CampaignTest)
@@ -179,6 +185,7 @@ public sealed class Campaigns(AppDbContext db, ISchedulerFactory schedulers, IDa
             .Skip(Offset(currentPage)).Take(PageSize)
             .Select(x => new CampaignRecipient(x.Id, x.UserId, x.PreferredLanguage, x.OutgoingLanguage, x.State, x.Attempts,
                 x.AcceptedAt, x.ProviderId, x.Kind == MailKind.CampaignTest)).ToArrayAsync(ct);
+        await transaction.CommitAsync(ct);
         return new(Summary(campaign), counts, Math.Max(0, campaign.RecipientCount - counts.Values.Sum()), rows, total, currentPage);
     }
 

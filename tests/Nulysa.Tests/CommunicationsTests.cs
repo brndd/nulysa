@@ -1,11 +1,14 @@
 using System.ComponentModel.DataAnnotations;
+using System.Data.Common;
 using System.Net;
 using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Nulysa.Accounts;
 using Nulysa.Communications;
+using Nulysa.Data;
 using Nulysa.Membership;
 using Nulysa.Operations;
 using Quartz;
@@ -45,6 +48,8 @@ public sealed class CommunicationsTests : MembershipTest
         var status = await WorkStatus.Read(db, Scheduler, Clock);
         Assert.True(status.Healthy, string.Join(", ", status.Issues));
         Assert.True(status.OldestWorkAgeSeconds >= 600);
+        Assert.Equal(status.OldestWorkAgeSeconds, status.OldestCampaignWorkAgeSeconds);
+        Assert.Null(status.OldestOperationalWorkAgeSeconds);
         var attention = await Run(app, sp => sp.GetRequiredService<BoardQueries>().Attention(board, 30));
         Assert.Equal(0, attention.EssentialMailProblems);
         var mail = await Run(app, sp => sp.GetRequiredService<MembershipQueries>().MailFailures(board, essentialOnly: false));
@@ -99,6 +104,47 @@ public sealed class CommunicationsTests : MembershipTest
         await Dispatch(app, id);
         Assert.Equal(2, transport.Sent.Count);
         Assert.Equal(DeliveryState.Accepted, (await db.Deliveries.AsNoTracking().SingleAsync(x => x.Id == id)).State);
+    }
+
+    [Fact]
+    public async Task Mail_repair_scans_past_a_full_healthy_batch_and_caps_repairs()
+    {
+        await using var app = CommandsApp();
+        await using var db = Context();
+        var deliveries = Enumerable.Range(0, 261).Select(index => new Delivery
+        {
+            Id = Guid.NewGuid(), Kind = MailKind.Verification, CreatedAt = Clock.Now.AddSeconds(index - 261)
+        }).ToArray();
+        db.Deliveries.AddRange(deliveries);
+        await db.SaveChangesAsync();
+
+        var scheduled = deliveries.Take(200).ToDictionary(
+            delivery => JobBuilder.Create<MailDeliveryJob>().WithIdentity(MailQueue.JobKey(delivery.Id)).Build(),
+            delivery => (IReadOnlyCollection<ITrigger>)[TriggerBuilder.Create<MailDeliveryJob>()
+                .ForJob(MailQueue.JobKey(delivery.Id)).StartNow().Build()]);
+        await Scheduler.ScheduleJobs(scheduled);
+        var pagesRead = 0;
+        await using var scanning = Build("commands", builder =>
+        {
+            builder.Services.AddSingleton<TimeProvider>(Clock);
+            builder.Services.AddDbContext<AppDbContext>(options => options.AddInterceptors(new BeforeReader(sql =>
+                sql.Contains("ORDER BY", StringComparison.Ordinal) && sql.Contains("RetryNotBefore", StringComparison.Ordinal)
+                    && ++pagesRead == 2, async () =>
+                {
+                    await using var worker = Context();
+                    await worker.Deliveries.Where(x => x.Id == deliveries[0].Id)
+                        .ExecuteUpdateAsync(x => x.SetProperty(row => row.State, DeliveryState.Cancelled));
+                })));
+        });
+        await Run(scanning, sp => sp.GetRequiredService<MembershipMaintenance>().Scan());
+
+        var repaired = (await Scheduler.GetJobDetails(deliveries.Skip(200).Select(x => MailQueue.JobKey(x.Id)).ToArray()))
+            .Select(job => job.Key).ToHashSet();
+        Assert.Equal(50, repaired.Count);
+        Assert.All(deliveries.Skip(200).Take(50), delivery => Assert.Contains(MailQueue.JobKey(delivery.Id), repaired));
+
+        await Run(app, sp => sp.GetRequiredService<MembershipMaintenance>().Scan());
+        Assert.Equal(261, (await Scheduler.GetJobDetails(deliveries.Select(x => MailQueue.JobKey(x.Id)).ToArray())).Count);
     }
 
     [Fact]
@@ -250,6 +296,109 @@ public sealed class CommunicationsTests : MembershipTest
     }
 
     [Fact]
+    public async Task Draft_pagination_detects_a_full_final_page()
+    {
+        var board = await Board();
+        await using var app = CommandsApp();
+        await using var db = Context();
+        db.MailCampaigns.AddRange(Enumerable.Range(0, Campaigns.PageSize).Select(i => new MailCampaign
+        {
+            Id = Guid.NewGuid(), Title = $"Draft {i}", UpdatedAt = Clock.Now
+        }));
+        await db.SaveChangesAsync();
+        var full = await Run(app, sp => Campaign(sp).ListDrafts(board));
+        Assert.Equal(Campaigns.PageSize, full.Entries.Count);
+        Assert.False(full.HasNext);
+
+        db.MailCampaigns.Add(new() { Id = Guid.NewGuid(), Title = "One more draft", UpdatedAt = Clock.Now });
+        await db.SaveChangesAsync();
+        Assert.True((await Run(app, sp => Campaign(sp).ListDrafts(board))).HasNext);
+        var last = await Run(app, sp => Campaign(sp).ListDrafts(board, 2));
+        Assert.Single(last.Entries);
+        Assert.False(last.HasNext);
+    }
+
+    [Fact]
+    public async Task Concurrent_draft_saves_cannot_both_use_the_same_revision()
+    {
+        var board = await Board();
+        await using var app = CommandsApp();
+        var id = Guid.NewGuid();
+        var draft = await Run(app, sp => Campaign(sp).Save(board, id, null, "Original", CampaignKind.Newsletter, [Variant("en")]));
+        var errors = await Task.WhenAll(new[] { "First", "Second" }.Select(title => Record.ExceptionAsync(() =>
+            Run(app, sp => Campaign(sp).Save(board, id, draft.Revision, title, CampaignKind.Newsletter, [Variant("en")])))));
+
+        Assert.Single(errors, error => error is null);
+        Assert.Equal("The draft has changed. Reload it before editing.",
+            Assert.IsType<ValidationException>(Assert.Single(errors, error => error is not null)).Message);
+    }
+
+    [Fact]
+    public async Task Concurrent_save_and_send_cannot_both_use_the_same_revision()
+    {
+        var board = await Board();
+        await using var app = CommandsApp();
+        await Admit(app, board);
+        var id = Guid.NewGuid();
+        var draft = await Run(app, sp => Campaign(sp).Save(board, id, null, "Original", CampaignKind.Newsletter, [Variant("fi")]));
+        var preview = await Run(app, sp => Campaign(sp).Preview(board, id, NoFallbacks));
+        Assert.NotNull(preview.Confirmation);
+        var errors = await Task.WhenAll(
+            Record.ExceptionAsync(() => Run(app, sp => Campaign(sp).Save(board, id, draft.Revision, "Edited", CampaignKind.Newsletter, [Variant("fi")]))),
+            Record.ExceptionAsync(() => Run(app, sp => Campaign(sp).Send(board, id, NoFallbacks, preview.Confirmation))));
+
+        Assert.Single(errors, error => error is null);
+        var current = await Run(app, sp => Campaign(sp).Get(board, id));
+        if (current.Campaign.QueuedAt is null)
+        {
+            Assert.Equal("Edited", current.Campaign.Title);
+            Assert.Equal("The draft, audience or fallbacks changed. Preview and confirm again.", Assert.IsType<ValidationException>(errors[1]).Message);
+        }
+        else
+        {
+            Assert.Equal("Original", current.Campaign.Title);
+            Assert.Equal("This campaign has been queued. Copy it to write a new draft.", Assert.IsType<ValidationException>(errors[0]).Message);
+        }
+    }
+
+    [Fact]
+    public async Task Campaign_progress_uses_one_snapshot_when_acceptance_lands_between_queries()
+    {
+        var board = await Board();
+        var transport = new RecordingMail();
+        await using var app = CommandsApp(transport);
+        await Admit(app, board);
+        var id = Guid.NewGuid();
+        await Run(app, sp => Campaign(sp).Save(board, id, null, "Snapshot", CampaignKind.Newsletter, [Variant("fi")]));
+        var preview = await Run(app, sp => Campaign(sp).Preview(board, id, NoFallbacks));
+        await Run(app, sp => Campaign(sp).Send(board, id, NoFallbacks, preview.Confirmation!));
+        await using var db = Context();
+        var delivery = await db.Deliveries.Where(x => x.CampaignId == id).Select(x => x.Id).SingleAsync();
+
+        await using var reading = Build("commands", builder => builder.Services.AddDbContext<AppDbContext>(options =>
+            options.AddInterceptors(new BeforeReader(sql => sql.Contains("GROUP BY", StringComparison.Ordinal) &&
+                sql.Contains("\"Deliveries\"", StringComparison.Ordinal), () => Dispatch(app, delivery)))));
+        var snapshot = await Run(reading, sp => Campaign(sp).Progress(board, id));
+        Assert.Equal(0, snapshot.Campaign.AcceptedRecipients);
+        Assert.Equal(1, snapshot.Counts[DeliveryState.Pending]);
+        Assert.Equal(DeliveryState.Pending, Assert.Single(snapshot.Recipients).State);
+        var fresh = await Run(app, sp => Campaign(sp).Progress(board, id));
+        Assert.Equal(1, fresh.Campaign.AcceptedRecipients);
+        Assert.Equal(DeliveryState.Accepted, Assert.Single(fresh.Recipients).State);
+    }
+
+    private sealed class BeforeReader(Func<string, bool> matches, Func<Task> beforeRead) : DbCommandInterceptor
+    {
+        public override async ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(DbCommand command, CommandEventData eventData,
+            InterceptionResult<DbDataReader> result, CancellationToken cancellationToken = default)
+        {
+            if (matches(command.CommandText))
+                await beforeRead();
+            return result;
+        }
+    }
+
+    [Fact]
     public async Task A_test_uses_its_saved_snapshot_and_never_includes_a_working_unsubscribe_link()
     {
         var board = await Board();
@@ -336,7 +485,7 @@ public sealed class CommunicationsTests : MembershipTest
         Assert.Equal(1, reviewPage.Page);
         Assert.Equal(deliveries[2].Id, Assert.Single(reviewPage.Recipients).Id);
 
-        Assert.Empty(await Run(app, sp => Campaign(sp).ListDrafts(board)));
+        Assert.Empty((await Run(app, sp => Campaign(sp).ListDrafts(board))).Entries);
         Clock.Now = Clock.Now.AddDays(31);
         await Run(app, sp => sp.GetRequiredService<MembershipMaintenance>().Scan());
         Assert.False(await db.Deliveries.AnyAsync(x => x.CampaignId == id));
@@ -594,17 +743,40 @@ public sealed class CommunicationsTests : MembershipTest
     }
 
     [Fact]
-    public async Task Previous_wrapper_can_be_opened_as_a_full_markdown_override()
+    public async Task Changing_the_automatic_fallback_does_not_override_shipped_wording()
+    {
+        var board = await Board();
+        await using var app = CommandsApp();
+        var templates = await Run(app, sp => sp.GetRequiredService<OperationalTemplates>().List(board));
+        var shipped = templates.Single(x => x.Kind == MailKind.Verification).Languages.Single(x => x.Source.Language == "en");
+        await Run(app, sp => sp.GetRequiredService<OperationalTemplates>().Save(board, MailKind.Verification, shipped.Source, "fi"));
+
+        templates = await Run(app, sp => sp.GetRequiredService<OperationalTemplates>().List(board));
+        var saved = templates.Single(x => x.Kind == MailKind.Verification);
+        Assert.Equal("fi", saved.FallbackLanguage);
+        Assert.All(saved.Languages, language => Assert.False(language.Custom));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Previous_wrapper_can_be_opened_as_a_full_markdown_override(bool hasOriginalMarkdown)
     {
         var board = await Board();
         await using var app = CommandsApp(new RecordingMail());
         await using var db = Context();
+        var literal = "Text with {{operational_details}}, {% if old %} and {{{%: " + new string('>', 20_001);
+        var wrapper = new MailVariant("en", "{{association}}: {{subject}}",
+            [new(MailBlockKind.Heading, [new("Welcome to the association")]), new(MailBlockKind.Paragraph, [new(literal)]),
+                new(MailBlockKind.OperationalDetails, [])])
+        {
+            Markdown = hasOriginalMarkdown ? "# Welcome to the association\n\n" + literal + "\n\n{{operational_details}}" : null
+        };
         db.OperationalMailTemplates.Add(new()
         {
             Kind = MailKind.Verification,
             FallbackLanguage = "en",
-            Content = JsonSerializer.Serialize<MailVariant[]>([new("en", "{{association}}: {{subject}}",
-                [new(MailBlockKind.Heading, [new("Welcome to the association")]), new(MailBlockKind.OperationalDetails, [])])]),
+            Content = JsonSerializer.Serialize<MailVariant[]>([wrapper]),
             UpdatedBy = Authority.Id(board),
             UpdatedAt = Clock.Now
         });
@@ -614,7 +786,11 @@ public sealed class CommunicationsTests : MembershipTest
         var converted = Assert.Single(list.Single(x => x.Kind == MailKind.Verification).Languages, x => x.Custom);
         Assert.Null(converted.Problem);
         Assert.Equal("{{association}}: Verify your membership application", converted.Source.Subject);
-        Assert.Contains("## Welcome to the association", converted.Source.Body);
+        Assert.StartsWith(hasOriginalMarkdown ? "# Welcome to the association" : "## Welcome to the association", converted.Source.Body);
         Assert.Contains("<{{verification_url}}>", converted.Source.Body);
+        Assert.Equal(!hasOriginalMarkdown, converted.Source.Body.Length > MailMarkdown.SourceLimit);
+        var content = OperationalTemplates.Preview(MailKind.Verification, converted.Source);
+        Assert.Contains(literal, content.Text);
+        await Run(app, sp => sp.GetRequiredService<OperationalTemplates>().Save(board, MailKind.Verification, converted.Source, "en"));
     }
 }
