@@ -17,6 +17,10 @@ namespace Nulysa.Billing;
 
 public sealed partial class BillingCommands
 {
+    /// <summary>Reconciles one account's billing through the current association date.</summary>
+    /// <remarks>
+    /// Persisted purchase keys and dates make repeated scans safe. Timely historical funding is recovered before expiry.
+    /// </remarks>
     public async Task Scan(long accountId, CancellationToken ct = default)
     {
         var scheduler = await schedulers.GetScheduler(ct);
@@ -34,7 +38,6 @@ public sealed partial class BillingCommands
             return;
         }
 
-        // A scan is a wake-up; logical purchase keys and persisted dates prevent replayed cycles.
         var operation = (await Operation(facts, Guid.NewGuid(), "due-work", new { on = clock.Today }, null, "Dated billing maintenance", ct))!;
         await IssueDueRenewals(facts, operation, clock.Today, null, ct);
         // Repair timely historical funding before today's timeout decisions can end the subscription.

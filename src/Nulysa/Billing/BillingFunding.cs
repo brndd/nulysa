@@ -5,9 +5,13 @@ namespace Nulysa.Billing;
 
 public sealed partial class BillingCommands
 {
+    /// <summary>Holds money against an eligible line and completes the purchase once the accepted quote is fully funded.</summary>
+    /// <remarks>
+    /// The journal uses this event's date. The cutoff and fulfilment use the latest date of the required funding events.
+    /// </remarks>
+    /// <returns>The amount applied from this event, including money held for a partial payment.</returns>
     private async Task<decimal> Fund(BillingFacts facts, BillingOperation operation, InvoiceLine line, decimal available, DateOnly fundsAvailableOn, long? receiptId, CancellationToken ct)
     {
-        // The journal keeps this event's date; fulfilment cannot precede earlier required funding.
         var effectiveFundingOn = line.LastFundingOn is { } previousFunding && previousFunding > fundsAvailableOn
             ? previousFunding : fundsAvailableOn;
         var canFund = line.State == LineState.Open
@@ -36,7 +40,8 @@ public sealed partial class BillingCommands
 
     private sealed record FundingQuote(Quote Quote, Period Period);
 
-    // Resolving a quote reads history but never revises a line, reserves money or grants coverage.
+    /// <summary>Proposes a funding-date quote for a membership return or initial service purchase without mutating the line.</summary>
+    /// <returns>The proposed quote and period, or null when no funding-date quote applies.</returns>
     private async Task<FundingQuote?> ResolveFundingQuote(BillingFacts facts, InvoiceLine line, DateOnly effectiveFundingOn, CancellationToken ct)
     {
         var isPricedAtFunding = line.Purpose == PurchasePurpose.Resumption

@@ -19,7 +19,8 @@ public sealed partial class BillingCommands(AppDbContext db, AssociationClock cl
 {
     private BillingOptions Settings => options.Value;
 
-    // Caller owns the outer transaction; the account row serializes all journal writes.
+    /// <summary>Locks the account row before loading the facts used for journal writes.</summary>
+    /// <remarks>The caller must open a transaction and call this before making changes, since it clears EF tracking.</remarks>
     private async Task<BillingFacts> Lock(long accountId, CancellationToken ct)
     {
         if (db.Database.CurrentTransaction is null)
@@ -146,7 +147,10 @@ public sealed partial class BillingCommands(AppDbContext db, AssociationClock cl
         return group;
     }
 
-    // Approval owns the application lock, outer transaction and Quartz enlistment.
+    /// <summary>Issues the first membership payment request unless it was already issued or cancelled.</summary>
+    /// <remarks>
+    /// The caller serializes initialization through admission or the account lock and enlists Quartz in its transaction.
+    /// </remarks>
     public async Task Initialize(BillingAccount account, DateOnly anchor, DateTimeOffset approvedAt, IScheduler scheduler, CancellationToken ct = default)
     {
         if (db.Database.CurrentTransaction is null)
@@ -262,12 +266,13 @@ public sealed partial class BillingCommands(AppDbContext db, AssociationClock cl
         return line;
     }
 
+    /// <summary>Spends held funds for a fully funded line and grants any coverage in its accepted quote.</summary>
+    /// <remarks>A service purchase requires an authorizing subscription. Eligibility to use the service today is evaluated separately.</remarks>
     private void Complete(BillingFacts facts, BillingOperation operation, InvoiceLine line, DateOnly? on)
     {
         Live(facts);
         if (line.State != LineState.Open || facts.Held(line) < line.Amount)
             throw new InvalidOperationException("Only fully funded open lines can complete.");
-        // Purchase authorization differs from today's use eligibility: this may buy future time.
         var enrollmentAuthorizesPurchase = line.ServiceEnrollmentId is not { } enrollmentId
             || facts.Enrollments.Any(x => x.Id == enrollmentId && x.EndedAt is null && x.RenewalStoppedAt is null);
         if (!enrollmentAuthorizesPurchase)

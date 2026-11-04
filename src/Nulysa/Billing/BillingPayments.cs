@@ -15,6 +15,12 @@ public sealed record ReceiptInput(string Source, string SourceAccount, string Ex
 
 public sealed partial class BillingCommands
 {
+    /// <summary>Records a booked transaction by source identity before attempting automatic matching.</summary>
+    /// <remarks>
+    /// The receipt is committed separately and survives a matching failure. An identical retry reuses the receipt
+    /// and attempts matching only if it is still new. Conflicting source data is rejected.
+    /// </remarks>
+    /// <returns>The stored receipt ID, regardless of whether matching allocated funds.</returns>
     public async Task<long> Import(ReceiptInput input, CancellationToken ct = default)
     {
         var hasStableSource = !string.IsNullOrWhiteSpace(input.Source) && input.Source.Length <= 40
@@ -210,6 +216,8 @@ public sealed partial class BillingCommands
             throw new ValidationException("The selected group belongs to another account.");
     }
 
+    /// <summary>Reconciles payment requests before posting, using the booked date to judge timeliness.</summary>
+    /// <returns>False if recovering a timely request would conflict with later spending or lifecycle changes.</returns>
     private async Task<bool> PrepareRequestsForReceipt(BillingFacts facts, BillingOperation operation, Receipt receipt,
         ReceiptDestination destination, IScheduler scheduler, CancellationToken ct)
     {
@@ -320,6 +328,8 @@ public sealed partial class BillingCommands
         await tx.CommitAsync(ct);
     }
 
+    /// <summary>Authorizes and applies a billing change under the account lock in a transaction shared with Quartz.</summary>
+    /// <remarks>An identical retry returns the recorded result without invoking the change again.</remarks>
     private async Task<long?> Change(ClaimsPrincipal actor, long accountId, Guid key, string kind, object input, string reason,
         bool administrator, Func<BillingFacts, BillingOperation, IScheduler, Task> change, CancellationToken ct)
     {
@@ -380,6 +390,8 @@ public sealed partial class BillingCommands
         }, ct);
     }
 
+    /// <summary>Reverses an eligible unspent allocation and returns the original receipt to review.</summary>
+    /// <remarks>Cancels open requests funded by the receipt. Completed purchases or insufficient balances block reversal.</remarks>
     public Task UnassignReceipt(ClaimsPrincipal actor, long accountId, long receiptId, Guid key, string reason, CancellationToken ct = default)
     {
         Reason(reason);
@@ -408,7 +420,6 @@ public sealed partial class BillingCommands
                 Move(facts, operation, movement.Kind == MovementKind.ReceiptToPurchase ? MovementKind.PurchaseReceiptReversal : MovementKind.BillingReceiptReversal,
                     movement.Amount, clock.Today, receipt: receiptId, reverses: movement.Id);
 
-            // Reverse into review, never silently drop the source fact.
             receipt.BillingAccountId = null;
             receipt.State = ReceiptState.Review;
             receipt.ReviewReason = "Allocation reversed by administrator — explicit purpose assignment required";

@@ -126,6 +126,8 @@ public sealed class MembershipCommands(AppDbContext db, UserManager<User> users,
         await tx.CommitAsync(ct);
     }
 
+    /// <summary>Admits the applicant, initializes billing and queues the welcome message in one transaction.</summary>
+    /// <returns>The new user ID, or the recorded user ID if this application was already approved.</returns>
     public async Task<long> Approve(ClaimsPrincipal actor, Guid applicationId, CancellationToken ct = default)
     {
         var scheduler = await schedulers.GetScheduler(ct);
@@ -238,6 +240,8 @@ public sealed class MembershipCommands(AppDbContext db, UserManager<User> users,
         await tx.CommitAsync(ct);
     }
 
+    /// <summary>Cancels pending deletion and re-arms membership billing when existing coverage includes today.</summary>
+    /// <remarks>Restoration grants no new coverage or grace and leaves cancelled service subscriptions ended.</remarks>
     public async Task Restore(ClaimsPrincipal actor, long id, Guid operation, string reason, CancellationToken ct = default)
     {
         ValidateOperation(operation, reason);
@@ -264,11 +268,12 @@ public sealed class MembershipCommands(AppDbContext db, UserManager<User> users,
         Record(operation, actor, id, "restore", reason);
         await mail.CancelForUser(scheduler, id, ct);
         await mail.Add(scheduler, operation, MailKind.Restoration, id, version: operation, ct: ct);
-        // No new grace, coverage, billing request or credentials are restored here.
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
     }
 
+    /// <summary>Erases an eligible member's identity while retaining financial history and any unspent refund claim.</summary>
+    /// <returns>Whether erasure completed. Eligibility is checked under lock so restoration can take effect first.</returns>
     public async Task<bool> Erase(long id, CancellationToken ct = default)
     {
         var scheduler = await schedulers.GetScheduler(ct);
@@ -299,11 +304,12 @@ public sealed class MembershipCommands(AppDbContext db, UserManager<User> users,
         return true;
     }
 
+    /// <summary>Locks the billing account before the user to preserve the shared lock order.</summary>
+    /// <remarks>The caller owns the transaction and holds both locks until it ends.</remarks>
     public async Task<User> LockUser(long id, CancellationToken ct)
     {
         if (db.Database.CurrentTransaction is null)
             throw new InvalidOperationException("Member locks require a command transaction.");
-        // All member commands use billing account -> user, including erasure and future S2 financial commands.
         await db.Database.ExecuteSqlInterpolatedAsync($"SELECT 1 FROM \"BillingAccounts\" WHERE \"UserId\" = {id} FOR UPDATE", ct);
         var user = await db.Users.FromSqlInterpolated($"SELECT * FROM \"AspNetUsers\" WHERE \"Id\" = {id} FOR UPDATE").SingleOrDefaultAsync(ct)
             ?? throw new ValidationException("Member no longer exists.");

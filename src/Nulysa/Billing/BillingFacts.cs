@@ -118,6 +118,10 @@ internal sealed class BillingFacts
     public Standing Membership(DateOnly on)
         => MembershipStanding(User is { MayLogIn: true }, Coverage, Lines, Items.Any(x => x.MembershipUserId != null && x.EndedAt == null), MembershipRenewalGraceDays, on);
 
+    /// <summary>Derives membership standing for a date from account access, coverage and payment requests.</summary>
+    /// <remarks>
+    /// Renewal grace can apply before the worker issues a request. A return request alone gives no grace.
+    /// </remarks>
     internal static Standing MembershipStanding(bool mayLogIn, IEnumerable<Coverage> coverage, IEnumerable<InvoiceLine> lines, bool renewing, int graceDays, DateOnly on)
     {
         if (!mayLogIn)
