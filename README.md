@@ -1,7 +1,7 @@
 # Nulysa
 
-ASP.NET Core membership management for Finnish hackerspace associations. **S0–S2
-are implemented: foundations, membership/mail, billing and subscriptions.**
+ASP.NET Core membership management for Finnish hackerspace associations. **S0–S3
+are implemented: foundations, membership/mail, billing/subscriptions and communications.**
 This is not production-ready; later delivery/cutover gates, including MobilePay
 before S6, remain mandatory. The Django reference at `~/code/nulysa-py/` is unchanged.
 
@@ -23,7 +23,7 @@ WebAssembly client or global interactive circuit.
   coverage, membership/service lifecycles, and review entry points.
 - [Foundation evidence and limits](docs/foundations.md),
   [S1 membership/mail](docs/membership.md), [S2 billing/configuration](docs/billing.md),
-  [S3 communications backend](docs/communications.md),
+  [S3 communications](docs/communications.md),
   [operations runbook](docs/operations.md), [OIDC configuration](docs/oidc-reference.md),
   [performance follow-ups](docs/performance-followups.md).
 
@@ -161,8 +161,9 @@ database role needs `CREATEDB`.
 
 Test counts and timings change as the suite grows; run the commands below or check
 CI for current totals. Historical release evidence and limits are recorded in
-[S0 evidence](docs/foundations.md), [S1 evidence](docs/membership.md) and
-[S2 evidence](docs/billing.md#acceptance-evidence).
+[S0 evidence](docs/foundations.md), [S1 evidence](docs/membership.md),
+[S2 evidence](docs/billing.md#acceptance-evidence) and
+[S3 evidence](docs/communications.md#acceptance-evidence).
 
 Mark new slow tests with `[Trait("Category", "Slow")]`; browser tests use
 `[Trait("Group", "Browser")]`. Fast database tests should stay in the standard suite.

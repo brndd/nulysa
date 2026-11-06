@@ -414,16 +414,19 @@ detail.
 
 ### 6.5 Communications — S3
 
-Reserve a workspace layout for rich-text drafts, language variants, audiences,
-preview and test send. Before bulk send, show recipient groups/counts, missing
-variants and explicitly chosen fallbacks, then require confirmation. Distinguish
-newsletters, official notices and transactional templates.
+The communications workspace includes drafts, language variants, audience
+previews and test sends. Bulk sending requires review of recipient groups/counts,
+missing variants and explicitly chosen fallbacks, followed by confirmation.
+Newsletters, official notices and automatic templates have distinct workflows.
 
-“Send now” queues delivery, not completion. Show progress, failures and uncertain
-outcomes. Retry follows the safe delivery workflow, not blind resending. No initial
-administrator-selected future send times or delegated newsletter permissions.
-Choose a rich-text editor that maps to the validated document structure in the
-[S3 backend](../docs/communications.md).
+“Send now” queues delivery. Campaign history shows content, progress, failures
+and uncertain outcomes, with copying and safe retries of definite failures.
+Member profiles provide invoice and newsletter preferences in one form.
+Browser unsubscribe links open a confirmation form. Administrator-selected future
+send times and delegated newsletter permissions remain deferred.
+S3 implements Markdown editors with GitHub formatting controls and Write/Preview
+tabs, mapped to the validated document structure. Automatic mail uses editable
+Liquid templates. See [S3 communications](../docs/communications.md).
 
 ## 7. Access and training — S4
 
@@ -743,7 +746,8 @@ S3–S6 or change the single full-replacement cutover plan.
 | UI2: member tasks | Delivered for S1–S2 features | Homepage standing/attention, services, unified Payments, bill details, balances/transfers, independently paged histories, profile/invoice preferences and resignation are implemented. Remaining cross-cutting validation belongs to UI4, not another member-page split. |
 | UI3: board tasks | Delivered for S1–S2 features | Attention dashboard, registry/member workspace, application review, contextual bank dispositions and named financial adjustments are implemented. Further cross-cutting checks belong to UI4. |
 | UI4: validation/handoff | Implemented for current pages; manual handoff remains | Finnish/English resources, explicit language/fallback selection, localised money forms, focused/announced errors, bounded member billing reads and the automated four-theme responsive/contrast matrix are implemented. Supplied logos, manual assistive-technology/real zoom checks and translation review remain explicit handoff items. |
-| S3–S5 UI | Future feature work | Communications, access/training and storage interfaces ship with their domain slices, not as prerequisites for completing the current member UI. |
+| S3 UI | Implemented | Campaign drafts, audience/fallback review, test and confirmed sending, history/copy/progress/retries, automatic templates, newsletter preferences and unsubscribe confirmation. |
+| S4–S5 UI | Future feature work | Access/training and storage interfaces ship with their domain slices. |
 
 ### UI3, in bounded board-facing deliverables
 

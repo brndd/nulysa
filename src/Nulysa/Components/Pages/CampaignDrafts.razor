@@ -5,9 +5,11 @@
 @using System.ComponentModel.DataAnnotations
 @using System.Security.Claims
 @using Nulysa.Communications
+@using Microsoft.JSInterop
 @inject IServiceScopeFactory Scopes
 @inject AuthenticationStateProvider Authentication
 @inject NavigationManager Navigation
+@inject IJSRuntime JS
 
 <AdminPageHeader Title="@T("Campaign drafts")" />
 <AdminSectionTabs Destination="campaign-drafts" />
@@ -65,7 +67,6 @@
 @code {
     [Parameter] public Guid? DraftId { get; set; }
 
-    private const string SavedDraftNavigation = "campaign-draft-saved";
     private ClaimsPrincipal actor = null!;
     private IReadOnlyList<CampaignSummary> drafts = [];
     private MarkdownMailInput[]? inputs;
@@ -79,6 +80,7 @@
     private bool hasNext;
     private bool busy;
     private bool saved;
+    private bool readSaveNotice;
 
     protected override async Task OnInitializedAsync()
     {
@@ -95,7 +97,20 @@
         if (DraftId is { } draftId)
         {
             await Open(draftId);
-            saved = inputs is not null && Navigation.HistoryEntryState == SavedDraftNavigation;
+            readSaveNotice = inputs is not null;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!readSaveNotice)
+            return;
+        readSaveNotice = false;
+        await using var module = await JS.InvokeAsync<IJSObjectReference>("import", "./scripts/mail-markdown.js");
+        if (await module.InvokeAsync<bool>("consumeDraftSaveNotice", id, revision))
+        {
+            saved = true;
+            StateHasChanged();
         }
     }
 
@@ -165,11 +180,11 @@
             saved = true;
             await Load(1);
             if (firstSave)
-                Navigation.NavigateTo($"/admin/communications/drafts/{result.Id}", new NavigationOptions
-                {
-                    ReplaceHistoryEntry = true,
-                    HistoryEntryState = SavedDraftNavigation
-                });
+            {
+                await using var module = await JS.InvokeAsync<IJSObjectReference>("import", "./scripts/mail-markdown.js");
+                await module.InvokeVoidAsync("rememberDraftSaveNotice", result.Id, result.Revision);
+                Navigation.NavigateTo($"/admin/communications/drafts/{result.Id}", replace: true);
+            }
         }
         catch (ValidationException problem) { error = problem.Message; }
         finally { busy = false; }

@@ -92,7 +92,7 @@ and remaining deliverables are in [the UI design](../AGENTS/UI_DESIGN.md).
   discounted bill amounts.
 - Profile sections for personal details, verified email change, existing invoice-
   email preferences, password changes, privacy contact and resignation. Billing details links to the overview’s Billing settings. Required notices cannot be disabled;
-  newsletter preferences remain part of S3, not a nonfunctional placeholder.
+  S3 adds newsletter opt-in/out to the same preference form with one Save button.
 - One-use success notices after completed changes, stored through protected cookie
   TempData rather than trusting a success query string. No success is shown for a
   preview or rejected command. Resignation includes waiting/batch timing, loss of
@@ -243,7 +243,8 @@ pages. Retained account statements/history are supporting disclosures. Neither r
 refund nor previewing a disposition initiates an external payment.
 UI4 implements localisation and the automated accessibility/responsive matrix described
 below. Manual checks remain explicit; these tests are not a WCAG compliance claim.
-Communications, access/training and interactive storage remain their later slices.
+S3 communications is implemented with Markdown editors, campaign sending/history
+and member preferences. Access/training and interactive storage remain later slices.
 
 The primary responsive modes meet at 768 CSS pixels: sidebar and two balance columns
 above the breakpoint; mobile menu and one balance column below it. Other panel/filter grids also stay single-column in mobile mode instead

@@ -1,6 +1,7 @@
-# S3 communications backend
+# S3 communications
 
-Communications is a set of application services for the server-side UI. It uses
+S3 implements communications services, administrator workflows and member preferences.
+It uses
 the existing SMTP transport, worker and PostgreSQL Quartz store. Resolve these
 services in a fresh scope per operation in a long-lived editor circuit. Apply the
 EF migrations before starting web and worker.
@@ -20,8 +21,8 @@ EF migrations before starting web and worker.
   inactive members. Each missing language needs an explicit choice of a saved
   variant. The preview returns the outgoing subject and bodies for each group
   and, when the audience is nonempty and all variants resolve, a confirmation
-  token. The UI should present the result and require an affirmative action
-  before calling `Send` with that token and the same fallback choices. Tokens
+  token. The UI presents the result and requires confirmation before calling
+  `Send` with that token and the same fallback choices. Tokens
   are valid for 20 minutes, for the same administrator, draft revision and
   recipient selection. A stale selection requires a fresh preview.
 - `SendTest` queues a snapshot of the selected saved variant to one address.
@@ -92,3 +93,46 @@ stored as Liquid when saved. The editor previews with sample values. When changi
 a field contract, keep compatible names where possible. Removing a name or adding
 a required field can invalidate a stored override. Wording-only updates take
 effect automatically in languages using the shipped template.
+
+
+## Acceptance evidence
+
+The S3 feature scope includes Markdown authoring, editable Liquid templates,
+localized subjects and bodies, explicit fallback previews, test mail, confirmed
+bulk sends, per-recipient progress and retries, campaign history/copy, member
+newsletter preferences, and browser/one-click unsubscribe.
+
+The 2026-11-06 closeout validated `fad8cab` plus the editor feedback and formatting
+fixes recorded with this documentation update. The full Release suite passed
+**333 tests with zero failures and zero skips** in 5.78 minutes, using local
+PostgreSQL, Keycloak, Chromium, real worker processes and Typst.
+
+The checks were:
+
+- `dotnet build -c Release -m:1 --no-restore` — passed.
+- `dotnet test -m:1 --no-build --no-restore -c Release --settings tests.full.runsettings` — passed.
+- `dotnet format --verify-no-changes --no-restore` — passed.
+- `python3 scripts/test_dev.py` — all three checks passed.
+- `CONTAINER_ENGINE=podman NULYSA_TEST_POSTGRES_CONTAINER=nulysa_postgres_1 bash scripts/container-smoke.sh`
+  — passed, including the release image, migrations, independent web/worker
+  processes, encrypted persistent keys, schedule installation and healthy status.
+
+The initial full run exposed an intermittent missing draft-save confirmation
+after static route navigation. The editor now carries a one-use receipt in the
+browser tab, matched to the saved draft ID and revision. The browser test verifies
+the notice on the new URL and its removal on reload. An initial service-page
+HTTP 500 did not recur in an isolated rerun or the final full suite. Its test now
+includes the response body when reporting a failure.
+
+`CommunicationsTests` covers audience/fallback confirmation, dispatch-time
+eligibility, opt-outs, retries and attempt generations, transaction rollback,
+repair paging/caps during dispatch, draft edit/send races, consistent progress
+snapshots, template validation/fallback/migration and unsubscribe confirmation.
+`MarkdownMailBrowserTests`, `CampaignDeliveryBrowserTests` and the member
+communication-preference tests exercise the corresponding UI and HTTP forms.
+SMTP tests cover both MIME alternatives and one-click headers.
+
+Deployment readiness includes real-provider SMTP/DKIM checks, shared production
+Data Protection keys and association-scale load measurements during S6.
+Delegated newsletter permissions and administrator-selected send times remain
+explicitly deferred in the specification.

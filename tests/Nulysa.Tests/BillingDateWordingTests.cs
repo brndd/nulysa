@@ -39,7 +39,10 @@ public sealed class BillingDateWordingTests : MembershipTest
 
         var membershipThrough = language == "en" ? "Valid through 30 Jun 2026" : "Voimassa 30.6.2026 asti";
         Assert.Contains(membershipThrough, Text(await client.GetStringAsync("/")));
-        var services = Text(await client.GetStringAsync("/services"));
+        using var response = await client.GetAsync("/services");
+        var servicesHtml = await response.Content.ReadAsStringAsync();
+        Assert.True(response.IsSuccessStatusCode, servicesHtml);
+        var services = Text(servicesHtml);
         Assert.Contains(membershipThrough, services);
         Assert.Contains(language == "en" ? "Valid through 14 Jun 2026" : "Voimassa 14.6.2026 asti", services);
 

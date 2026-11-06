@@ -101,12 +101,13 @@ public sealed class MarkdownMailBrowserTests : BoardTest
         Assert.True(await header.EvaluateAsync<bool>("el => el.scrollWidth <= el.clientWidth + 1"));
         Assert.True((await toolbar.BoundingBoxAsync())!.Y > (await tabs.BoundingBoxAsync())!.Y);
         await page.GetByRole(AriaRole.Button, new() { Name = "Save draft", Exact = true }).ClickAsync();
-        await Assertions.Expect(page.GetByText("Draft saved.", new() { Exact = true })).ToBeVisibleAsync();
         var draftRoute = new System.Text.RegularExpressions.Regex("/admin/communications/drafts/[0-9a-f-]+$");
         await Assertions.Expect(page).ToHaveURLAsync(draftRoute);
+        await Assertions.Expect(page.GetByText("Draft saved.", new() { Exact = true })).ToBeVisibleAsync();
         var firstDraft = page.Url;
         await page.ReloadAsync();
         await Assertions.Expect(body).ToHaveValueAsync("- Bring tools\n- Invite a friend");
+        await Assertions.Expect(page.GetByText("Draft saved.", new() { Exact = true })).ToHaveCountAsync(0);
 
         await page.GetByRole(AriaRole.Button, new() { Name = "New draft", Exact = true }).ClickAsync();
         await Assertions.Expect(body).ToHaveValueAsync("");
@@ -114,9 +115,9 @@ public sealed class MarkdownMailBrowserTests : BoardTest
         await subject.FillAsync("Second workshop");
         await body.FillAsync("Bring a friend.");
         await page.GetByRole(AriaRole.Button, new() { Name = "Save draft", Exact = true }).ClickAsync();
-        await Assertions.Expect(page.GetByText("Draft saved.", new() { Exact = true })).ToBeVisibleAsync();
         await Assertions.Expect(page).ToHaveURLAsync(draftRoute);
         await Assertions.Expect(page).Not.ToHaveURLAsync(firstDraft);
+        await Assertions.Expect(page.GetByText("Draft saved.", new() { Exact = true })).ToBeVisibleAsync();
         await page.ReloadAsync();
         await Assertions.Expect(body).ToHaveValueAsync("Bring a friend.");
 

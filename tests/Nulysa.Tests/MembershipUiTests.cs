@@ -43,7 +43,8 @@ public sealed class MembershipFormTests : MembershipTest
             var page = await member.GetStringAsync("profile");
             var fields = new Dictionary<string, string>
             {
-                ["_handler"] = handler, ["__RequestVerificationToken"] = Antiforgery(page),
+                ["_handler"] = handler,
+                ["__RequestVerificationToken"] = Antiforgery(page),
                 ["EmailPreference.Key"] = Guid.NewGuid().ToString(),
                 ["EmailPreference.InitialInvoices"] = initialInvoices.ToString(),
                 ["EmailPreference.InitialNewsletters"] = initialNewsletters.ToString()
@@ -80,7 +81,8 @@ public sealed class MembershipFormTests : MembershipTest
         Assert.DoesNotContain("email-newsletters", adminPage);
         using var adminForm = new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["_handler"] = handler, ["__RequestVerificationToken"] = Antiforgery(adminPage),
+            ["_handler"] = handler,
+            ["__RequestVerificationToken"] = Antiforgery(adminPage),
             ["EmailPreference.Key"] = Guid.NewGuid().ToString(),
             ["EmailPreference.InitialInvoices"] = "true",
             ["EmailPreference.InitialNewsletters"] = "false",

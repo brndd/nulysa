@@ -76,8 +76,14 @@ public sealed class CommunicationsTests : MembershipTest
         var trigger = TriggerBuilder.Create<MailDeliveryJob>().ForJob(key).StartNow().Build();
         var bundle = new TriggerFiredBundle
         {
-            JobDetail = detail, Trigger = (IOperableTrigger)trigger, Calendar = null, Recovering = false,
-            FireTimeUtc = Clock.Now, ScheduledFireTimeUtc = Clock.Now, PreviousFireTimeUtc = null, NextFireTimeUtc = null
+            JobDetail = detail,
+            Trigger = (IOperableTrigger)trigger,
+            Calendar = null,
+            Recovering = false,
+            FireTimeUtc = Clock.Now,
+            ScheduledFireTimeUtc = Clock.Now,
+            PreviousFireTimeUtc = null,
+            NextFireTimeUtc = null
         };
         await db.Database.ExecuteSqlRawAsync("""
             ALTER TABLE qrtz_triggers ADD CONSTRAINT test_reject_retry_trigger
@@ -115,7 +121,9 @@ public sealed class CommunicationsTests : MembershipTest
         await using var db = Context();
         var deliveries = Enumerable.Range(0, 261).Select(index => new Delivery
         {
-            Id = Guid.NewGuid(), Kind = MailKind.Verification, CreatedAt = Clock.Now.AddSeconds(index - 261)
+            Id = Guid.NewGuid(),
+            Kind = MailKind.Verification,
+            CreatedAt = Clock.Now.AddSeconds(index - 261)
         }).ToArray();
         db.Deliveries.AddRange(deliveries);
         await db.SaveChangesAsync();
@@ -305,7 +313,9 @@ public sealed class CommunicationsTests : MembershipTest
         await using var db = Context();
         db.MailCampaigns.AddRange(Enumerable.Range(0, Campaigns.PageSize).Select(i => new MailCampaign
         {
-            Id = Guid.NewGuid(), Title = $"Draft {i}", UpdatedAt = Clock.Now
+            Id = Guid.NewGuid(),
+            Title = $"Draft {i}",
+            UpdatedAt = Clock.Now
         }));
         await db.SaveChangesAsync();
         var full = await Run(app, sp => Campaign(sp).ListDrafts(board));
@@ -570,8 +580,11 @@ public sealed class CommunicationsTests : MembershipTest
         // Seed the audience without queuing approval mail.
         var recipients = Enumerable.Range(1, 3).Select(number => new User
         {
-            UserName = $"bulk-{number}@example.test", Email = $"bulk-{number}@example.test",
-            EmailConfirmed = true, Admitted = true, Language = "en"
+            UserName = $"bulk-{number}@example.test",
+            Email = $"bulk-{number}@example.test",
+            EmailConfirmed = true,
+            Admitted = true,
+            Language = "en"
         }).ToArray();
         db.Users.AddRange(recipients);
         await db.SaveChangesAsync();
@@ -612,7 +625,11 @@ public sealed class CommunicationsTests : MembershipTest
         // Isolate campaign scheduling from approval mail for this worker test.
         var user = new User
         {
-            UserName = Email, Email = Email, EmailConfirmed = true, Admitted = true, Language = "en"
+            UserName = Email,
+            Email = Email,
+            EmailConfirmed = true,
+            Admitted = true,
+            Language = "en"
         };
         db.Users.Add(user);
         await db.SaveChangesAsync();

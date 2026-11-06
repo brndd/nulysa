@@ -1,5 +1,18 @@
 import "../vendor/github-markdown-toolbar/index.js";
 
+// A new static route creates a new editor circuit. Carry its save receipt across that navigation once per tab.
+const draftSaveNoticeKey = "nulysa:campaign-draft-saved";
+
+export function rememberDraftSaveNotice(id, revision) {
+    sessionStorage.setItem(draftSaveNoticeKey, id + ":" + revision);
+}
+
+export function consumeDraftSaveNotice(id, revision) {
+    const receipt = sessionStorage.getItem(draftSaveNoticeKey);
+    sessionStorage.removeItem(draftSaveNoticeKey);
+    return receipt === id + ":" + revision;
+}
+
 export function connectEditor(tabs, input) {
     if (!tabs || !(input instanceof HTMLTextAreaElement)) return;
 

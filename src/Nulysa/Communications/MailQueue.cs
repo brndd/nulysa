@@ -29,8 +29,17 @@ public sealed class MailQueue(AppDbContext db, TimeProvider clock, IOptions<Mail
             return;
         }
 
-        var delivery = new Delivery { Id = id, Kind = kind, UserId = userId, ApplicationId = applicationId, Version = version,
-            CreatedAt = clock.GetUtcNow(), InvoiceId = invoiceId, InvoiceRevision = invoiceRevision };
+        var delivery = new Delivery
+        {
+            Id = id,
+            Kind = kind,
+            UserId = userId,
+            ApplicationId = applicationId,
+            Version = version,
+            CreatedAt = clock.GetUtcNow(),
+            InvoiceId = invoiceId,
+            InvoiceRevision = invoiceRevision
+        };
         db.Deliveries.Add(delivery);
         await db.SaveChangesAsync(ct);
         await ScheduleBatch(scheduler, [delivery], ct);

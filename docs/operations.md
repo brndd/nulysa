@@ -1,6 +1,6 @@
 # Application operations
 
-This covers S0–S2, not a production-readiness declaration. Use one release
+This covers S0–S3. Production readiness is assessed during S6. Use one release
 artifact with `web`, `worker` and explicit maintenance commands. PostgreSQL is the
 only database; do not run against a Django database or production during development.
 

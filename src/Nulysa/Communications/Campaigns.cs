@@ -122,8 +122,13 @@ public sealed class Campaigns(AppDbContext db, ISchedulerFactory schedulers, IDa
         var now = clock.GetUtcNow();
         var deliveries = plan.Recipients.Select(x => new Delivery
         {
-            Id = Guid.NewGuid(), Kind = kind, CampaignId = id, UserId = x.UserId,
-            PreferredLanguage = x.PreferredLanguage, OutgoingLanguage = x.OutgoingLanguage, CreatedAt = now
+            Id = Guid.NewGuid(),
+            Kind = kind,
+            CampaignId = id,
+            UserId = x.UserId,
+            PreferredLanguage = x.PreferredLanguage,
+            OutgoingLanguage = x.OutgoingLanguage,
+            CreatedAt = now
         }).ToArray();
         db.Deliveries.AddRange(deliveries);
         campaign.QueuedAt = campaign.UpdatedAt = now;
@@ -153,8 +158,12 @@ public sealed class Campaigns(AppDbContext db, ISchedulerFactory schedulers, IDa
         var message = new OutgoingMail(address, "[TEST] " + content.Subject, content.Text, Html: content.Html);
         var delivery = new Delivery
         {
-            Id = Guid.NewGuid(), Kind = MailKind.CampaignTest, CampaignId = id, OutgoingLanguage = outgoing,
-            CreatedAt = clock.GetUtcNow(), ProtectedTestMessage = TestMessages.Protect(JsonSerializer.Serialize(message), TimeSpan.FromDays(1))
+            Id = Guid.NewGuid(),
+            Kind = MailKind.CampaignTest,
+            CampaignId = id,
+            OutgoingLanguage = outgoing,
+            CreatedAt = clock.GetUtcNow(),
+            ProtectedTestMessage = TestMessages.Protect(JsonSerializer.Serialize(message), TimeSpan.FromDays(1))
         };
         var scheduler = await schedulers.GetScheduler(ct);
         await using var tx = await db.Database.BeginTransactionAsync(ct);
@@ -217,8 +226,11 @@ public sealed class Campaigns(AppDbContext db, ISchedulerFactory schedulers, IDa
             delivery.AttemptLimit = delivery.Attempts + MailQueue.AttemptsPerRound;
             db.MailDeliveryRetries.Add(new()
             {
-                DeliveryId = delivery.Id, QueueVersion = delivery.QueueVersion, ActorId = Authority.Id(actor),
-                Reason = reason.Trim(), RequestedAt = clock.GetUtcNow()
+                DeliveryId = delivery.Id,
+                QueueVersion = delivery.QueueVersion,
+                ActorId = Authority.Id(actor),
+                Reason = reason.Trim(),
+                RequestedAt = clock.GetUtcNow()
             });
         }
         await db.SaveChangesAsync(ct);
@@ -282,7 +294,8 @@ public sealed class Campaigns(AppDbContext db, ISchedulerFactory schedulers, IDa
     {
         if (string.IsNullOrEmpty(confirmation) || confirmation.Length > 2048)
             return null;
-        try { return JsonSerializer.Deserialize<Confirmation>(Confirmations.Unprotect(confirmation)); }
+        try
+        { return JsonSerializer.Deserialize<Confirmation>(Confirmations.Unprotect(confirmation)); }
         catch (CryptographicException) { return null; }
     }
 

@@ -1,6 +1,6 @@
 # ASP.NET Core architecture and delivery blueprint
 
-**ASP.NET Core architecture accepted in principle; S0–S2 are implemented with
+**ASP.NET Core architecture accepted in principle; S0–S3 are implemented with
 their own acceptance suites. Later-slice implementation details remain proposals.**
 The behaviour in [SPEC.md](SPEC.md) is preserved. C#/ASP.NET Core, PostgreSQL-only
 database profiles and Quartz.NET are the selected platform direction. The stack
@@ -29,7 +29,7 @@ distributed infrastructure.
 | Database | PostgreSQL in development, production and database CI, through EF Core and Npgsql. One application DbContext coordinates domain/Identity/OpenIddict tables; Quartz owns separate tables in the same database and explicitly shares application transactions for scheduling. No SQLite support initially. |
 | Web UI | Blazor Web App with static SSR and ordinary HTTP forms by default; selective Interactive Server pages/components for richer interactions. Use Blazor's enhanced navigation/form handling where useful, not a parallel HTMX layer. Customizable association branding, including page titles, with unobtrusive Nulysa attribution. No initial WebAssembly/Auto mode, separate client project, frontend authentication system or mandatory public CRUD API. Protocol/device endpoints remain ordinary ASP.NET Core endpoints. |
 | Background work | Quartz.NET 4 with PostgreSQL AdoJobStore, a separate worker process and a small configurable execution pool. Enable persistence, clustering, recovery, retry policies and database execution history explicitly. No Redis/RabbitMQ or custom queue framework. Prove transaction/recovery behaviour in S0 (section 7). |
-| Email and PDFs | SMTP adapter initially, so Scaleway TEM or another transactional provider can be used through its SMTP endpoint; editable, localised email templates with restricted placeholders. Keep Typst for invoice PDFs, invoking a pinned CLI as a controlled child process and reusing the association's parameterized template. Use trusted source, structured input, controlled private assets/packages/fonts and no arbitrary runtime remote fetching. The [S3 backend](../docs/communications.md) renders a validated structured document to safe HTML and plain text; the editor UI is deferred. |
+| Email and PDFs | SMTP adapter initially, so Scaleway TEM or another transactional provider can be used through its SMTP endpoint; editable, localised email templates with restricted placeholders. Keep Typst for invoice PDFs, invoking a pinned CLI as a controlled child process and reusing the association's parameterized template. Use trusted source, structured input, controlled private assets/packages/fonts and no arbitrary runtime remote fetching. [S3 communications](../docs/communications.md) provides Markdown editors, Liquid templates, safe HTML/plain-text rendering and the complete campaign and preference UI. |
 | Identity integration | ASP.NET Core Identity for email/password accounts and cookies; OpenIddict for the registry's upstream OAuth/OIDC server. Keep Keycloak as the SSO intermediary. Prove local continuity (section 3); production access/testing is not an early-development prerequisite. |
 | Tooling | Pin the .NET SDK and NuGet dependencies/lockfiles. Use compiler/nullable checks, .NET analyzers and formatting. Proposed tests: xUnit, ASP.NET Core integration testing and Playwright for critical browser journeys. Run database/transaction/worker tests on real PostgreSQL. Exact versions and test grouping are S0 work. |
 | Deployment | Production uses Linux containers and Kestrel behind a trusted TLS reverse proxy. Prefer one release artifact with explicit web, worker and maintenance entry points, PostgreSQL and private document storage. Persist Data Protection and OIDC signing keys. Local application development may run on the host against containerized PostgreSQL. |
@@ -678,15 +678,16 @@ relax assertions to obtain green CI. Package docs are not runtime proof.
 
 ## 11. Delivery sequence
 
-S0–S2 are implemented with their acceptance suites; see
-[the foundation status](../docs/foundations.md), [S1 evidence](../docs/membership.md)
-and [S2 evidence](../docs/billing.md). The remaining bounded build slices are below;
+S0–S3 are implemented with their acceptance suites; see
+[the foundation status](../docs/foundations.md), [S1 evidence](../docs/membership.md),
+[S2 evidence](../docs/billing.md) and [S3 evidence](../docs/communications.md#acceptance-evidence).
+The delivery slices and their exit checks are below;
 these are not operational cutovers. The association keeps one full-replacement
 cutover after all five agreed delivery phases.
 
 | Slice | Deliverable and exit check |
 | --- | --- |
-| S3: communications | Extend the existing queue/templates to drafts, rich localised newsletters/official notices, preference/fallback previews, test sends, progress and failures. Do not postpone authentication mail until this phase. |
+| S3: communications — implemented | Markdown campaigns and Liquid templates, explicit language fallbacks, test/confirmed sends, history/copy/progress/retries, newsletter preferences and browser/one-click unsubscribe. Acceptance evidence is in the communications guide. |
 | S4: access | Qualifications/trainers, resources, claim/revoke/history UI, live device API, cache export and retry-safe offline events. Pass a real reader contract/sandbox test, including reused UIDs and outages. |
 | S5: storage | Runtime groups/positions, FIFO offers, atomic purchase-balance checkout/manual renewal, paid-term protection and handover. Pass multi-member contention and queue/date scenarios. |
 | S6: readiness + single cutover | Migration rehearsal including legacy → replacement Keycloak/broker/downstream identity continuity, accountant reconciliation, privacy/retention and backup/erasure runbooks, provider/identity/device validation and operator/member instructions. Enable production only after cross-phase acceptance. |

@@ -61,11 +61,12 @@ transport is forbidden in Production. Supply the association terms/privacy URL a
 legal terms. Configuring an adapter is not provider onboarding or permission to
 deploy.
 
-Essential templates are trusted plain text in English/Finnish, with explicit
-`Membership__DefaultLanguage` fallback (`en` by default). They are mandatory operational
-messages; newsletter preferences cannot suppress them. Editable/rich templates,
-authoring and newsletter delivery remain S3 work. Identity password/change-email
-tokens expire after one day; forgotten initial setup can use ordinary reset.
+Essential mail uses shipped English/Finnish Markdown templates and editable Liquid
+overrides, with explicit `Membership__DefaultLanguage` fallback (`en` by default).
+[S3 communications](communications.md) supplies the template editor, campaign
+authoring/delivery and newsletter preferences. Operational notices follow their
+required delivery rules independently of routine email preferences. Identity
+password/change-email tokens expire after one day; forgotten initial setup can use ordinary reset.
 
 Every recipient has a `Delivery` record; Quartz contains only its random ID and
 enqueue time. Scheduling shares the domain EF transaction. The worker polls the

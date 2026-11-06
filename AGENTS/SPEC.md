@@ -1599,13 +1599,13 @@ later feature.
 
 ### Rich-text authoring and safety
 
-**Proposed UX:** provide a rich-text/WYSIWYG email editor rather than requiring
-administrators to author HTML. The editor, stored content format and corresponding
-sanitisation library are deferred implementation choices; no particular editor or
-sanitisation dependency is selected yet. HTML email content and browser previews still need
-server-side sanitisation, and editable templates use restricted placeholders rather
-than arbitrary template execution. Client-side editor restrictions alone are not a
-security boundary. This does not defer essential operational mail from S1 to S3.
+**Implemented authoring choice:** Markdown with a GitHub-style formatting toolbar
+and Write/Preview tabs. Markdig maps supported Markdown to a validated document
+structure for server-side HTML and plain-text rendering. Automatic mail uses
+editable Liquid templates through Fluid with restricted fields and conditional
+blocks. Dynamic values are inserted as text or validated link destinations.
+Raw HTML and unsupported Markdown are rejected on the server. Essential
+operational mail remains part of S1, with S3 extending its templates and tooling.
 
 ### Message localization
 
